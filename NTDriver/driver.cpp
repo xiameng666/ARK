@@ -3,7 +3,7 @@
 
 // 全局变量定义
 extern "C" void _sgdt(void*);
-BOOLEAN g_LogOn = TRUE;
+BOOLEAN g_LogOn = FALSE;
 ULONG_PTR g_VA = 0;
 
 wchar_t g_PdbDownloadPath[512] = L"C:\\Symbols";
@@ -20,56 +20,6 @@ NTSTATUS SetPdbPath(PWCHAR InputPath)
     RtlZeroMemory(g_PdbDownloadPath, sizeof(g_PdbDownloadPath));
     RtlCopyMemory(g_PdbDownloadPath, InputPath, pathLength * sizeof(WCHAR));
 
-    return STATUS_SUCCESS;
-}
-
-ULONG_PTR SSDT_GetPfnAddr(ULONG dwIndex,PULONG lpBase)//https://bbs.kanxue.com/thread-248117.htm
-{
-    ULONG_PTR lpAddr = NULL;
-
-    ULONG dwOffset = lpBase[dwIndex];
-
-    // SAR这个指令, 以及右移4位, 决定了0xF0000000这个值。
-    if (dwOffset & 0x80000000)
-        dwOffset = (dwOffset >> 4) | 0xF0000000;
-    else
-        dwOffset >>= 4;
-
-    lpAddr = (ULONG_PTR)((PUCHAR)lpBase + (LONG)dwOffset);
-
-    return lpAddr;
-}
-
-NTSTATUS EnumSSDT(PSSDT_INFO SsdtBuffer,PULONG SsdtCount)//X64的SSDT是rva
-{
-    INIT_PDB;
-    PSYSTEM_SERVICE_DESCRIPTOR_TABLE KeServiceDescriptorTable = (PSYSTEM_SERVICE_DESCRIPTOR_TABLE)ntos.GetPointer("KeServiceDescriptorTable");
-    Log("[XM] KeServiceDescriptorTable:%p", KeServiceDescriptorTable);
-    if (!KeServiceDescriptorTable)
-        return STATUS_UNSUCCESSFUL;
-
-    ULONG nums = KeServiceDescriptorTable->NumberOfServices;
-    PULONG ssdt = KeServiceDescriptorTable->Base;
-    *SsdtCount = nums;
-
-    for (ULONG i = 0; i < nums; i++) {
-        SsdtBuffer[i].Index = i;
-
-        ULONG_PTR pfnAddr = SSDT_GetPfnAddr(i, ssdt);
-        SsdtBuffer[i].FunctionAddress = (PVOID)pfnAddr;
-       
-        // ? 正确：传入RVA偏移给GetName函数
-        const char* functionName = ntos.GetName(pfnAddr);
-        Log("[XM] GetName result: %s", functionName ? functionName : "(null)");
-        
-        if (functionName && strlen(functionName) > 0) {
-            strcpy_s(SsdtBuffer[i].FunctionName, sizeof(SsdtBuffer[i].FunctionName), functionName);
-        } else {
-            // 如果没找到，使用索引号
-            sprintf_s(SsdtBuffer[i].FunctionName, sizeof(SsdtBuffer[i].FunctionName), "Nt#%d", i);
-        }
-    }
-    
     return STATUS_SUCCESS;
 }
 
