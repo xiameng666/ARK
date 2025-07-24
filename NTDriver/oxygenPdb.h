@@ -16,7 +16,7 @@ namespace oxygenPdb {
 		size_t GetOffset(const char* structName, const char* propertyName);
 
 	private:
-		char padding[1000];//can not revise this!!! else it will ocurrs stack overflow!!
+		char padding[2000];//can not revise this!!! else it will ocurrs stack overflow!!
 	};
 
 }

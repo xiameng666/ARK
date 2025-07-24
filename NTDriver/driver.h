@@ -9,7 +9,7 @@
 #include "module.h"
 
 extern "C" {
-    NTSTATUS SetGlobalPdbDownloadPath(PWCHAR InputPath);
+    NTSTATUS SetPdbPath(PWCHAR InputPath);
 
     NTSTATUS CompleteRequest(struct _IRP* Irp, ULONG_PTR Information = 0, NTSTATUS Status = STATUS_SUCCESS);
 

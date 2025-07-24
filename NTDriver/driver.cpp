@@ -6,25 +6,19 @@ extern "C" void _sgdt(void*);
 BOOLEAN g_LogOn = TRUE;
 ULONG_PTR g_VA = 0;
 
-wchar_t g_PdbDownloadPath[256] = L"C:\\Symbols";
-BOOLEAN g_HasCustomPdbPath = TRUE;  // 标记已设置自定义路径
+wchar_t g_PdbDownloadPath[512] = L"C:\\Symbols";
 
-NTSTATUS SetGlobalPdbDownloadPath(PWCHAR InputPath)
+NTSTATUS SetPdbPath(PWCHAR InputPath)
 {
     if (!InputPath) {
         return STATUS_INVALID_PARAMETER;
     }
 
-    // 计算字符串长度
     SIZE_T pathLength = wcslen(InputPath);
-    if (pathLength == 0 || pathLength >= 256) {
-        return STATUS_INVALID_PARAMETER;
-    }
 
     // 复制到全局缓冲区
     RtlZeroMemory(g_PdbDownloadPath, sizeof(g_PdbDownloadPath));
     RtlCopyMemory(g_PdbDownloadPath, InputPath, pathLength * sizeof(WCHAR));
-    g_HasCustomPdbPath = TRUE;
 
     return STATUS_SUCCESS;
 }
@@ -99,15 +93,11 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
         {
             __try {
                 PPDB_PATH_REQUEST pdbPathReq = (PPDB_PATH_REQUEST)Irp->AssociatedIrp.SystemBuffer;
-                if (pdbPathReq) {
-                    SetGlobalPdbDownloadPath(pdbPathReq->DownloadPath);
-                    status = STATUS_SUCCESS;
-                    Log("[XM] CTL_SET_PDB_PATH: 成功设置PDB路径为 %ws", g_PdbDownloadPath);
-                    InitProcessPdb();
-                } else {
-                    status = STATUS_INVALID_PARAMETER;
-                    Log("[XM] CTL_SET_PDB_PATH: 无效参数");
-                }
+                SetPdbPath(pdbPathReq->DownloadPath);
+                status = STATUS_SUCCESS;
+                Log("[XM] CTL_SET_PDB_PATH: %ws", g_PdbDownloadPath);
+                //KdBreakPoint();
+                InitProcessPdb();
             }
             __except (EXCEPTION_EXECUTE_HANDLER) {
                 status = STATUS_UNSUCCESSFUL;
@@ -123,7 +113,6 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
                 ULONG cpuIndex = gdtReq->CpuIndex;
                 GDTR gdtr = { 0 };
                 
-                // 设置CPU亲和性
                 KAFFINITY oldAffinity = KeSetSystemAffinityThreadEx(1ULL << cpuIndex);
                 
                 _sgdt(&gdtr);
@@ -132,14 +121,9 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
                 Log("[XM] CpuIndex: %d GdtBase: %p GdtLimit: %08x, Size: %d",
                     cpuIndex, (PVOID)gdtr.Base, gdtr.Limit, gdtSize);
                 
-                if (MmIsAddressValid((PVOID)gdtr.Base)) {
-                    RtlCopyMemory(Irp->AssociatedIrp.SystemBuffer, (PVOID)gdtr.Base, gdtSize);
-                    information = gdtSize;
-                    status = STATUS_SUCCESS;
-                } else {
-                    Log("[XM] Invalid GDT Base address: %p", (PVOID)gdtr.Base);
-                    status = STATUS_INVALID_ADDRESS;
-                }
+                RtlCopyMemory(Irp->AssociatedIrp.SystemBuffer, (PVOID)gdtr.Base, gdtSize);
+                information = gdtSize;
+                status = STATUS_SUCCESS;
                 
                 KeRevertToUserAffinityThreadEx(oldAffinity);
             }
@@ -153,6 +137,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
         case CTL_ENUM_PROCESS_COUNT:
         {
             __try {
+                //KdBreakPoint();
                 ULONG processCount = 0;
                 status = EnumProcessEx(NULL, TRUE, &processCount);
                 if (NT_SUCCESS(status)) {

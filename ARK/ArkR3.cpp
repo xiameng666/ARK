@@ -34,7 +34,7 @@ bool ArkR3::SetPdbPathFromEzpdb() {
         return false;
     }
 
-    // 简单转换为Unicode（路径是全英文）
+    // 转换为Unicode（路径是全英文）
     wchar_t pdbPathW[MAX_PATH] = { 0 };
     size_t len = strlen(pdbPathA.c_str());
     for (size_t i = 0; i < len && i < MAX_PATH - 1; ++i) {
@@ -57,15 +57,14 @@ bool ArkR3::SetPdbPathFromEzpdb() {
     );
 
     if (result) {
-        Log("成功设置PDB路径到驱动: %s\n", pdbPathA.c_str());
+        Log("SetPdbPathFromEzpdb: %s\n", pdbPathA.c_str());
         return true;
     }
     else {
-        Log("设置PDB路径到驱动失败\n");
+        Log("SetPdbPathFromEzpdb err\n");
         return false;
     }
 }
-
 
 bool ArkR3::InitSymbolState()
 {

@@ -6,15 +6,17 @@ ENUM_PROCESS_META procMeta = { 0 };
 
 void InitProcessPdb() {
     INIT_PDB;
-    OFFSET(procMeta.EThreadToProcess,"_ETHREAD", "ThreadsProcess");
-    OFFSET(procMeta.ProcessId,"_EPROCESS", "UniqueProcessId");
-    OFFSET(procMeta.ActiveProcessLinks,"_EPROCESS", "ActiveProcessLinks");
-    OFFSET(procMeta.ParentProcessId,"_EPROCESS", "InheritedFromUniqueProcessId");
-    OFFSET(procMeta.ImageFileName,"_EPROCESS", "ImageFileName");
-    ULONG pcbOffset, dtbOffset;
+
+    OFFSET(procMeta.EThreadToProcess, "_ETHREAD", "ThreadsProcess");
+    OFFSET(procMeta.ProcessId, "_EPROCESS", "UniqueProcessId");
+    OFFSET(procMeta.ActiveProcessLinks, "_EPROCESS", "ActiveProcessLinks");
+    OFFSET(procMeta.ParentProcessId, "_EPROCESS", "InheritedFromUniqueProcessId");
+    OFFSET(procMeta.ImageFileName, "_EPROCESS", "ImageFileName");
+
+    // 初始化变量
+    ULONG pcbOffset = 0, dtbOffset = 0;
     OFFSET(pcbOffset, "_EPROCESS", "Pcb");
     OFFSET(dtbOffset, "_KPROCESS", "DirectoryTableBase");
-    procMeta.DirectoryTableBase = pcbOffset + dtbOffset;
     procMeta.DirectoryTableBase = pcbOffset + dtbOffset;
 
     Log("[XM] Offsets: ETHREAD->EPROCESS=%x, PID=%x, Links=%x, PPID=%x, Name=%x, DTB=%x",
