@@ -34,8 +34,6 @@ bool ArkR3::SetPdbPathFromEzpdb() {
         return false;
     }
 
-    Log("从ezpdb获取的PDB路径: %s\n", pdbPathA.c_str());
-
     // 简单转换为Unicode（路径是全英文）
     wchar_t pdbPathW[MAX_PATH] = { 0 };
     size_t len = strlen(pdbPathA.c_str());

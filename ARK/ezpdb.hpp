@@ -284,9 +284,6 @@ namespace ez
 			}
 			pdbDownloadPath = CurrentDir += "symbols\\";
 
-			// 调试输出：打印PDB下载路径
-			printf("ezpdb pdbDownloadPath: %s\n", pdbDownloadPath.c_str());
-
 			// make sure the directory exist
 			if (!CreateDirectoryA(pdbDownloadPath.c_str(), NULL))
 			{

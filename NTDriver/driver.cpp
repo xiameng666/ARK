@@ -99,10 +99,11 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
         {
             __try {
                 PPDB_PATH_REQUEST pdbPathReq = (PPDB_PATH_REQUEST)Irp->AssociatedIrp.SystemBuffer;
-                if (pdbPathReq && stack->Parameters.DeviceIoControl.InputBufferLength >= sizeof(PDB_PATH_REQUEST)) {
+                if (pdbPathReq) {
                     SetGlobalPdbDownloadPath(pdbPathReq->DownloadPath);
                     status = STATUS_SUCCESS;
-                    Log("[XM] CTL_SET_PDB_PATH: 成功设置PDB路径为 %ws", pdbPathReq->DownloadPath);
+                    Log("[XM] CTL_SET_PDB_PATH: 成功设置PDB路径为 %ws", g_PdbDownloadPath);
+                    InitProcessPdb();
                 } else {
                     status = STATUS_INVALID_PARAMETER;
                     Log("[XM] CTL_SET_PDB_PATH: 无效参数");
