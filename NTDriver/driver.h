@@ -8,16 +8,9 @@
 #include "process.h"
 #include "module.h"
 
-// 全局PDB下载路径管理
-extern wchar_t g_PdbDownloadPath[MAX_PATH];
-extern BOOLEAN g_HasCustomPdbPath;
-
-// PDB路径管理函数
-void SetGlobalPdbDownloadPath(const wchar_t* path);
-void SetGlobalPdbDownloadPath(const UNICODE_STRING* path);
-void InitializePdbPath();
-
 extern "C" {
+    NTSTATUS SetGlobalPdbDownloadPath(PWCHAR InputPath);
+
     NTSTATUS CompleteRequest(struct _IRP* Irp, ULONG_PTR Information = 0, NTSTATUS Status = STATUS_SUCCESS);
 
     NTSTATUS DispatchCreate(_In_ struct _DEVICE_OBJECT* DeviceObject,
@@ -39,6 +32,7 @@ extern "C" {
     NTSTATUS  DriverEntry(
         __in struct _DRIVER_OBJECT* DriverObject,
         __in PUNICODE_STRING  RegistryPath);
+
 
     void Log(const char* Format, ...);
 

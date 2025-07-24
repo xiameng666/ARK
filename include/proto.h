@@ -1,26 +1,14 @@
 ﻿#pragma once
-#define MAX_PATH 256
+
+#ifndef MAX_PATH
+#define MAX_PATH 260
+#endif // !1
+
+
 
 #define DEVICE_NAME L"\\Device\\ADriver1"
 #define SYMBOL_NAME L"\\DosDevices\\ADriver1"
 #define DOS_NAME     L"\\\\\\.\\ADriver1"
-
-typedef struct _KERNEL_SYMBOLS {
-    // 地址类（VA）
-    ULONG_PTR ProcessListHead;      // PsActiveProcessHead
-    ULONG_PTR SystemProcess;        // PsInitialSystemProcess 
-    ULONG_PTR SSDTBase;             // KeServiceDescriptorTable
-
-    // 偏移类（OFFSET）
-    ULONG ProcessLinks;            // ActiveProcessLinks偏移
-    ULONG ProcessId;               // UniqueProcessId偏移
-    ULONG ProcessName;             // ImageFileName偏移
-    ULONG ParentId;                // InheritedFromUniqueProcessId偏移
-} KERNEL_SYMBOLS;
-
-#define GET_PROCESS_LIST_HEAD()     ((PLIST_ENTRY)g_KernelSymbols.ProcessListHead)
-#define GET_PROCESS_LINKS_OFFSET()  (g_KernelSymbols.ProcessLinks)
-#define GET_PROCESS_ID_OFFSET()     (g_KernelSymbols.ProcessId)
 
 typedef enum : ULONG {
     HOOK_CREATE_PROCESS = 48,     // NtCreateProcessEx

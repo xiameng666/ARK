@@ -6,59 +6,27 @@ extern "C" void _sgdt(void*);
 BOOLEAN g_LogOn = TRUE;
 ULONG_PTR g_VA = 0;
 
-// 全局PDB下载路径变量
-wchar_t g_PdbDownloadPath[256] = { 0 };
-BOOLEAN g_HasCustomPdbPath = FALSE;
+wchar_t g_PdbDownloadPath[256] = L"C:\\Symbols";
+BOOLEAN g_HasCustomPdbPath = TRUE;  // 标记已设置自定义路径
 
-// PDB路径管理函数实现
-void InitializePdbPath() {
-    wcscpy_s(g_PdbDownloadPath, L"C:\\Windows\\Temp\\");
-    g_HasCustomPdbPath = FALSE;
-    Log("[XM] InitializePdbPath: 初始化默认PDB路径为 %ws", g_PdbDownloadPath);
-}
+NTSTATUS SetGlobalPdbDownloadPath(PWCHAR InputPath)
+{
+    if (!InputPath) {
+        return STATUS_INVALID_PARAMETER;
+    }
 
-void SetGlobalPdbDownloadPath(const wchar_t* path) {
-    if (!path) {
-        Log("[XM] SetGlobalPdbDownloadPath: 路径为空");
-        return;
+    // 计算字符串长度
+    SIZE_T pathLength = wcslen(InputPath);
+    if (pathLength == 0 || pathLength >= 256) {
+        return STATUS_INVALID_PARAMETER;
     }
-    
-    wcscpy_s(g_PdbDownloadPath, path);
-    
-    // 确保路径以反斜杠结尾
-    size_t len = wcslen(g_PdbDownloadPath);
-    if (len > 0 && g_PdbDownloadPath[len - 1] != L'\\') {
-        if (len < 255) {
-            g_PdbDownloadPath[len] = L'\\';
-            g_PdbDownloadPath[len + 1] = L'\0';
-        }
-    }
-    
+
+    // 复制到全局缓冲区
+    RtlZeroMemory(g_PdbDownloadPath, sizeof(g_PdbDownloadPath));
+    RtlCopyMemory(g_PdbDownloadPath, InputPath, pathLength * sizeof(WCHAR));
     g_HasCustomPdbPath = TRUE;
-    Log("[XM] SetGlobalPdbDownloadPath: 设置PDB路径为 %ws", g_PdbDownloadPath);
-}
 
-void SetGlobalPdbDownloadPath(const UNICODE_STRING* path) {
-    if (!path || !path->Buffer || path->Length == 0) {
-        Log("[XM] SetGlobalPdbDownloadPath: UNICODE_STRING路径无效");
-        return;
-    }
-    
-    // 复制路径（确保不超过缓冲区大小）
-    size_t copyLen = min(path->Length / sizeof(WCHAR), 255);
-    wcsncpy_s(g_PdbDownloadPath, path->Buffer, copyLen);
-    
-    // 确保路径以反斜杠结尾
-    size_t len = wcslen(g_PdbDownloadPath);
-    if (len > 0 && g_PdbDownloadPath[len - 1] != L'\\') {
-        if (len < 255) {
-            g_PdbDownloadPath[len] = L'\\';
-            g_PdbDownloadPath[len + 1] = L'\0';
-        }
-    }
-    
-    g_HasCustomPdbPath = TRUE;
-    Log("[XM] SetGlobalPdbDownloadPath: 从UNICODE_STRING设置PDB路径为 %ws", g_PdbDownloadPath);
+    return STATUS_SUCCESS;
 }
 
 void Log(const char* Format, ...) {
@@ -252,7 +220,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
         }
         
         default:
-            Log("[XM] DispatchDeviceControl: 未知控制码 0x%08X", controlCode);
+            Log("[XM] DispatchDeviceControl: 错误控制码 0x%08X", controlCode);
             status = STATUS_INVALID_DEVICE_REQUEST;
             break;
     }
@@ -260,68 +228,84 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
     return CompleteRequest(Irp, information, status);
 }
 
-VOID Unload(__in struct _DRIVER_OBJECT* DriverObject) {
-    Log("[XM] 驱动卸载");
-    
-    UNICODE_STRING symbolicLink = RTL_CONSTANT_STRING(L"\\??\\ArkDevice");
-    IoDeleteSymbolicLink(&symbolicLink);
-    
-    if (DriverObject->DeviceObject) {
+VOID Unload(__in struct _DRIVER_OBJECT* DriverObject)
+{
+    UNREFERENCED_PARAMETER(DriverObject);
+    UNICODE_STRING usSymbolicLinkName;
+
+    // 删除符号链接
+    RtlInitUnicodeString(&usSymbolicLinkName, SYMBOL_NAME);
+    IoDeleteSymbolicLink(&usSymbolicLinkName);
+
+    // 删除设备对象
+    if (DriverObject->DeviceObject != nullptr) {
         IoDeleteDevice(DriverObject->DeviceObject);
     }
+
+    Log("[XM] Unload 完成 ");
 }
 
-extern "C" NTSTATUS DriverEntry(
-    __in struct _DRIVER_OBJECT* DriverObject,
-    __in PUNICODE_STRING RegistryPath) {
-    
+NTSTATUS DriverEntry(
+    __in struct _DRIVER_OBJECT* DriverObject, __in PUNICODE_STRING RegistryPath)
+{
     UNREFERENCED_PARAMETER(RegistryPath);
-    
-    Log("[XM] DriverEntry: 驱动加载开始");
-    
-    // 初始化PDB路径
-    InitializePdbPath();
-    
-    // 创建设备对象
-    UNICODE_STRING deviceName = RTL_CONSTANT_STRING(L"\\Device\\ArkDevice");
-    UNICODE_STRING symbolicLink = RTL_CONSTANT_STRING(L"\\??\\ArkDevice");
-    
-    PDEVICE_OBJECT deviceObject = nullptr;
-    NTSTATUS status = IoCreateDevice(
-        DriverObject,
-        sizeof(MY_DEV_EXT),
-        &deviceName,
-        FILE_DEVICE_UNKNOWN,
-        FILE_DEVICE_SECURE_OPEN,
-        FALSE,
-        &deviceObject
-    );
-    
-    if (!NT_SUCCESS(status)) {
-        Log("[XM] DriverEntry: 创建设备对象失败 0x%08X", status);
-        return status;
-    }
-    
-    status = IoCreateSymbolicLink(&symbolicLink, &deviceName);
-    if (!NT_SUCCESS(status)) {
-        Log("[XM] DriverEntry: 创建符号链接失败 0x%08X", status);
-        IoDeleteDevice(deviceObject);
-        return status;
-    }
-    
-    // 设置派发函数
+
+    Log("[XM] DriverEntry DriverObject:%p RegistryPath:%wZ ",
+        DriverObject, RegistryPath);
+
+    //设置unload
+    DriverObject->DriverUnload = Unload;
+
+    //设置分发例程 回调函数跟硬件设备通讯 
     DriverObject->MajorFunction[IRP_MJ_CREATE] = DispatchCreate;
     DriverObject->MajorFunction[IRP_MJ_CLOSE] = DispatchClose;
     DriverObject->MajorFunction[IRP_MJ_READ] = DispatchRead;
     DriverObject->MajorFunction[IRP_MJ_WRITE] = DispatchWrite;
     DriverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL] = DispatchDeviceControl;
-    DriverObject->DriverUnload = Unload;
-    
-    // 设置设备标志
-    deviceObject->Flags |= DO_BUFFERED_IO;
-    deviceObject->Flags &= ~DO_DEVICE_INITIALIZING;
-    
-    Log("[XM] DriverEntry: 驱动加载成功");
-    return STATUS_SUCCESS;
+
+    // 创建设备对象
+    PDEVICE_OBJECT pDevObj = NULL;
+    UNICODE_STRING usDeviceName;
+    RtlInitUnicodeString(&usDeviceName, DEVICE_NAME);
+    NTSTATUS status = STATUS_UNSUCCESSFUL;
+
+    do {
+        status = IoCreateDevice(
+            DriverObject,           // 驱动对象
+            0,                      // 设备扩展大小
+            &usDeviceName,          // 设备名称
+            FILE_DEVICE_UNKNOWN,    // 设备类型
+            FILE_DEVICE_SECURE_OPEN,// 设备特性  权限
+            FALSE,                  // 独占访问 
+            &pDevObj               // 返回的设备对象 
+        );
+
+        if (!NT_SUCCESS(status))
+        {
+            Log("[XM] Driver Entry IoCreateDevice ErrCode:%08x ", status);
+            break;
+        }
+        Log("[XM] Driver Entry IoCreateDevice Ok pDevObj:%p ", pDevObj);
+
+        // 设置设备标志
+        pDevObj->Flags |= DO_BUFFERED_IO;          // 使用缓冲IO
+        pDevObj->Flags &= ~DO_DEVICE_INITIALIZING; // 清除初始化标志
+
+        //创建符号链接  通讯
+        UNICODE_STRING usSymbolicLinkName;
+        RtlInitUnicodeString(&usSymbolicLinkName, SYMBOL_NAME);
+
+        status = IoCreateSymbolicLink(&usSymbolicLinkName, &usDeviceName);
+        if (!NT_SUCCESS(status))
+        {
+            Log("[XM] IoCreateSymbolicLink ErrCode:%08x ", status);
+            IoDeleteDevice(pDevObj);
+            break;
+        }
+        Log("[XM] IoCreateSymbolicLink Ok ");
+
+    } while (false);
+
+    return status;
 }
 
