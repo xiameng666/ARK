@@ -40,7 +40,7 @@ void KernelWnd::RenderSSDTTable()
 {
     // 刷新按钮
     if (ImGui::Button(u8"刷新")) {
-        //ctx_->ssdtUiVec_ = ctx_->arkR3.SSDTGetVec();
+        ctx_->ssdtUiVec_ = ctx_->arkR3.SSDTGetVec();
     }
 
     if (ImGui::BeginTable("SSDT", 3, 
@@ -136,7 +136,7 @@ void KernelWnd::RenderGDTTable()
             ImGui::TableNextColumn();
             ImGui::Text("0x%04X", gdt.selector);
     
-            // 基址 - 使用64位格式
+            // 基址
             ImGui::TableNextColumn();
             if (gdt.is_system_64 || gdt.base > 0xFFFFFFFF) {
                 ImGui::Text("0x%016llX", gdt.base); 
@@ -214,7 +214,7 @@ void KernelWnd::RenderLeftBar()
     NAV_SECTION(u8"内存管理",
         VIEW_ITEM(u8"GDT", GDT);
         //VIEW_ITEM(u8"IDT", IDT);
-        //VIEW_ITEM(u8"SSDT", SSDT);
+        VIEW_ITEM(u8"SSDT", SSDT);
     );
 }
 

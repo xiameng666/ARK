@@ -2,5 +2,6 @@
 #include"mydef.h"
 
 
-
-NTSTATUS EnumModuleEx(PMODULE_INFO ModuleBuffer, bool CountOnly, PULONG ModuleCount);
+extern "C" {
+    NTSTATUS EnumModuleEx(PMODULE_INFO ModuleBuffer, bool CountOnly, PULONG ModuleCount);
+}

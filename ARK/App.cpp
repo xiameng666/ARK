@@ -3,8 +3,6 @@
 // 定义全局变量
 std::vector<PROCESS_EVENT> g_ProcessEvents;
 
-
-
 //App::App() :
 //    processWnd_(&ctx_)
 //, moduleWnd_(&ctx_)

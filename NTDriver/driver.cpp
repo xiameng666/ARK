@@ -16,10 +16,60 @@ NTSTATUS SetPdbPath(PWCHAR InputPath)
 
     SIZE_T pathLength = wcslen(InputPath);
 
-    // 复制到全局缓冲区
+    // 复制到全局Pdb地址
     RtlZeroMemory(g_PdbDownloadPath, sizeof(g_PdbDownloadPath));
     RtlCopyMemory(g_PdbDownloadPath, InputPath, pathLength * sizeof(WCHAR));
 
+    return STATUS_SUCCESS;
+}
+
+ULONG_PTR SSDT_GetPfnAddr(ULONG dwIndex,PULONG lpBase)//https://bbs.kanxue.com/thread-248117.htm
+{
+    ULONG_PTR lpAddr = NULL;
+
+    ULONG dwOffset = lpBase[dwIndex];
+
+    // SAR这个指令, 以及右移4位, 决定了0xF0000000这个值。
+    if (dwOffset & 0x80000000)
+        dwOffset = (dwOffset >> 4) | 0xF0000000;
+    else
+        dwOffset >>= 4;
+
+    lpAddr = (ULONG_PTR)((PUCHAR)lpBase + (LONG)dwOffset);
+
+    return lpAddr;
+}
+
+NTSTATUS EnumSSDT(PSSDT_INFO SsdtBuffer,PULONG SsdtCount)//X64的SSDT是rva
+{
+    INIT_PDB;
+    PSYSTEM_SERVICE_DESCRIPTOR_TABLE KeServiceDescriptorTable = (PSYSTEM_SERVICE_DESCRIPTOR_TABLE)ntos.GetPointer("KeServiceDescriptorTable");
+    Log("[XM] KeServiceDescriptorTable:%p", KeServiceDescriptorTable);
+    if (!KeServiceDescriptorTable)
+        return STATUS_UNSUCCESSFUL;
+
+    ULONG nums = KeServiceDescriptorTable->NumberOfServices;
+    PULONG ssdt = KeServiceDescriptorTable->Base;
+    *SsdtCount = nums;
+
+    for (ULONG i = 0; i < nums; i++) {
+        SsdtBuffer[i].Index = i;
+
+        ULONG_PTR pfnAddr = SSDT_GetPfnAddr(i, ssdt);
+        SsdtBuffer[i].FunctionAddress = (PVOID)pfnAddr;
+       
+        // ? 正确：传入RVA偏移给GetName函数
+        const char* functionName = ntos.GetName(pfnAddr);
+        Log("[XM] GetName result: %s", functionName ? functionName : "(null)");
+        
+        if (functionName && strlen(functionName) > 0) {
+            strcpy_s(SsdtBuffer[i].FunctionName, sizeof(SsdtBuffer[i].FunctionName), functionName);
+        } else {
+            // 如果没找到，使用索引号
+            sprintf_s(SsdtBuffer[i].FunctionName, sizeof(SsdtBuffer[i].FunctionName), "Nt#%d", i);
+        }
+    }
+    
     return STATUS_SUCCESS;
 }
 
@@ -89,7 +139,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
     ULONG_PTR information = 0;
 
     switch (controlCode) {
-        case CTL_SET_PDB_PATH:
+        case CTL_SET_PDB_PATH:  //R3下载PDB->发路径给R0->R0解析PDB初始化偏移
         {
             __try {
                 PPDB_PATH_REQUEST pdbPathReq = (PPDB_PATH_REQUEST)Irp->AssociatedIrp.SystemBuffer;
@@ -204,7 +254,24 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
             }
             break;
         }
-        
+
+        case CTL_ENUM_SSDT:
+        {
+            __try {
+                ULONG ssdtCount = 0;
+                status = EnumSSDT((PSSDT_INFO)Irp->AssociatedIrp.SystemBuffer,&ssdtCount);
+                if (NT_SUCCESS(status)) {
+                    information = ssdtCount * sizeof(SSDT_INFO);
+                    Log("[XM] CTL_ENUM_MODULE: 返回 %d 个SSDT函数", ssdtCount);
+                }
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER) {
+                status = STATUS_UNSUCCESSFUL;
+                Log("[XM] CTL_ENUM_SSDT exception");
+            }
+            break;
+        }
+
         default:
             Log("[XM] DispatchDeviceControl: 错误控制码 0x%08X", controlCode);
             status = STATUS_INVALID_DEVICE_REQUEST;

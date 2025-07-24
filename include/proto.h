@@ -142,7 +142,7 @@ typedef struct MODULE_INFO {
     USHORT LoadOrderIndex;              // 加载顺序索引
     USHORT LoadCount;                   // 加载计数
 
-    //CHAR Company[128];                // 厂商信息（暂时为空，需要解析PE）
+    //CHAR Company[128];                // 厂商信息（暂时为空，需要解析PE???）
 }*PMODULE_INFO;
 
 typedef struct PROCESS_MODULE_REQ {

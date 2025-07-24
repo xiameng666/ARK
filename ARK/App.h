@@ -17,8 +17,6 @@
 // 全局进程事件数据
 extern std::vector<PROCESS_EVENT> g_ProcessEvents;
 
-// PDB路径设置函数声明
-bool SetPdbDownloadPathToDesktop();
 
 class App {
 public:

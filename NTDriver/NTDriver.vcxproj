@@ -167,6 +167,7 @@
     <ClCompile Include="driver.cpp" />
     <ClCompile Include="module.cpp" />
     <ClCompile Include="process.cpp" />
+    <ClCompile Include="ssdt.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="driver.h" />
@@ -174,6 +175,7 @@
     <ClInclude Include="mydef.h" />
     <ClInclude Include="oxygenPdb.h" />
     <ClInclude Include="process.h" />
+    <ClInclude Include="ssdt.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

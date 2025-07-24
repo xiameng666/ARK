@@ -608,53 +608,52 @@ std::vector<MODULE_INFO> ArkR3::ModuleGetVec(DWORD moduleCount)
 //}
 
 // 获取SSDT信息
-//std::vector<SSDT_INFO> ArkR3::SSDTGetVec()
-//{
-//    // 分配缓冲区，假设最大500个SSDT项
-//    int  nMaxCount = 500;
-//    DWORD bufferSize = sizeof(SSDT_INFO) * nMaxCount;
-//    PSSDT_INFO pSsdtInfo = (PSSDT_INFO)malloc(bufferSize);
-//
-//    if (!pSsdtInfo) {
-//        Log("SSDTGetVec: malloc err\n");
-//        return SSDTVec_;
-//    }
-//
-//    DWORD dwRetBytes = 0;
-//    BOOL bResult = DeviceIoControl(
-//        m_hDriver,
-//        CTL_ENUM_SSDT,
-//        NULL, 0,
-//        pSsdtInfo, bufferSize,
-//        &dwRetBytes,
-//        NULL
-//    );
-//
-//    if (bResult && dwRetBytes > 0) {
-//        DWORD count = dwRetBytes / sizeof(SSDT_INFO);
-//        Log("SSDTGetVec: 成功获取%d个SSDT项\n", count);
-//
-//        for (DWORD i = 0; i < count; i++) {
-//            if (pSsdtInfo[i].FunctionAddress == g_SSDT_XP_SP3_Table[i].FunctionAddress) {
-//                strcpy_s(pSsdtInfo[i].FunctionName, sizeof(pSsdtInfo[i].FunctionName),
-//                    g_SSDT_XP_SP3_Table[i].FunctionName);
-//            }
-//
-//            SSDTVec_.emplace_back(pSsdtInfo[i]);
-//
-//            Log("SSDT[%03d]: %s -> 0x%p\n",
-//                pSsdtInfo[i].Index,
-//                pSsdtInfo[i].FunctionName,
-//                pSsdtInfo[i].FunctionAddress);
-//        }
-//    }
-//    else {
-//        LogErr("SSDTGetVec: DeviceIoControl err\n");
-//    }
-//
-//    free(pSsdtInfo);
-//    return SSDTVec_;
-//}
+std::vector<SSDT_INFO> ArkR3::SSDTGetVec()
+{
+    SSDTVec_.clear();
+
+    // 假设最大700个SSDT项
+    int  nMaxCount = 700;
+    DWORD bufferSize = sizeof(SSDT_INFO) * nMaxCount;
+    PSSDT_INFO pSsdtInfo = (PSSDT_INFO)malloc(bufferSize);
+
+    if (!pSsdtInfo) {
+        Log("SSDTGetVec: malloc err\n");
+        return SSDTVec_;
+    }
+
+    DWORD dwRetBytes = 0;
+    BOOL bResult = DeviceIoControl(
+        m_hDriver,
+        CTL_ENUM_SSDT,
+        NULL, 0,
+        pSsdtInfo, bufferSize,
+        &dwRetBytes,
+        NULL
+    );
+
+    if (bResult && dwRetBytes > 0) {
+        DWORD count = dwRetBytes / sizeof(SSDT_INFO);
+        Log("SSDTGetVec: 成功获取%d个SSDT项\n", count);
+
+
+        for (DWORD i = 0; i < count; i++) {
+            
+            SSDTVec_.emplace_back(pSsdtInfo[i]);
+
+            Log("SSDT[%03d]: %s -> 0x%p\n",
+                pSsdtInfo[i].Index,
+                pSsdtInfo[i].FunctionName,
+                pSsdtInfo[i].FunctionAddress);
+        }
+    }
+    else {
+        LogErr("SSDTGetVec: DeviceIoControl err\n");
+    }
+
+    free(pSsdtInfo);
+    return SSDTVec_;
+}
 
 //BOOL ArkR3::StartSSDTHook(HOOK_SSDT_Index flag)
 //{

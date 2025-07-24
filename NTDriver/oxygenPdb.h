@@ -11,7 +11,10 @@ namespace oxygenPdb {
 		bool init();
         void setPdbDownloadPath(const UNICODE_STRING& downloadPath);
         void setPdbDownloadPath(const wchar_t* downloadPath);
-
+   
+        const char* GetNameByVA(ULONG_PTR virtualAddress);    
+        const char* GetNameByRVA(ULONG_PTR relativeOffset);   
+       
 		ULONG_PTR GetPointer(const char* name);
 		size_t GetOffset(const char* structName, const char* propertyName);
 

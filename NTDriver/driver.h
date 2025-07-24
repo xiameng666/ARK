@@ -7,9 +7,28 @@
 #include "oxygenPdb.h"
 #include "process.h"
 #include "module.h"
+#include "ssdt.h"
 
 extern "C" {
     NTSTATUS SetPdbPath(PWCHAR InputPath);
+
+    //const char* GetHookNameByIndex(HOOK_SSDT_Index index);
+
+    //void AddProcessEvent(ULONG Action, HANDLE TargetHandle, NTSTATUS Result);
+
+    //NTSTATUS SetHookByFlag(HOOK_SSDT_Index flag);
+    //NTSTATUS UnsetHookByFlag(HOOK_SSDT_Index flag);
+
+    //NTSTATUS InitSharedMemory();
+
+    //void CleanupSharedMemory();
+
+    //NTSTATUS AttachReadVirtualMem(HANDLE ProcessId, PVOID BaseAddress, PVOID Buffer, unsigned ReadBytes);
+
+    //NTSTATUS AttachWriteVirtualMem(HANDLE ProcessId, PVOID BaseAddress, PVOID Buffer, unsigned WriteBytes);
+
+    // 进程模块遍历
+    //NTSTATUS EnumProcessModuleEx(HANDLE ProcessId, PMODULE_INFO ModuleBuffer, bool CountOnly, PULONG ModuleCount);
 
     NTSTATUS CompleteRequest(struct _IRP* Irp, ULONG_PTR Information = 0, NTSTATUS Status = STATUS_SUCCESS);
 
@@ -35,39 +54,6 @@ extern "C" {
 
 
     void Log(const char* Format, ...);
-
-    NTSTATUS GetSSDT(PSSDT_INFO SsdtBuffer, PULONG SsdtCount);
-
-    //UCHAR* PsGetProcessImageFileName(
-    //    __in PEPROCESS Process
-    //);
-
-    //const char* GetHookNameByIndex(HOOK_SSDT_Index index);
-
-    //void AddProcessEvent(ULONG Action, HANDLE TargetHandle, NTSTATUS Result);
-
-    //NTSTATUS SetHookByFlag(HOOK_SSDT_Index flag);
-    //NTSTATUS UnsetHookByFlag(HOOK_SSDT_Index flag);
-
-
-
-    //NTSTATUS InitSharedMemory();
-
-    //void CleanupSharedMemory();
-
-    //NTSTATUS DetectWindowsVersion();
-
-    //NTSTATUS AttachReadVirtualMem(HANDLE ProcessId, PVOID BaseAddress, PVOID Buffer, unsigned ReadBytes);
-
-    //NTSTATUS AttachWriteVirtualMem(HANDLE ProcessId, PVOID BaseAddress, PVOID Buffer, unsigned WriteBytes);
-
-    //// 模块遍历
-    //NTSTATUS EnumModuleEx(PMODULE_INFO ModuleBuffer, bool CountOnly, PULONG ModuleCount);
-    
-    // 进程模块遍历
-    //NTSTATUS EnumProcessModuleEx(HANDLE ProcessId, PMODULE_INFO ModuleBuffer, bool CountOnly, PULONG ModuleCount);
-
-
 }
 
 struct CMutex {

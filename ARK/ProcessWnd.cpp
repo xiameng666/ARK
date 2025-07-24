@@ -1,5 +1,6 @@
 #include "ProcessWnd.h"
 #include  "ModuleWnd.h"
+#include <algorithm>
 ProcessWnd::ProcessWnd(Context* ctx) 
     :ImguiWnd(ctx)
 {
@@ -32,13 +33,50 @@ void ProcessWnd::RenderProcessWnd() {
     }
     ImGui::Separator();
 
-    if (ImGui::BeginTable("proc_table", 5, ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_SizingStretchProp)) {
-        ImGui::TableSetupColumn(u8"进程名");           
-        ImGui::TableSetupColumn(u8"进程ID");           
-        ImGui::TableSetupColumn(u8"父PID");            
-        ImGui::TableSetupColumn(u8"页目录地址");       
-        ImGui::TableSetupColumn(u8"EPROCESS地址");     
+    if (ImGui::BeginTable("proc_table", 5, ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_Sortable)) {
+        ImGui::TableSetupColumn(u8"进程名", ImGuiTableColumnFlags_DefaultSort);           
+        ImGui::TableSetupColumn(u8"进程ID", ImGuiTableColumnFlags_DefaultSort);           
+        ImGui::TableSetupColumn(u8"父PID", ImGuiTableColumnFlags_DefaultSort);            
+        ImGui::TableSetupColumn(u8"页目录地址", ImGuiTableColumnFlags_DefaultSort);       
+        ImGui::TableSetupColumn(u8"EPROCESS地址", ImGuiTableColumnFlags_DefaultSort);     
         ImGui::TableHeadersRow();
+
+        // 处理排序
+        if (ImGuiTableSortSpecs* sorts_specs = ImGui::TableGetSortSpecs()) {
+            if (sorts_specs->SpecsDirty) {
+                // 对进程向量进行排序
+                std::sort(ctx_->processUiVec.begin(), ctx_->processUiVec.end(), 
+                    [sorts_specs](const PROCESS_INFO& a, const PROCESS_INFO& b) {
+                        for (int n = 0; n < sorts_specs->SpecsCount; n++) {
+                            const ImGuiTableColumnSortSpecs* sort_spec = &sorts_specs->Specs[n];
+                            int delta = 0;
+                            
+                            switch (sort_spec->ColumnIndex) {
+                                case 0: // 进程名
+                                    delta = strcmp(a.ImageFileName, b.ImageFileName);
+                                    break;
+                                case 1: // 进程ID
+                                    delta = (a.ProcessId < b.ProcessId) ? -1 : (a.ProcessId > b.ProcessId) ? 1 : 0;
+                                    break;
+                                case 2: // 父PID
+                                    delta = (a.ParentProcessId < b.ParentProcessId) ? -1 : (a.ParentProcessId > b.ParentProcessId) ? 1 : 0;
+                                    break;
+                                case 3: // 页目录地址
+                                    delta = (a.DirectoryTableBase < b.DirectoryTableBase) ? -1 : (a.DirectoryTableBase > b.DirectoryTableBase) ? 1 : 0;
+                                    break;
+                                case 4: // EPROCESS地址
+                                    delta = (a.EprocessAddr < b.EprocessAddr) ? -1 : (a.EprocessAddr > b.EprocessAddr) ? 1 : 0;
+                                    break;
+                            }
+                            
+                            if (delta != 0)
+                                return (sort_spec->SortDirection == ImGuiSortDirection_Ascending) ? (delta < 0) : (delta > 0);
+                        }
+                        return false;
+                    });
+                sorts_specs->SpecsDirty = false;
+            }
+        }
 
         static int selected_index = -1;
         int row = 0;
@@ -59,12 +97,12 @@ void ProcessWnd::RenderProcessWnd() {
             char popupId[64];
             sprintf_s(popupId, "ProcessMenu##%d", row);
             if (ImGui::BeginPopupContextItem(popupId)) {
-                if (ImGui::MenuItem(u8"读写内存")) {
+                if (ImGui::MenuItem(u8"TODO1")) {
                     ctx_->targetPid_ = process.ProcessId;
                     sprintf_s(ctx_->processIdText_, "%u", process.ProcessId);
                     ctx_->showMemoryWindow_ = true;
                 }
-                if (ImGui::MenuItem(u8"查看模块")) {
+                if (ImGui::MenuItem(u8"TODO2")) {
                     ctx_->moduleTargetPid = process.ProcessId;
                     sprintf_s(ctx_->moduleTargetProcessName, "%s", process.ImageFileName);
                     ctx_->showProcessModuleWnd = true;
