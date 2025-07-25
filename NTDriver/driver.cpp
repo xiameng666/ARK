@@ -3,7 +3,7 @@
 
 // 全局变量定义
 extern "C" void _sgdt(void*);
-BOOLEAN g_LogOn = FALSE;
+BOOLEAN g_LogOn = TRUE;
 ULONG_PTR g_VA = 0;
 
 wchar_t g_PdbDownloadPath[512] = L"C:\\Symbols";
@@ -98,6 +98,8 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
                 Log("[XM] CTL_SET_PDB_PATH: %ws", g_PdbDownloadPath);
                 //KdBreakPoint();
                 InitProcessPdb();
+
+                //ForTest();
             }
             __except (EXCEPTION_EXECUTE_HANDLER) {
                 status = STATUS_UNSUCCESSFUL;
@@ -221,6 +223,54 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
             }
             break;
         }
+
+        //case CTL_ENUM_CALLBACK_COUNT: 不需要了 我们在R3申请巨大缓冲区即可。
+       
+        case CTL_ENUM_CALLBACK:
+        {
+            __try {
+                // R3发送回调类型，R0返回该类型的所有回调信息
+                PULONG callbackType = (PULONG)Irp->AssociatedIrp.SystemBuffer;
+                ULONG callbackCount = 0;
+                
+                status = EnumCallbacks((PCALLBACK_INFO)Irp->AssociatedIrp.SystemBuffer, 
+                                     (CALLBACK_TYPE)*callbackType, 
+                                     &callbackCount);
+                                     
+                if (NT_SUCCESS(status)) {
+                    information = callbackCount * sizeof(CALLBACK_INFO);
+                    Log("[XM] CTL_ENUM_CALLBACK: 类型 %d 返回 %d 个回调信息", *callbackType, callbackCount);
+                }
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER) {
+                status = STATUS_UNSUCCESSFUL;
+                Log("[XM] CTL_ENUM_CALLBACK exception");
+            }
+            break;
+        }
+        /*
+        case CTL_DELETE_CALLBACK:
+        {
+            __try {
+                PRESTORE_CALLBACK_REQUEST restoreReq = (PRESTORE_CALLBACK_REQUEST)Irp->AssociatedIrp.SystemBuffer;
+                
+                status = DeleteCallback(restoreReq->Type, restoreReq->Index);
+                
+                if (NT_SUCCESS(status)) {
+                    Log("[XM] CTL_RESTORE_CALLBACK: 成功删除回调，类型=%d，索引=%d", 
+                        restoreReq->Type, restoreReq->Index);
+                } else {
+                    Log("[XM] CTL_RESTORE_CALLBACK: 删除回调失败，类型=%d，索引=%d", 
+                        restoreReq->Type, restoreReq->Index);
+                }
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER) {
+                status = STATUS_UNSUCCESSFUL;
+                Log("[XM] CTL_RESTORE_CALLBACK exception");
+            }
+            break;
+        }
+        */
 
         default:
             Log("[XM] DispatchDeviceControl: 错误控制码 0x%08X", controlCode);

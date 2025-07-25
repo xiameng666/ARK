@@ -6,7 +6,7 @@ ULONG_PTR SSDT_GetPfnAddr(ULONG dwIndex, PULONG lpBase)//https://bbs.kanxue.com/
 
     ULONG dwOffset = lpBase[dwIndex];
 
-    // SAR这个指令, 以及右移4位, 决定了0xF0000000这个值。
+    //按16位对齐省空间，所以>>4;负偏移有+-问题，所以|0xF00..
     if (dwOffset & 0x80000000)
         dwOffset = (dwOffset >> 4) | 0xF0000000;
     else
@@ -21,9 +21,11 @@ NTSTATUS EnumSSDT(PSSDT_INFO SsdtBuffer, PULONG SsdtCount)//X64的SSDT是rva
 {
     INIT_PDB;
     PSYSTEM_SERVICE_DESCRIPTOR_TABLE KeServiceDescriptorTable = (PSYSTEM_SERVICE_DESCRIPTOR_TABLE)ntos.GetPointer("KeServiceDescriptorTable");
-    Log("[XM] KeServiceDescriptorTable:%p", KeServiceDescriptorTable);
-    if (!KeServiceDescriptorTable)
+    
+    if (!KeServiceDescriptorTable) {
+        Log("[XM] KeServiceDescriptorTable == null");
         return STATUS_UNSUCCESSFUL;
+    }
 
     ULONG nums = KeServiceDescriptorTable->NumberOfServices;
     PULONG ssdt = KeServiceDescriptorTable->Base;
