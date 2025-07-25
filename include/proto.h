@@ -215,7 +215,8 @@ typedef struct CALLBACK_INFO {
     //CHAR Company[64];                   // 文件厂商信息(需要解析PE? 暂时不考虑)
     BOOLEAN IsValid;                      // 回调是否有效(暂时不用 后续可能要添加禁用/恢复)
 
-    union {     
+    union {
+        PVOID CallbackExtra;              // 这个字段是什么意思？每个回调都有吗 有什么区别
         UCHAR Reserved[32];               // 扩展信息 
     } Extra;
 

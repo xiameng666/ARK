@@ -866,7 +866,7 @@ BOOL ArkR3::CallbackDelete(CALLBACK_TYPE type, ULONG index) {
     DWORD bytesReturned = 0;
     BOOL result = DeviceIoControl(
         m_hDriver,
-        CTL_RESTORE_CALLBACK,
+        CTL_DELETE_CALLBACK,
         &request,
         sizeof(request),
         NULL,
