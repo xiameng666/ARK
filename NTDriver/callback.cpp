@@ -8,6 +8,37 @@
 
 // 好像内联了？ PVOID ExFastRefGetObject(  IN PEX_FAST_REF FastRef);
 
+#define GET_CALLBACK_FUNCTION_INFO(symbolName, WhatType)\
+    INIT_PDB;\
+    ULONG_PTR processRoutineEntry = ntos.GetPointer(symbolName);\
+    Log("[XM] %s地址: %p", symbolName, processRoutineEntry);\
+    PEX_CALLBACK callbackArray = (PEX_CALLBACK)processRoutineEntry;\
+    for (ULONG i = 0; i < 64; i++)\
+    {\
+        EX_FAST_REF* fastRef = &callbackArray[i].RoutineBlock;\
+        PVOID objectPtr = (PVOID)(fastRef->Value & ~0xF);\
+        PEX_CALLBACK_ROUTINE_BLOCK pObj = (PEX_CALLBACK_ROUTINE_BLOCK)objectPtr;\
+        if (pObj) {\
+            PCALLBACK_INFO info = &callbackBuffer[count];\
+            RtlZeroMemory(info, sizeof(CALLBACK_INFO));\
+            info->Type = WhatType;\
+            info->Index = i;\
+            info->CallbackEntry = pObj->Function;\
+            info->IsValid = TRUE;\
+            info->Extra.CallbackExtra = NULL;\
+            count++;\
+        }\
+    }
+
+#define DELETE_CALLBACK_PFN(symbolName)\
+    INIT_PDB;\
+    ULONG_PTR arrayBase = ntos.GetPointer(symbolName);\
+    PEX_CALLBACK callbackArray = (PEX_CALLBACK)arrayBase;\
+    EX_FAST_REF* fastRef = &callbackArray[index].RoutineBlock;\
+    PVOID objectPtr = (PVOID)(fastRef->Value & ~0xF);\
+    PEX_CALLBACK_ROUTINE_BLOCK block = (PEX_CALLBACK_ROUTINE_BLOCK)objectPtr;\
+    PVOID originalFunction = block->Function;
+
 NTSTATUS EnumCallbacks(PCALLBACK_INFO callbackBuffer, CALLBACK_TYPE type, PULONG callbackCount) {
     if (!callbackBuffer || !callbackCount) {
         return STATUS_INVALID_PARAMETER;
@@ -17,60 +48,33 @@ NTSTATUS EnumCallbacks(PCALLBACK_INFO callbackBuffer, CALLBACK_TYPE type, PULONG
     ULONG count = 0;
 
     switch (type) {
-        case TypeCreateProcess:
-        case TypeCreateProcessEx:
+        case TypeProcess:  // 合并了TypeCreateProcess和TypeCreateProcessEx
         {
-            INIT_PDB;
-            ULONG_PTR processRoutineEntry = ntos.GetPointer("PspCreateProcessNotifyRoutine");
-            Log("[XM] PspCreateProcessNotifyRoutine地址: %p", processRoutineEntry);
-
-            PEX_CALLBACK callbackArray = (PEX_CALLBACK)processRoutineEntry;
-            for (ULONG i = 0; i < 64; i++)
-            {
-                EX_FAST_REF* fastRef = &callbackArray[i].RoutineBlock;
-                PVOID objectPtr = (PVOID)(fastRef->Value & ~0xF);  // 清除低4位
-                PEX_CALLBACK_ROUTINE_BLOCK pObj = (PEX_CALLBACK_ROUTINE_BLOCK)objectPtr;
-                if (pObj) {
-                    //PVOID ctx = pObj->Context;
-                    //PVOID funcAddr = pObj->Function;
-                    //Log("[XM] 回调[%d]: 函数=%p, 上下文=%p", i, funcAddr, ctx);
-
-                    PCALLBACK_INFO info = &callbackBuffer[count];
-                    RtlZeroMemory(info, sizeof(CALLBACK_INFO));
-                    info->Type = TypeCreateProcess;
-                    info->Index = i;
-                    info->CallbackEntry = pObj->Function;
-                    info->IsValid = TRUE;
-
-                    //CHAR ModulePath[256];
-                    //PVOID CallbackExtra
-                    count++;
-                }
-            }
+            GET_CALLBACK_FUNCTION_INFO("PspCreateProcessNotifyRoutine", TypeProcess)
         }
         break;
 
-        case TypeCreateThread:
-        
-            break;
+        case TypeThread: 
+        {
+            GET_CALLBACK_FUNCTION_INFO("PspCreateThreadNotifyRoutine", TypeThread)
+        }
+        break;
 
-        case TypeLoadImage:
-        
-            break;
+        case TypeImage: 
+        {
+            GET_CALLBACK_FUNCTION_INFO("PspLoadImageNotifyRoutine", TypeImage)
+        }
+        break;
 
         case TypeRegistry:
-        
-            break;
-
         case TypeObject:
-       
+        case TypeBugCheck:
+        case TypeShutdown:
             break;
 
         default:
             return STATUS_NOT_SUPPORTED;
     }
-
-   
         
     *callbackCount = count;
     Log("[XM] EnumCallbacks: 类型 %d, 返回 %d 个回调", type, count);
@@ -83,50 +87,49 @@ void ForTest() {
     ULONG_PTR processRoutineEntry = ntos.GetPointer("PspCreateProcessNotifyRoutine");
     Log("[XM] PspCreateProcessNotifyRoutine地址: %p", processRoutineEntry);
 
-    PEX_CALLBACK callbackArray = (PEX_CALLBACK)processRoutineEntry;
-    for (ULONG i = 0; i < 64; i++)
-    {
-        //ULONG_PTR refGetObjAddr = ntos.GetPointer("ExFastRefGetObject");
-        //Log("[XM] ExFastRefGetObject地址: %p", refGetObjAddr);
-        //PFNExFastRefGetObject pfnGetObj = (PFNExFastRefGetObject)refGetObjAddr;
-        //PVOID objectPtr = pfnGetObj(&callbackArray[i].RoutineBlock);
-        //Log("[XM] objectPtr:  %p", objectPtr);
-
-        EX_FAST_REF* fastRef = &callbackArray[i].RoutineBlock;
-        PVOID objectPtr = (PVOID)(fastRef->Value & ~0xF);  // 清除低4位
-        PEX_CALLBACK_ROUTINE_BLOCK pObj = (PEX_CALLBACK_ROUTINE_BLOCK)objectPtr;
-        if (pObj) {
-            PVOID ctx = pObj->Context;
-            PVOID funcAddr = pObj->Function;
-            Log("[XM] 回调[%d]: 函数=%p, 上下文=%p", i, funcAddr, ctx);
-        }
-    }
 }
 
 // 删除回调函数
-NTSTATUS DeleteCallback(CALLBACK_TYPE type, ULONG index) {
-    Log("[XM] DeleteCallback: 回调删除功能，类型=%d，索引=%d", type, index);
+NTSTATUS DeleteCallback(CALLBACK_TYPE type, ULONG index, PVOID addr) {
+    Log("[XM] DeleteCallback: 回调删除功能，类型=%d，索引=%d 地址=%p\n", type, index, addr);
     
     switch (type) {
-        case TypeCreateProcess:
-        case TypeCreateProcessEx:
-            Log("[XM] 删除进程创建回调 [%d]", index);
-            break;
+        case TypeProcess:
+        {
+            DELETE_CALLBACK_PFN("PspCreateProcessNotifyRoutine")
+            NTSTATUS status = PsSetCreateProcessNotifyRoutine(
+                (PCREATE_PROCESS_NOTIFY_ROUTINE)originalFunction,
+                TRUE
+            );
+            return status;
+        }
             
-        case TypeCreateThread:
-            Log("[XM] 删除线程创建回调 [%d]", index);
-            break;
-            
-        case TypeLoadImage:
-            Log("[XM] 删除映像加载回调 [%d]", index);
-            break;
-            
+        case TypeThread:
+        {
+            DELETE_CALLBACK_PFN("PspCreateThreadNotifyRoutine")
+            NTSTATUS status = PsRemoveCreateThreadNotifyRoutine((PCREATE_THREAD_NOTIFY_ROUTINE)originalFunction);
+            return status;
+        }
+        case TypeImage:
+        {
+            DELETE_CALLBACK_PFN("PspLoadImageNotifyRoutine")
+            NTSTATUS status = PsRemoveLoadImageNotifyRoutine((PLOAD_IMAGE_NOTIFY_ROUTINE)originalFunction);
+            return status;
+        }
         case TypeRegistry:
             Log("[XM] 删除注册表回调 [%d]", index);
             break;
             
         case TypeObject:
             Log("[XM] 删除对象回调 [%d]", index);
+            break;
+            
+        case TypeBugCheck:
+            Log("[XM] 删除蓝屏回调 [%d]", index);
+            break;
+            
+        case TypeShutdown:
+            Log("[XM] 删除关机回调 [%d]", index);
             break;
             
         default:
@@ -136,3 +139,25 @@ NTSTATUS DeleteCallback(CALLBACK_TYPE type, ULONG index) {
     
     return STATUS_SUCCESS;
 } 
+
+
+/*宏之前的 
+        case TypeProcess:
+        {
+            INIT_PDB;
+            ULONG_PTR arrayBase = ntos.GetPointer("PspCreateProcessNotifyRoutine");
+            PEX_CALLBACK callbackArray = (PEX_CALLBACK)arrayBase;
+            EX_FAST_REF* fastRef = &callbackArray[index].RoutineBlock;
+            PVOID objectPtr = (PVOID)(fastRef->Value & ~0xF);
+            PEX_CALLBACK_ROUTINE_BLOCK block = (PEX_CALLBACK_ROUTINE_BLOCK)objectPtr;
+            PVOID originalFunction = block->Function;
+
+            NTSTATUS status = PsSetCreateProcessNotifyRoutine(
+                (PCREATE_PROCESS_NOTIFY_ROUTINE)originalFunction,
+                TRUE
+            );
+
+            return status;
+        }
+
+ */

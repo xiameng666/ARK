@@ -6,6 +6,7 @@ class CallbackWnd : public ImguiWnd {
 public:
     explicit CallbackWnd(Context* ctx);
     void Render(bool* p_open = nullptr) override;
+    void EnumCallback();
     void RenderCallbackWnd();
     
 private:

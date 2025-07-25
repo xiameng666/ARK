@@ -98,8 +98,9 @@ public:
 
     // 回调相关
     std::vector<CALLBACK_INFO> CallbackGetVec(CALLBACK_TYPE type);      // 获取指定类型的回调列表
+    BOOL CallbackDelete(CALLBACK_TYPE type, ULONG index, PVOID CallbackFuncAddr);
     std::vector<CALLBACK_INFO> CallbackVec_;                            // 回调数据缓存
-    BOOL CallbackDelete(CALLBACK_TYPE type, ULONG index);               // 删除指定回调
+   
 
     // SSDTHOOK
     BOOL StartSSDTHook(HOOK_SSDT_Index flag);

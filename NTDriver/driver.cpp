@@ -248,13 +248,13 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
             }
             break;
         }
-        /*
+        
         case CTL_DELETE_CALLBACK:
         {
             __try {
-                PRESTORE_CALLBACK_REQUEST restoreReq = (PRESTORE_CALLBACK_REQUEST)Irp->AssociatedIrp.SystemBuffer;
+                PCALLBACK_DELETE_REQ restoreReq = (PCALLBACK_DELETE_REQ)Irp->AssociatedIrp.SystemBuffer;
                 
-                status = DeleteCallback(restoreReq->Type, restoreReq->Index);
+                status = DeleteCallback(restoreReq->Type, restoreReq->Index, restoreReq->CallbackFuncAddr);
                 
                 if (NT_SUCCESS(status)) {
                     Log("[XM] CTL_RESTORE_CALLBACK: 成功删除回调，类型=%d，索引=%d", 
@@ -270,7 +270,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
             }
             break;
         }
-        */
+        
 
         default:
             Log("[XM] DispatchDeviceControl: 错误控制码 0x%08X", controlCode);

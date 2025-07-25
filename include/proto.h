@@ -191,18 +191,18 @@ typedef struct _SYSTEM_SERVICE_DESCRIPTOR_TABLE {
 // 回调类型枚举
 typedef enum CALLBACK_TYPE {
     // 进程相关回调 (优先实现)
-    TypeCreateProcess = 0,        // PsSetCreateProcessNotifyRoutine - 进程创建/终止
-    TypeCreateProcessEx = 1,      // PsSetCreateProcessNotifyRoutineEx 
-    TypeCreateThread = 2,         // PsSetCreateThreadNotifyRoutine - 线程创建/终止
-    TypeLoadImage = 3,            // PsSetLoadImageNotifyRoutine - 模块/映像加载
+    TypeProcess = 0,              // PsSetCreateProcessNotifyRoutine/Ex - 进程创建/终止 (合并)
+    TypeProcessEx = 10,           // 仅仅用做R0->R3返回值 区分Ex版本显示在UI上 暂时不管
+    TypeThread = 1,               // PsSetCreateThreadNotifyRoutine - 线程创建/终止
+    TypeImage = 2,                // PsSetLoadImageNotifyRoutine - 模块/映像加载
     
     // 系统监控回调 (后续扩展)
-    TypeRegistry = 4,             // CmRegisterCallback - 注册表操作
-    TypeObject = 5,               // ObRegisterCallbacks - 对象操作(进程/线程句柄)
-    TypeBugCheck = 6,             // KeRegisterBugCheckCallback - 系统崩溃
-    TypeShutdown = 7,             // IoRegisterShutdownNotification - 系统关闭
+    TypeRegistry = 3,             // CmRegisterCallback - 注册表操作
+    TypeObject = 4,               // ObRegisterCallbacks - 对象操作(进程/线程句柄)
+    TypeBugCheck = 5,             // KeRegisterBugCheckCallback - 系统崩溃
+    TypeShutdown = 6,             // IoRegisterShutdownNotification - 系统关闭
 
-    TypeAll                       //枚举所有回调
+    TypeAll                       // 枚举所有回调
 } *PCALLBACK_TYPE;
 
 // 回调信息结构 R0初始化结构 R3收到这个结构 选部分展示到UI
@@ -249,6 +249,6 @@ typedef struct CALLBACK_DELETE_REQ {
         PVOID CallbackFuncAddr;
     };
 
-}  *PCALLBACK_REQ;
+}  *PCALLBACK_DELETE_REQ;
 
 

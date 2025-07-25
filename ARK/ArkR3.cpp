@@ -822,7 +822,7 @@ std::vector<CALLBACK_INFO> ArkR3::CallbackGetVec(CALLBACK_TYPE type) {
     const ULONG bufferSize = maxCallbacks * sizeof(CALLBACK_INFO) + sizeof(ULONG);
     PVOID buffer = malloc(bufferSize);
     if (!buffer) {
-        Log("CallbackGetVec: malloc err");
+        Log("CallbackGetVec: malloc err\n");
         return CallbackVec_;
     }
     
@@ -849,9 +849,8 @@ std::vector<CALLBACK_INFO> ArkR3::CallbackGetVec(CALLBACK_TYPE type) {
             CallbackVec_.emplace_back(callbacks[i]);
         }
         
-        Log("CallbackGetVec: 获取 %d 个回调 (类型=%d)", callbackCount, type);
     } else {
-        Log("CallbackGetVec: 失败，错误码=%d, 返回字节=%d", GetLastError(), bytesRet);
+        Log("CallbackGetVec: 失败，错误码=%d, 返回字节=%d\n", GetLastError(), bytesRet);
     }
     
     free(buffer);
@@ -859,9 +858,9 @@ std::vector<CALLBACK_INFO> ArkR3::CallbackGetVec(CALLBACK_TYPE type) {
     return CallbackVec_;
 }
 
-BOOL ArkR3::CallbackDelete(CALLBACK_TYPE type, ULONG index) {
+BOOL ArkR3::CallbackDelete(CALLBACK_TYPE type, ULONG index, PVOID CallbackFuncAddr) {
 
-    CALLBACK_DELETE_REQ request = { type,index,0 };//TODO 这里是不是要传一个地址？
+    CALLBACK_DELETE_REQ request = { type,index,CallbackFuncAddr};
 
     DWORD bytesReturned = 0;
     BOOL result = DeviceIoControl(
@@ -876,9 +875,9 @@ BOOL ArkR3::CallbackDelete(CALLBACK_TYPE type, ULONG index) {
     );
     
     if (result) {
-        Log("CallbackDelete: 成功删除回调 (类型=%d, 索引=%d)", type, index);
+        Log("CallbackDelete: 成功删除回调 (类型=%d, 索引=%d)\n", type, index);
     } else {
-        Log("CallbackDelete: 删除回调失败 (类型=%d, 索引=%d), 错误=%d", type, index, GetLastError());
+        Log("CallbackDelete: 删除回调失败 (类型=%d, 索引=%d), 错误=%d\n", type, index, GetLastError());
     }
     
     return result;
