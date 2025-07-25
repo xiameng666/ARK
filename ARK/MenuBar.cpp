@@ -16,6 +16,7 @@ void MenuBar::Render(bool* p_open)
             ImGui::MenuItem(u8"进程面板", nullptr, &ctx_->show_process_wnd);
             ImGui::MenuItem(u8"模块面板", nullptr, &ctx_->show_module_wnd);
             ImGui::MenuItem(u8"内核面板", nullptr, &ctx_->show_kernel_wnd);
+            ImGui::MenuItem(u8"回调面板", nullptr, &ctx_->show_callback_wnd);  
             ImGui::MenuItem(u8"注册表面板", nullptr, &ctx_->show_regedit_wnd);
             ImGui::EndMenu();
         }

@@ -71,10 +71,10 @@ enum WindowsVersion
 
 #define CTL_SET_PDB_PATH            MY_CTL_CODE(50)     // 设置PDB下载路径
 
-// PDB路径设置结构体
-typedef struct _PDB_PATH_REQUEST {
-    wchar_t DownloadPath[MAX_PATH];    // PDB下载路径
-} PDB_PATH_REQUEST, *PPDB_PATH_REQUEST;
+#define CTL_ENUM_CALLBACK           MY_CTL_CODE(81)     // 枚举回调信息
+#define CTL_DELETE_CALLBACK        MY_CTL_CODE(82)     //  删除回调
+
+
 
 //#define CTL_ENUM_DRIVER_COUNT       MY_CTL_CODE(40)
 //#define CTL_ENUM_DRIVER             MY_CTL_CODE(41)   // 枚举驱动
@@ -91,13 +91,15 @@ typedef struct _PDB_PATH_REQUEST {
 //#define CTL_READ_REGISTRY           MY_CTL_CODE(72)  // 读取注册表
 //#define CTL_WRITE_REGISTRY          MY_CTL_CODE(73)  // 写注册表
 //
-//#define CTL_ENUM_CALLBACK_COUNT     MY_CTL_CODE(80)
-//#define CTL_ENUM_CALLBACK           MY_CTL_CODE(81)  // 枚举内核回调
+
 //
 //#define CTL_ENUM_HOOK_COUNT         MY_CTL_CODE(90)
 //#define CTL_ENUM_HOOK               MY_CTL_CODE(91)  // 
 
 
+typedef struct PDB_PATH_REQUEST {
+    wchar_t DownloadPath[MAX_PATH];    // PDB下载路径
+} * PPDB_PATH_REQUEST;
 
 typedef struct KERNEL_RW_REQ {
     unsigned Address;
@@ -110,7 +112,6 @@ typedef struct PROCESS_MEM_REQ {
     HANDLE ProcessId;        // 目标进程ID
     PVOID VirtualAddress;    // 虚拟地址
     unsigned Size;           // 数据大小  
-                             //写到systembuffer 不需要在结构体定义缓冲区
 }*PPROCESS_MEM_REQ;
 
 #pragma pack(push, 1)
@@ -181,10 +182,72 @@ typedef struct SSDT_INFO {
 }*PSSDT_INFO;
 
 typedef struct _SYSTEM_SERVICE_DESCRIPTOR_TABLE {
-    PULONG Base;      // 系统服务函数指针数组
+    PULONG Base;                  // 系统服务函数指针数组
     PULONG ServiceCounterTable;   // 服务调用计数表
     ULONG NumberOfServices;       // 服务数量
     PUCHAR ParamTableBase;        // 参数表
 } SYSTEM_SERVICE_DESCRIPTOR_TABLE, * PSYSTEM_SERVICE_DESCRIPTOR_TABLE;
+
+// 回调类型枚举
+typedef enum CALLBACK_TYPE {
+    // 进程相关回调 (优先实现)
+    TypeCreateProcess = 0,        // PsSetCreateProcessNotifyRoutine - 进程创建/终止
+    TypeCreateProcessEx = 1,      // PsSetCreateProcessNotifyRoutineEx 
+    TypeCreateThread = 2,         // PsSetCreateThreadNotifyRoutine - 线程创建/终止
+    TypeLoadImage = 3,            // PsSetLoadImageNotifyRoutine - 模块/映像加载
+    
+    // 系统监控回调 (后续扩展)
+    TypeRegistry = 4,             // CmRegisterCallback - 注册表操作
+    TypeObject = 5,               // ObRegisterCallbacks - 对象操作(进程/线程句柄)
+    TypeBugCheck = 6,             // KeRegisterBugCheckCallback - 系统崩溃
+    TypeShutdown = 7,             // IoRegisterShutdownNotification - 系统关闭
+
+    TypeAll                       //枚举所有回调
+} *PCALLBACK_TYPE;
+
+// 回调信息结构 R0初始化结构 R3收到这个结构 选部分展示到UI
+typedef struct CALLBACK_INFO {
+    CALLBACK_TYPE Type;                   // 回调类型
+    ULONG Index;                          // 在回调数组中的索引
+    PVOID CallbackEntry;                  // 回调入口地址
+    
+    CHAR ModulePath[256];                 // 模块完整路径
+    //CHAR Company[64];                   // 文件厂商信息(需要解析PE? 暂时不考虑)
+    BOOLEAN IsValid;                      // 回调是否有效(暂时不用 后续可能要添加禁用/恢复)
+
+    union {     
+        UCHAR Reserved[32];               // 扩展信息 
+    } Extra;
+
+} *PCALLBACK_INFO;
+
+//回调请求类型枚举
+enum CALLBACK_REQ_TYPE {
+    TypeDelete,
+
+    /* 暂时不用
+    TypeDisable,
+    TypeEnable 
+    */
+};
+
+
+//typedef union CallbackDeleteInfo {
+//    struct {
+//        PVOID CallbackFuncAddr;     // 原始回调函数地址
+//    };
+//
+//
+//}*PCallbackDeleteInfo;
+
+//回调请求
+typedef struct CALLBACK_DELETE_REQ {
+    CALLBACK_TYPE Type;               // 回调类型
+    ULONG Index;                      // 回调索引
+    union {                           // 从CallbackDeleteInfo复制
+        PVOID CallbackFuncAddr;
+    };
+
+}  *PCALLBACK_REQ;
 
 

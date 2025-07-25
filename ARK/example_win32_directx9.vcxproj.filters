@@ -67,6 +67,9 @@
     <ClCompile Include="ModuleWnd.cpp">
       <Filter>Ark\Wnd</Filter>
     </ClCompile>
+    <ClCompile Include="CallbackWnd.cpp">
+      <Filter>Ark\Wnd</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\imconfig.h">
@@ -116,6 +119,9 @@
       <Filter>Ark\Wnd</Filter>
     </ClInclude>
     <ClInclude Include="ModuleWnd.h">
+      <Filter>Ark\Wnd</Filter>
+    </ClInclude>
+    <ClInclude Include="CallbackWnd.h">
       <Filter>Ark\Wnd</Filter>
     </ClInclude>
   </ItemGroup>

@@ -87,17 +87,24 @@ public:
     std::vector<MODULE_INFO> ModuleGetVec(DWORD moduleCount = 0);
     std::vector<MODULE_INFO> MoudleVec_;
     
-    // 进程模块枚举函数
+    // 进程模块枚举
     DWORD ProcessModuleGetCount(DWORD processId);
     std::vector<MODULE_INFO> ProcessModuleGetVec(DWORD processId, DWORD moduleCount = 0);
     std::vector<MODULE_INFO> ProcessModuleVec_;
 
-    //SSDT 直接申请了500项的缓冲区
+    //SSDT
     std::vector<SSDT_INFO> SSDTGetVec();
     std::vector<SSDT_INFO> SSDTVec_;
 
+    // 回调相关
+    std::vector<CALLBACK_INFO> CallbackGetVec(CALLBACK_TYPE type);      // 获取指定类型的回调列表
+    std::vector<CALLBACK_INFO> CallbackVec_;                            // 回调数据缓存
+    BOOL CallbackDelete(CALLBACK_TYPE type, ULONG index);               // 删除指定回调
+
+    // SSDTHOOK
     BOOL StartSSDTHook(HOOK_SSDT_Index flag);
     BOOL EndSSDTHook(HOOK_SSDT_Index flag);
+
     std::vector<PROCESS_EVENT> ProcessEventsVec_;
     BOOL isHookThreadRunning_ = FALSE;
     PLOG_BUFFER pSharedLogBuffer_ = NULL;       //映射到的R3内存地址

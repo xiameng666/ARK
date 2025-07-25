@@ -164,6 +164,7 @@
     <ClCompile Include="..\..\backends\imgui_impl_win32.cpp" />
     <ClCompile Include="App.cpp" />
     <ClCompile Include="ArkR3.cpp" />
+    <ClCompile Include="CallbackWnd.cpp" />
     <ClCompile Include="driverloader.cpp" />
     <ClCompile Include="KernelWnd.cpp" />
     <ClCompile Include="LogWnd.cpp" />
@@ -180,6 +181,7 @@
     <ClInclude Include="..\..\backends\imgui_impl_win32.h" />
     <ClInclude Include="App.h" />
     <ClInclude Include="ArkR3.h" />
+    <ClInclude Include="CallbackWnd.h" />
     <ClInclude Include="driverloader.h" />
     <ClInclude Include="ezpdb.hpp" />
     <ClInclude Include="imguiLog.h" />

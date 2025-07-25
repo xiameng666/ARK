@@ -21,6 +21,7 @@ App::App() :
     ,logWnd_{ &ctx_ }
     , moduleWnd_(&ctx_)
     , processWnd_(&ctx_)
+    , callbackWnd_(&ctx_)               // 新增回调窗口初始化
     , menuBar_{ &ctx_ }
 {
     ctx_.arkR3.InitSymbolState();
@@ -55,22 +56,9 @@ void App::Render()
 
     if (ctx_.show_module_wnd)
         moduleWnd_.Render(&ctx_.show_module_wnd);
-    /*if (ctx_.show_menu_bar)
-        menuBar_.Render(&ctx_.show_menu_bar);
-    if (ctx_.show_process_wnd)
-        processWnd_.Render(&ctx_.show_process_wnd);
-    if (ctx_.show_module_wnd)
-        moduleWnd_.Render(&ctx_.show_module_wnd);
-    if (ctx_.show_kernel_wnd)
-        kernelWnd_.Render(&ctx_.show_kernel_wnd);
-    if (ctx_.show_regedit_wnd)
-        regeditWnd_.Render(&ctx_.show_regedit_wnd);
-    if (ctx_.show_ssdthook_wnd)
-        ssdtHookWnd_.Render(&ctx_.show_ssdthook_wnd);
-    if (ctx_.show_file_wnd)
-        fileWnd_.Render(&ctx_.show_file_wnd);
-    if (ctx_.show_log_wnd)
-        logWnd_.Render(&ctx_.show_log_wnd);*/
+
+    if (ctx_.show_callback_wnd)         // 新增回调窗口渲染
+        callbackWnd_.Render(&ctx_.show_callback_wnd);
 
     ImGui::End();
 }

@@ -8,6 +8,7 @@
 #include "process.h"
 #include "module.h"
 #include "ssdt.h"
+#include "callback.h"
 
 extern "C" {
     NTSTATUS SetPdbPath(PWCHAR InputPath);

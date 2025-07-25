@@ -51,7 +51,8 @@ enum SubView {
     PROCESS,
     MEM,
     MODULE,
-    PROCESS_MODULE
+    PROCESS_MODULE,
+    VIEWCALLBACK          
 };
 
 
@@ -66,6 +67,7 @@ struct Context {
     bool show_ssdthook_wnd = true;
     bool show_log_wnd = true;
     bool show_kernel_wnd = true;
+    bool show_callback_wnd = true;      
     bool showMemoryWindow_ = false;
 
     // UI数据存储
@@ -73,6 +75,7 @@ struct Context {
     std::vector<MODULE_INFO> globalModuleUiVec;       // 全局模块数据
     std::vector<MODULE_INFO> processModuleUiVec;      // 进程模块数据
     std::vector<SSDT_INFO> ssdtUiVec_;                // SSDT数据
+    std::vector<CALLBACK_INFO> callbackUiVec;         // 回调数据
 
     // 进程模块窗口状态
     bool showProcessModuleWnd = false;
@@ -90,6 +93,11 @@ struct Context {
     int selectedSSDTIndex_ = -1;
     char ssdtSearchFilter_[256] = "";
 
+    // 回调相关状态
+    bool callbackLoaded_ = false;
+    int selectedCallbackIndex_ = -1;
+    int selectedCallbackType_ = 0;                    // 当前选择的回调类型
+    char callbackSearchFilter_[256] = "";            // 回调搜索过滤器
     
     SubView currentView;
 };

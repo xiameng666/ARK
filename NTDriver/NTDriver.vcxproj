@@ -164,12 +164,14 @@
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="callback.cpp" />
     <ClCompile Include="driver.cpp" />
     <ClCompile Include="module.cpp" />
     <ClCompile Include="process.cpp" />
     <ClCompile Include="ssdt.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="callback.h" />
     <ClInclude Include="driver.h" />
     <ClInclude Include="module.h" />
     <ClInclude Include="mydef.h" />

@@ -812,3 +812,74 @@ void ArkR3::SendPdbInfo() {
 //SendVA(GetKernelSymbolVA("PsActiveProcessHead"));
 
 }
+
+// 回调相关接口实现
+std::vector<CALLBACK_INFO> ArkR3::CallbackGetVec(CALLBACK_TYPE type) {
+    CallbackVec_.clear();
+    
+    // 假设最多300个回调
+    const ULONG maxCallbacks = 300;
+    const ULONG bufferSize = maxCallbacks * sizeof(CALLBACK_INFO) + sizeof(ULONG);
+    PVOID buffer = malloc(bufferSize);
+    if (!buffer) {
+        Log("CallbackGetVec: malloc err");
+        return CallbackVec_;
+    }
+    
+    // 在缓冲区开头写回调类型
+    *(PULONG)buffer = (ULONG)type;
+    
+    DWORD bytesRet = 0;
+    BOOL result = DeviceIoControl(
+        m_hDriver,
+        CTL_ENUM_CALLBACK,
+        buffer,
+        sizeof(ULONG),                    // 输入：回调类型
+        buffer,
+        bufferSize,                       // 输出：回调信息数组
+        &bytesRet,
+        NULL
+    );
+    
+    if (result && bytesRet > 0) {
+        ULONG callbackCount = bytesRet / sizeof(CALLBACK_INFO);
+        PCALLBACK_INFO callbacks = (PCALLBACK_INFO)buffer;
+
+        for (ULONG i = 0; i < callbackCount; i++) {
+            CallbackVec_.emplace_back(callbacks[i]);
+        }
+        
+        Log("CallbackGetVec: 获取 %d 个回调 (类型=%d)", callbackCount, type);
+    } else {
+        Log("CallbackGetVec: 失败，错误码=%d, 返回字节=%d", GetLastError(), bytesRet);
+    }
+    
+    free(buffer);
+    
+    return CallbackVec_;
+}
+
+BOOL ArkR3::CallbackDelete(CALLBACK_TYPE type, ULONG index) {
+
+    CALLBACK_DELETE_REQ request = { type,index,0 };//TODO 这里是不是要传一个地址？
+
+    DWORD bytesReturned = 0;
+    BOOL result = DeviceIoControl(
+        m_hDriver,
+        CTL_RESTORE_CALLBACK,
+        &request,
+        sizeof(request),
+        NULL,
+        0,
+        &bytesReturned,
+        NULL
+    );
+    
+    if (result) {
+        Log("CallbackDelete: 成功删除回调 (类型=%d, 索引=%d)", type, index);
+    } else {
+        Log("CallbackDelete: 删除回调失败 (类型=%d, 索引=%d), 错误=%d", type, index, GetLastError());
+    }
+    
+    return result;
+}
