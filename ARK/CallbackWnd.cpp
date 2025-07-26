@@ -23,11 +23,12 @@ void CallbackWnd::EnumCallback() {
         TypeProcess,
         TypeThread,
         TypeImage,
+        TypeRegistry,
+        TypeObject,
+        TypeBugCheck,
+        TypeShutdown
         /*            
-                    TypeRegistry,
-                    TypeObject,
-                    TypeBugCheck,
-                    TypeShutdown */
+                    */
     };
 
     // 遍历所有类型，获取回调并合并到一个vector中

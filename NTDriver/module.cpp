@@ -91,3 +91,94 @@ retry:
     ExFreePool(Buffer);
     return STATUS_SUCCESS;
 }
+
+NTSTATUS FindModuleByAddress(PVOID Address, PCHAR ModulePath, PVOID* ImageBase, PULONG ImageSize)
+{
+    NTSTATUS Status;
+    PRTL_PROCESS_MODULES Modules;
+    PRTL_PROCESS_MODULE_INFORMATION ModuleInfo;
+    PVOID Buffer;
+    ULONG BufferSize = 4096;
+    ULONG ReturnLength;
+    ULONG i;
+    ULONG_PTR SearchAddress = (ULONG_PTR)Address;
+    ULONG_PTR ModuleStart, ModuleEnd;
+
+    Log("[XM] FindModuleByAddress: Searching for address %p ", Address);
+
+    // 参数验证
+    if (!Address) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+retry:
+    Buffer = ExAllocatePoolWithTag(NonPagedPool, BufferSize, 'FMBA');
+    if (!Buffer) {
+        return STATUS_NO_MEMORY;
+    }
+
+    Status = ZwQuerySystemInformation(SystemModuleInformation,
+        Buffer,
+        BufferSize,
+        &ReturnLength
+    );
+
+    if (Status == STATUS_INFO_LENGTH_MISMATCH) {
+        ExFreePool(Buffer);
+        BufferSize = ReturnLength;
+        goto retry;
+    }
+
+    if (!NT_SUCCESS(Status)) {
+        ExFreePool(Buffer);
+        return Status;
+    }
+
+    Modules = (PRTL_PROCESS_MODULES)Buffer;
+
+    // 遍历模块查找包含目标地址的模块
+    for (i = 0, ModuleInfo = &(Modules->Modules[0]);
+        i < Modules->NumberOfModules;
+        i++, ModuleInfo++) {
+
+        ModuleStart = (ULONG_PTR)ModuleInfo->ImageBase;
+        ModuleEnd = ModuleStart + ModuleInfo->ImageSize;
+
+        // 检查地址是否在当前模块范围内
+        if (SearchAddress >= ModuleStart && SearchAddress < ModuleEnd) {
+            __try {
+                // 按需填充输出参数
+                if (ModulePath) {
+                    size_t CopyLength = min(strlen((CHAR*)ModuleInfo->FullPathName), MAX_PATH - 1);
+                    RtlZeroMemory(ModulePath, MAX_PATH);
+                    RtlCopyMemory(ModulePath, ModuleInfo->FullPathName, CopyLength);
+                    ModulePath[CopyLength] = '\0';  
+                }
+
+                if (ImageBase) {
+                    *ImageBase = ModuleInfo->ImageBase;
+                }
+
+                if (ImageSize) {
+                    *ImageSize = ModuleInfo->ImageSize;
+                }
+
+                Log("[XM] FindModuleByAddress: Found module %s for address %p (Base=%p, Size=0x%X) ", 
+                    ModuleInfo->FullPathName, Address, ModuleInfo->ImageBase, ModuleInfo->ImageSize);
+                
+                ExFreePool(Buffer);
+                return STATUS_SUCCESS;
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER) {
+                Log("[XM] FindModuleByAddress: Exception while processing module info ");
+                ExFreePool(Buffer);
+                return STATUS_ACCESS_VIOLATION;
+            }
+        }
+    }
+
+    // 没有找到包含该地址的模块
+    Log("[XM] FindModuleByAddress: No module found for address %p ", Address);
+    ExFreePool(Buffer);
+    return STATUS_NOT_FOUND;
+}

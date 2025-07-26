@@ -846,6 +846,18 @@ std::vector<CALLBACK_INFO> ArkR3::CallbackGetVec(CALLBACK_TYPE type) {
         PCALLBACK_INFO callbacks = (PCALLBACK_INFO)buffer;
 
         for (ULONG i = 0; i < callbackCount; i++) {
+            std::string fullPath = callbacks[i].ModulePath;
+            if (fullPath.find("\\SystemRoot\\") == 0) {
+                fullPath = "C:\\Windows\\" + fullPath.substr(12);
+            }
+            else if (fullPath.find("\\WINDOWS\\") == 0) {
+                fullPath = "C:\\Windows\\" + fullPath.substr(9);
+            }
+            else if (fullPath.find("\\??\\C:") == 0) {
+                fullPath = "C:" + fullPath.substr(6);
+            }
+            strcpy_s(callbacks[i].ModulePath, sizeof(callbacks[i].ModulePath), fullPath.c_str());
+
             CallbackVec_.emplace_back(callbacks[i]);
         }
         

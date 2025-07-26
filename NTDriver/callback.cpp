@@ -26,6 +26,8 @@
             info->CallbackEntry = pObj->Function;\
             info->IsValid = TRUE;\
             info->Extra.CallbackExtra = NULL;\
+            FindModuleByAddress(pObj->Function, info->ModulePath, NULL, NULL);\
+            Log("[XM] ModulePath:%s",info->ModulePath);\
             count++;\
         }\
     }
@@ -67,9 +69,21 @@ NTSTATUS EnumCallbacks(PCALLBACK_INFO callbackBuffer, CALLBACK_TYPE type, PULONG
         break;
 
         case TypeRegistry:
+        {
+            GET_CALLBACK_FUNCTION_INFO("CmpCallBackVector", TypeRegistry)
+        }
         case TypeObject:
+        {
+            //GET_CALLBACK_FUNCTION_INFO("ObpObjectCallbacks", TypeObject)
+        }
         case TypeBugCheck:
+        {
+            //GET_CALLBACK_FUNCTION_INFO("KeBugCheckCallbackListHead", TypeBugCheck)  // 示例符号
+        }
         case TypeShutdown:
+        {
+            //GET_CALLBACK_FUNCTION_INFO("IopShutdownNotifyList", TypeShutdown)
+        }
             break;
 
         default:
