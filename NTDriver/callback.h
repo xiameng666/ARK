@@ -33,3 +33,22 @@ typedef struct _EX_CALLBACK_ROUTINE_BLOCK {
     PVOID PossibleOriginal2;              // +0x28 (候选原始地址2)
 
 } EX_CALLBACK_ROUTINE_BLOCK, * PEX_CALLBACK_ROUTINE_BLOCK;
+
+//注册表回调结构
+typedef struct _CM_CALLBACK_CONTEXT_BLOCK {
+    LIST_ENTRY CallbackListEntry;       // 链表项
+    CM_CALLBACK_TYPE Type;
+    PEX_CALLBACK_FUNCTION Function;     // 回调函数
+    PVOID Context;
+    // ... 其他字段
+} CM_CALLBACK_CONTEXT_BLOCK, *PCM_CALLBACK_CONTEXT_BLOCK;
+
+//蓝屏回调结构
+typedef struct _KBUGCHECK_CALLBACK_RECORD {
+    LIST_ENTRY Entry;                   // 链表项
+    PKBUGCHECK_CALLBACK_ROUTINE CallbackRoutine;  // 回调函数
+    PVOID Buffer;
+    ULONG Length;
+    PUCHAR Component;
+    // ... 其他字段
+} KBUGCHECK_CALLBACK_RECORD, *PKBUGCHECK_CALLBACK_RECORD;
