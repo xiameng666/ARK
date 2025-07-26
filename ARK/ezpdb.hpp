@@ -13,12 +13,16 @@
 #include <objbase.h>
 #include <Urlmon.h>
 #include <PathCch.h>
+#include <WinInet.h>
+#include <winhttp.h>
 
 #pragma comment(lib, "DbgHelp.lib")
 #pragma comment(lib, "Urlmon.lib")
 #pragma comment(lib, "pathcch.lib")
 #pragma comment(lib, "Shlwapi.lib")
 #pragma comment(lib, "OLE32.lib")
+#pragma comment(lib, "WinInet.lib")
+#pragma comment(lib, "winhttp.lib")
 namespace ez
 {
 #pragma warning(push,1)
@@ -210,6 +214,229 @@ namespace ez
 	}
 #pragma warning(pop)
 
+	// 动态启用TLS 1.2支持的辅助函数
+	inline BOOL EnableTLS12Support() {
+		HKEY hKey;
+		DWORD dwValue;
+		//DWORD dwSize = sizeof(DWORD);
+		LONG result;
+		
+		// 1. 启用TLS 1.2客户端支持
+		result = RegCreateKeyExA(HKEY_LOCAL_MACHINE,
+			"SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.2\\Client",
+			0, NULL, REG_OPTION_NON_VOLATILE, KEY_WRITE, NULL, &hKey, NULL);
+		
+		if (result == ERROR_SUCCESS) {
+			// 设置 DisabledByDefault = 0
+			dwValue = 0;
+			RegSetValueExA(hKey, "DisabledByDefault", 0, REG_DWORD, (BYTE*)&dwValue, sizeof(dwValue));
+			
+			// 设置 Enabled = 1
+			dwValue = 1;
+			RegSetValueExA(hKey, "Enabled", 0, REG_DWORD, (BYTE*)&dwValue, sizeof(dwValue));
+			
+			RegCloseKey(hKey);
+			printf("ezpdb TLS 1.2客户端支持已启用\n");
+		} else {
+			printf("ezpdb 警告：无法修改TLS 1.2注册表设置 (错误码: %ld)\n", result);
+		}
+
+        
+		// 2. 对于.NET应用，启用强加密
+		result = RegCreateKeyExA(HKEY_LOCAL_MACHINE,
+			"SOFTWARE\\Microsoft\\.NETFramework\\v4.0.30319",
+			0, NULL, REG_OPTION_NON_VOLATILE, KEY_WRITE, NULL, &hKey, NULL);
+		
+		if (result == ERROR_SUCCESS) {
+			dwValue = 1;
+			RegSetValueExA(hKey, "SchUseStrongCrypto", 0, REG_DWORD, (BYTE*)&dwValue, sizeof(dwValue));
+			RegCloseKey(hKey);
+			
+		}
+        /*
+		// 3. 对于32位应用在64位系统上
+		result = RegCreateKeyExA(HKEY_LOCAL_MACHINE,
+			"SOFTWARE\\Wow6432Node\\Microsoft\\.NETFramework\\v4.0.30319",
+			0, NULL, REG_OPTION_NON_VOLATILE, KEY_WRITE, NULL, &hKey, NULL);
+		
+		if (result == ERROR_SUCCESS) {
+			dwValue = 1;
+			RegSetValueExA(hKey, "SchUseStrongCrypto", 0, REG_DWORD, (BYTE*)&dwValue, sizeof(dwValue));
+			RegCloseKey(hKey);
+		}
+		*/
+
+		return TRUE;
+	}
+
+	// 使用WinHTTP下载的现代方法 (支持TLS 1.2)
+	inline BOOL DownloadFileWithWinHTTP(const std::string& url, const std::string& filePath) {
+		printf("ezpdb 尝试使用WinHTTP下载...\n");
+		
+		// 解析URL
+		std::string hostname, path;
+		bool isHttps = false;
+		
+		if (url.find("https://") == 0) {
+			isHttps = true;
+			size_t start = 8; // "https://"的长度
+			size_t pathStart = url.find('/', start);
+			if (pathStart != std::string::npos) {
+				hostname = url.substr(start, pathStart - start);
+				path = url.substr(pathStart);
+			} else {
+				hostname = url.substr(start);
+				path = "/";
+			}
+		} else if (url.find("http://") == 0) {
+			size_t start = 7; // "http://"的长度
+			size_t pathStart = url.find('/', start);
+			if (pathStart != std::string::npos) {
+				hostname = url.substr(start, pathStart - start);
+				path = url.substr(pathStart);
+			} else {
+				hostname = url.substr(start);
+				path = "/";
+			}
+		} else {
+			return FALSE;
+		}
+		
+		// 转换为宽字符
+		int hostnameLen = MultiByteToWideChar(CP_UTF8, 0, hostname.c_str(), -1, NULL, 0);
+		int pathLen = MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, NULL, 0);
+		
+		std::vector<wchar_t> wHostname(hostnameLen);
+		std::vector<wchar_t> wPath(pathLen);
+		
+		MultiByteToWideChar(CP_UTF8, 0, hostname.c_str(), -1, wHostname.data(), hostnameLen);
+		MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, wPath.data(), pathLen);
+		
+		// 打开WinHTTP会话
+		HINTERNET hSession = WinHttpOpen(L"ezpdb/1.0", 
+										 WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+										 WINHTTP_NO_PROXY_NAME, 
+										 WINHTTP_NO_PROXY_BYPASS, 
+										 0);
+		if (!hSession) {
+			printf("ezpdb WinHttpOpen失败\n");
+			return FALSE;
+		}
+		
+		// 连接到服务器
+		INTERNET_PORT port = isHttps ? INTERNET_DEFAULT_HTTPS_PORT : INTERNET_DEFAULT_HTTP_PORT;
+		HINTERNET hConnect = WinHttpConnect(hSession, wHostname.data(), port, 0);
+		if (!hConnect) {
+			printf("ezpdb WinHttpConnect失败\n");
+			WinHttpCloseHandle(hSession);
+			return FALSE;
+		}
+		
+		// 创建请求
+		DWORD dwFlags = isHttps ? WINHTTP_FLAG_SECURE : 0;
+		HINTERNET hRequest = WinHttpOpenRequest(hConnect, L"GET", wPath.data(),
+												NULL, WINHTTP_NO_REFERER,
+												WINHTTP_DEFAULT_ACCEPT_TYPES,
+												dwFlags);
+		if (!hRequest) {
+			printf("ezpdb WinHttpOpenRequest失败\n");
+			WinHttpCloseHandle(hConnect);
+			WinHttpCloseHandle(hSession);
+			return FALSE;
+		}
+		
+		// 设置TLS 1.2
+		if (isHttps) {
+			DWORD dwTlsFlags = WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2;
+			WinHttpSetOption(hRequest, WINHTTP_OPTION_SECURE_PROTOCOLS, &dwTlsFlags, sizeof(dwTlsFlags));
+			
+			// 忽略证书错误 (用于测试)
+			DWORD dwSecurityFlags = SECURITY_FLAG_IGNORE_CERT_CN_INVALID | 
+								   SECURITY_FLAG_IGNORE_CERT_DATE_INVALID |
+								   SECURITY_FLAG_IGNORE_UNKNOWN_CA;
+			WinHttpSetOption(hRequest, WINHTTP_OPTION_SECURITY_FLAGS, &dwSecurityFlags, sizeof(dwSecurityFlags));
+		}
+		
+		// 发送请求
+		BOOL bResults = WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
+										   WINHTTP_NO_REQUEST_DATA, 0, 0, 0);
+		if (!bResults) {
+			printf("ezpdb WinHttpSendRequest失败，错误: %lu\n", GetLastError());
+			WinHttpCloseHandle(hRequest);
+			WinHttpCloseHandle(hConnect);
+			WinHttpCloseHandle(hSession);
+			return FALSE;
+		}
+		
+		// 接收响应
+		bResults = WinHttpReceiveResponse(hRequest, NULL);
+		if (!bResults) {
+			printf("ezpdb WinHttpReceiveResponse失败\n");
+			WinHttpCloseHandle(hRequest);
+			WinHttpCloseHandle(hConnect);
+			WinHttpCloseHandle(hSession);
+			return FALSE;
+		}
+		
+		// 创建输出文件
+		HANDLE hFile = CreateFileA(filePath.c_str(), GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+		if (hFile == INVALID_HANDLE_VALUE) {
+			printf("ezpdb 无法创建文件: %s\n", filePath.c_str());
+			WinHttpCloseHandle(hRequest);
+			WinHttpCloseHandle(hConnect);
+			WinHttpCloseHandle(hSession);
+			return FALSE;
+		}
+		
+		// 读取数据并写入文件
+		DWORD dwSize = 0;
+		DWORD dwDownloaded = 0;
+		DWORD dwWritten = 0;
+		BYTE buffer[4096];
+		BOOL success = TRUE;
+		
+		do {
+			// 检查可用数据
+			if (!WinHttpQueryDataAvailable(hRequest, &dwSize)) {
+				printf("ezpdb WinHttpQueryDataAvailable失败\n");
+				success = FALSE;
+				break;
+			}
+			
+			if (dwSize == 0) break;
+			
+			// 读取数据
+			dwSize = min(dwSize, sizeof(buffer));
+			if (!WinHttpReadData(hRequest, buffer, dwSize, &dwDownloaded)) {
+				printf("ezpdb WinHttpReadData失败\n");
+				success = FALSE;
+				break;
+			}
+			
+			// 写入文件
+			if (!WriteFile(hFile, buffer, dwDownloaded, &dwWritten, NULL) || dwWritten != dwDownloaded) {
+				printf("ezpdb 文件写入失败\n");
+				success = FALSE;
+				break;
+			}
+			
+		} while (dwSize > 0);
+		
+		// 清理资源
+		CloseHandle(hFile);
+		WinHttpCloseHandle(hRequest);
+		WinHttpCloseHandle(hConnect);
+		WinHttpCloseHandle(hSession);
+		
+		if (success) {
+			printf("ezpdb WinHTTP下载成功!\n");
+		} else {
+			DeleteFileA(filePath.c_str()); // 删除不完整的文件
+		}
+		
+		return success;
+	}
+
 	class pdb
 	{
 	private:
@@ -266,7 +493,13 @@ namespace ez
 
 			WCHAR wszCurrentDir[MAX_PATH] = { 0 };
 			GetModuleFileNameW(NULL, wszCurrentDir, _countof(wszCurrentDir));
-			PathCchRemoveFileSpec(wszCurrentDir, _countof(wszCurrentDir));
+			
+			// 使用更兼容的方法移除文件名，兼容Windows 7
+			WCHAR* lastSlash = wcsrchr(wszCurrentDir, L'\\');
+			if (lastSlash != NULL) {
+				*lastSlash = L'\0';  // 截断到最后一个反斜杠
+			}
+			
 			std::wstring wsCurrentDir = wszCurrentDir;
 			
 			//setup converter
@@ -277,6 +510,16 @@ namespace ez
 			
 			// 调试输出：打印当前目录
 			printf("ezpdb CurrentDir: %s\n", CurrentDir.c_str());
+			
+			// 验证路径是否有效（不应该包含.exe）
+			if (CurrentDir.find(".exe") != std::string::npos) {
+				printf("ezpdb Warning: CurrentDir contains .exe, attempting fallback\n");
+				// 备用方案：使用临时目录
+				char tempPath[MAX_PATH];
+				GetTempPathA(sizeof(tempPath), tempPath);
+				CurrentDir = tempPath;
+				printf("ezpdb Fallback CurrentDir: %s\n", CurrentDir.c_str());
+			}
 			
 			if (CurrentDir.back() != '\\')
 			{
@@ -290,6 +533,7 @@ namespace ez
 				if (GetLastError() != ERROR_ALREADY_EXISTS)
 				{
 					printf("ezpdb CreateDirectory failed, error: %d\n", GetLastError());
+					printf("ezpdb Attempted path: %s\n", pdbDownloadPath.c_str());
 					return "";
 				}
 			}
@@ -457,22 +701,112 @@ namespace ez
 			char age[3] = { 0 };
 			_itoa_s(pdb_info->Age, age, 10);
 
-			// url
-			std::string url = _symbol_server;
-			url += pdb_info->PdbFileName;
-			url += "/";
-			url += guid_filtered;
-			url += age;
-			url += "/";
-			url += pdb_info->PdbFileName;
+			// 备用符号服务器列表
+			std::vector<std::string> symbol_servers = {
+				_symbol_server,  // 用户指定的服务器
+				"https://msdl.microsoft.com/download/symbols/",  // 微软官方
+				"https://symbols.mozilla.org/"  // Mozilla备用
+			};
 
-			// download
-			HRESULT hr = URLDownloadToFileA(NULL, url.c_str(), pdbPath.c_str(), NULL, NULL);
+			std::string url;
+			HRESULT hr = E_FAIL;
+			
+			// 动态启用TLS 1.2支持
+			EnableTLS12Support();
+			
+			// Windows 7 TLS兼容性设置
+			#ifndef WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2
+			#define WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2 0x00000800
+			#endif
+			
+			// 尝试启用TLS 1.2支持
+			HINTERNET hSession = InternetOpenA("ezpdb/1.0", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
+			if (hSession) {
+				DWORD dwFlags = SECURITY_FLAG_IGNORE_CERT_CN_INVALID | 
+							   SECURITY_FLAG_IGNORE_CERT_DATE_INVALID |
+							   SECURITY_FLAG_IGNORE_UNKNOWN_CA;
+				InternetSetOptionA(hSession, INTERNET_OPTION_SECURITY_FLAGS, &dwFlags, sizeof(dwFlags));
+				InternetCloseHandle(hSession);
+			}
+
+			// 尝试每个符号服务器
+			for (int attempt = 0; attempt < symbol_servers.size(); attempt++) {
+				url = symbol_servers[attempt];
+				url += pdb_info->PdbFileName;
+				url += "/";
+				url += guid_filtered;
+				url += age;
+				url += "/";
+				url += pdb_info->PdbFileName;
+
+				printf("ezpdb Download URL (attempt %d): %s\n", attempt + 1, url.c_str());
+				printf("ezpdb Target Path: %s\n", pdbPath.c_str());
+
+				// 首先尝试URLDownloadToFileA
+				printf("ezpdb Starting download from server %d (URLDownloadToFileA)...\n", attempt + 1);
+				hr = URLDownloadToFileA(NULL, url.c_str(), pdbPath.c_str(), NULL, NULL);
+				
+				if (SUCCEEDED(hr)) {
+					printf("ezpdb Download successful from server %d!\n", attempt + 1);
+					break;
+				} else {
+					printf("ezpdb URLDownloadToFileA failed from server %d (HRESULT: 0x%08X)\n", attempt + 1, hr);
+					
+					// 如果URLDownloadToFileA失败，尝试WinHTTP
+					printf("ezpdb Trying WinHTTP for server %d...\n", attempt + 1);
+					if (DownloadFileWithWinHTTP(url, pdbPath)) {
+						hr = S_OK;
+						printf("ezpdb WinHTTP download successful from server %d!\n", attempt + 1);
+						break;
+					} else {
+						printf("ezpdb WinHTTP also failed for server %d\n", attempt + 1);
+					}
+				}
+			}
+			
 			if (FAILED(hr))
 			{
+				printf("ezpdb URLDownloadToFileA failed with HRESULT: 0x%08X\n", hr);
+				
+				// 提供具体的错误信息
+				switch (hr) {
+					case E_OUTOFMEMORY:
+						printf("ezpdb Error: Out of memory\n");
+						break;
+					case INET_E_DOWNLOAD_FAILURE:
+						printf("ezpdb Error: Download failure - check network connection\n");
+						break;
+					case INET_E_CANNOT_CONNECT:
+						printf("ezpdb Error: Cannot connect to server\n");
+						break;
+					case INET_E_RESOURCE_NOT_FOUND:
+						printf("ezpdb Error: PDB file not found on server\n");
+						break;
+					case INET_E_SECURITY_PROBLEM:
+						printf("ezpdb Error: Security/TLS problem - try manual download\n");
+						break;
+					default:
+						printf("ezpdb Error: Unknown error 0x%08X\n", hr);
+						break;
+				}
+				
+				printf("ezpdb Manual download instructions:\n");
+				printf("ezpdb 1. Open browser and go to: %s\n", url.c_str());
+				printf("ezpdb 2. Save the file as: %s\n", pdbPath.c_str());
+				printf("ezpdb 3. 寄了，下不了\n");
+				
 				free(ImageBuffer);
 				return "";
 			}
+			
+			// 验证下载的文件
+			if (GetFileAttributesA(pdbPath.c_str()) == INVALID_FILE_ATTRIBUTES) {
+				printf("ezpdb Error: Downloaded file not found or invalid\n");
+				free(ImageBuffer);
+				return "";
+			}
+			
+			printf("ezpdb Download completed successfully!\n");
 
 			free(ImageBuffer);
 

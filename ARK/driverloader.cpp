@@ -284,7 +284,7 @@ void DriverLoader::Log(const char* fmt, ...)
     vsnprintf(buf, sizeof(buf), fmt, args);
     va_end(args);
 
-    OutputDebugString(buf);
+    //OutputDebugString(buf);
     if (m_pObs) m_pObs->OnLog(buf);
 #endif // LOGON	
 }

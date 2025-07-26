@@ -3,7 +3,7 @@
 
 // 全局变量定义
 extern "C" void _sgdt(void*);
-BOOLEAN g_LogOn = TRUE;
+BOOLEAN g_LogOn = FALSE;
 ULONG_PTR g_VA = 0;
 
 wchar_t g_PdbDownloadPath[512] = L"C:\\Symbols";

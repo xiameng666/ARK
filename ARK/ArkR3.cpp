@@ -841,7 +841,7 @@ std::vector<CALLBACK_INFO> ArkR3::CallbackGetVec(CALLBACK_TYPE type) {
         NULL
     );
     
-    if (result && bytesRet > 0) {
+    if (result) {
         ULONG callbackCount = bytesRet / sizeof(CALLBACK_INFO);
         PCALLBACK_INFO callbacks = (PCALLBACK_INFO)buffer;
 

@@ -42,7 +42,7 @@ void CallbackWnd::EnumCallback() {
             typeCallbacks.begin(),
             typeCallbacks.end());
 
-        ctx_->arkR3.Log("%s: %zu 个\n", GetCallbackTypeName(currentType), typeCallbacks.size());
+       // ctx_->arkR3.Log("%s: %zu 个\n", GetCallbackTypeName(currentType), typeCallbacks.size());
     }
 
     ctx_->callbackLoaded_ = true;
@@ -98,7 +98,7 @@ void CallbackWnd::RenderCallbackWnd() {
                     // 删除回调
                     BOOL result = ctx_->arkR3.CallbackDelete(callback.Type, callback.Index,callback.CallbackEntry);
                     if (result) {
-                        ctx_->arkR3.Log("回调删除成功: 类型=%d, 索引=%d 地址=%p\n", callback.Type, callback.Index,callback.CallbackEntry);
+                        //ctx_->arkR3.Log("回调删除成功: 类型=%d, 索引=%d 地址=%p\n", callback.Type, callback.Index,callback.CallbackEntry);
                         
                         ImGui::CloseCurrentPopup();
                         EnumCallback();
