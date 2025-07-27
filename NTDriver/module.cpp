@@ -106,7 +106,6 @@ NTSTATUS FindModuleByAddress(PVOID Address, PCHAR ModulePath, PVOID* ImageBase, 
 
     Log("[XM] FindModuleByAddress: Searching for address %p ", Address);
 
-    // 参数验证
     if (!Address) {
         return STATUS_INVALID_PARAMETER;
     }

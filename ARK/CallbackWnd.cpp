@@ -1,4 +1,4 @@
-#include "CallbackWnd.h"
+ï»¿#include "CallbackWnd.h"
 #include <algorithm>
 
 CallbackWnd::CallbackWnd(Context* ctx) 
@@ -9,14 +9,14 @@ CallbackWnd::CallbackWnd(Context* ctx)
 
 void CallbackWnd::Render(bool* p_open)
 {
-    ImGui::Begin(u8"ÏµÍ³»Øµ÷", p_open);
+    ImGui::Begin(u8"ç³»ç»Ÿå›è°ƒ", p_open);
     
     RenderCallbackWnd();
     
     ImGui::End();
 }
 void CallbackWnd::EnumCallback() {
-    // Çå¿Õµ±Ç°Êı¾İ
+    // æ¸…ç©ºå½“å‰æ•°æ®
     ctx_->callbackUiVec.clear();
 
     CALLBACK_TYPE allTypes[] = {
@@ -26,40 +26,41 @@ void CallbackWnd::EnumCallback() {
         TypeRegistry,
         TypeObject,
         TypeBugCheck,
+        TypeBugCheckReason,
         TypeShutdown
         /*            
                     */
     };
 
-    // ±éÀúËùÓĞÀàĞÍ£¬»ñÈ¡»Øµ÷²¢ºÏ²¢µ½Ò»¸övectorÖĞ
+    // éå†æ‰€æœ‰ç±»å‹ï¼Œè·å–å›è°ƒå¹¶åˆå¹¶åˆ°ä¸€ä¸ªvectorä¸­
     for (int i = 0; i < sizeof(allTypes) / sizeof(allTypes[0]); i++) {
         CALLBACK_TYPE currentType = allTypes[i];
 
-        // »ñÈ¡µ±Ç°ÀàĞÍµÄ»Øµ÷
+        // è·å–å½“å‰ç±»å‹çš„å›è°ƒ
         auto typeCallbacks = ctx_->arkR3.CallbackGetVec(currentType);
 
-        // ºÏ²¢µ½×ÜµÄvectorÖĞ
+        // åˆå¹¶åˆ°æ€»çš„vectorä¸­
         ctx_->callbackUiVec.insert(ctx_->callbackUiVec.end(),
             typeCallbacks.begin(),
             typeCallbacks.end());
 
-       // ctx_->arkR3.Log("%s: %zu ¸ö\n", GetCallbackTypeName(currentType), typeCallbacks.size());
+       // ctx_->arkR3.Log("%s: %zu ä¸ª\n", GetCallbackTypeName(currentType), typeCallbacks.size());
     }
 
     ctx_->callbackLoaded_ = true;
 }
 void CallbackWnd::RenderCallbackWnd() {
    
-    if (ImGui::Button(u8"Ë¢ĞÂ")) {
+    if (ImGui::Button(u8"åˆ·æ–°")) {
         EnumCallback();
     }
     
     //ImGui::SameLine();
     //
-    //if (ImGui::Button(u8"Çå¿ÕÁĞ±í")) {
+    //if (ImGui::Button(u8"æ¸…ç©ºåˆ—è¡¨")) {
     //    ctx_->callbackUiVec.clear();
     //    ctx_->callbackLoaded_ = false;
-    //    ctx_->arkR3.Log("ÒÑÇå¿Õ»Øµ÷ÁĞ±í");
+    //    ctx_->arkR3.Log("å·²æ¸…ç©ºå›è°ƒåˆ—è¡¨");
     //}
     
     ImGui::Separator();
@@ -68,10 +69,10 @@ void CallbackWnd::RenderCallbackWnd() {
         ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | 
         ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY)) { 
         
-        ImGui::TableSetupColumn(u8"»Øµ÷µØÖ·", ImGuiTableColumnFlags_WidthFixed, 120.0f);
-        ImGui::TableSetupColumn(u8"ÀàĞÍ", ImGuiTableColumnFlags_WidthFixed, 100.0f);
-        ImGui::TableSetupColumn(u8"Êı×éÏÂ±ê", ImGuiTableColumnFlags_WidthFixed, 80.0f);
-        ImGui::TableSetupColumn(u8"Ä£¿éÂ·¾¶", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn(u8"å›è°ƒåœ°å€", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+        ImGui::TableSetupColumn(u8"ç±»å‹", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+        ImGui::TableSetupColumn(u8"æ•°ç»„ä¸‹æ ‡", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+        ImGui::TableSetupColumn(u8"æ¨¡å—è·¯å¾„", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn(u8"Extra", ImGuiTableColumnFlags_WidthFixed, 120.0f); 
         ImGui::TableHeadersRow();
 
@@ -80,7 +81,7 @@ void CallbackWnd::RenderCallbackWnd() {
             
             ImGui::TableNextRow();
             
-            // »Øµ÷µØÖ·ÁĞ£¨µÚ0ÁĞ£©
+            // å›è°ƒåœ°å€åˆ—ï¼ˆç¬¬0åˆ—ï¼‰
             ImGui::TableSetColumnIndex(0);
             bool is_selected = (ctx_->selectedCallbackIndex_ == row);
             char addressText[32];
@@ -91,35 +92,59 @@ void CallbackWnd::RenderCallbackWnd() {
                 ctx_->selectedCallbackIndex_ = row;
             }
             
-            // ÓÒ¼ü²Ëµ¥
+            // å³é”®èœå• 
             char popupId[64];
-            sprintf_s(popupId, "CallbackMenu##%p", callback.CallbackEntry);
+            sprintf_s(popupId, "CallbackMenu##%d_%p_%d", callback.Type, callback.CallbackEntry, callback.Index);
             if (ImGui::BeginPopupContextItem(popupId)) {
-                if (ImGui::MenuItem(u8"É¾³ı»Øµ÷")) {
-                    // É¾³ı»Øµ÷
-                    BOOL result = ctx_->arkR3.CallbackDelete(callback.Type, callback.Index,callback.CallbackEntry);
+                if (ImGui::MenuItem(u8"åˆ é™¤å›è°ƒ")) {
+                    // åˆ é™¤å›è°ƒ æ ¹æ®ç±»å‹é€‰æ‹©ä¼ é€’çš„æ•°æ®
+                    PVOID deleteData = nullptr;
+                    
+                    switch (callback.Type) {
+                        case TypeProcess:
+                        case TypeThread:
+                        case TypeImage:
+                            // æ•°ç»„ï¼šä¼ é€’å‡½æ•°åœ°å€ï¼Œé€šè¿‡ç´¢å¼•åˆ é™¤
+                            deleteData = callback.CallbackEntry;
+                            break;
+                            
+                        case TypeRegistry:
+                        case TypeObject:
+                        case TypeBugCheck:
+                        case TypeBugCheckReason:
+                        case TypeShutdown:
+                            // é“¾è¡¨ï¼šä¼ é€’Extraæ•°æ®ï¼ˆCookie/æ•´ä¸ªå¯¹è±¡...ï¼‰
+                            deleteData = callback.Extra.CallbackExtra;
+                            break;
+                            
+                        default:
+                            deleteData = callback.CallbackEntry;
+                            break;
+                    }
+                    
+                    BOOL result = ctx_->arkR3.CallbackDelete(callback.Type, callback.Index, deleteData);
                     if (result) {
-                        //ctx_->arkR3.Log("»Øµ÷É¾³ı³É¹¦: ÀàĞÍ=%d, Ë÷Òı=%d µØÖ·=%p\n", callback.Type, callback.Index,callback.CallbackEntry);
+                        //ctx_->arkR3.Log("å›è°ƒåˆ é™¤æˆåŠŸ: ç±»å‹=%d, ç´¢å¼•=%d åœ°å€=%p\n", callback.Type, callback.Index,callback.CallbackEntry);
                         
                         ImGui::CloseCurrentPopup();
                         EnumCallback();
                                               
                     } else {
-                        ctx_->arkR3.LogErr("»Øµ÷É¾³ıÊ§°Ü");
+                        ctx_->arkR3.LogErr("å›è°ƒåˆ é™¤å¤±è´¥");
                     }
                 }
                 ImGui::EndPopup();
             }
             
-            // »Øµ÷ÀàĞÍ
+            // å›è°ƒç±»å‹
             ImGui::TableSetColumnIndex(1);
             ImGui::Text("%s", GetCallbackTypeName(callback.Type));
             
-            // Êı×éÏÂ±ê
+            // æ•°ç»„ä¸‹æ ‡
             ImGui::TableSetColumnIndex(2);
             ImGui::Text("%d", callback.Index);
             
-            // Ä£¿éÂ·¾¶
+            // æ¨¡å—è·¯å¾„
             ImGui::TableSetColumnIndex(3);
             ImGui::Text("%s", callback.ModulePath);
 
@@ -133,25 +158,25 @@ void CallbackWnd::RenderCallbackWnd() {
         ImGui::EndTable();
     }
     
-    // Í³¼ÆĞÅÏ¢
+    // ç»Ÿè®¡ä¿¡æ¯
     ImGui::Separator();
-    ImGui::Text(u8"×Ü¼Æ: %zu ¸öÏµÍ³»Øµ÷\n", ctx_->callbackUiVec.size());
+    ImGui::Text(u8"æ€»è®¡: %zu ä¸ªç³»ç»Ÿå›è°ƒ\n", ctx_->callbackUiVec.size());
     
-    // °´ÀàĞÍÍ³¼Æ
+    // æŒ‰ç±»å‹ç»Ÿè®¡
     if (ctx_->callbackUiVec.size() > 0) {
         ImGui::SameLine();
         ImGui::Text(u8"  |  ");
         ImGui::SameLine();
         
-        // ¼ÆËã¸÷ÀàĞÍÊıÁ¿
-        int typeCount[10] = {0}; // ×ã¹»´óµÄÊı×é
+        // è®¡ç®—å„ç±»å‹æ•°é‡
+        int typeCount[10] = {0}; // è¶³å¤Ÿå¤§çš„æ•°ç»„
         for (const auto& callback : ctx_->callbackUiVec) {
             if (callback.Type < 10) {
                 typeCount[callback.Type]++;
             }
         }
         
-        // ÏÔÊ¾·ÇÁãµÄÀàĞÍÍ³¼Æ
+        // æ˜¾ç¤ºéé›¶çš„ç±»å‹ç»Ÿè®¡
         bool first = true;
         CALLBACK_TYPE types[] = {TypeProcess, TypeThread, TypeImage, 
                                 TypeRegistry, TypeObject, TypeBugCheck, TypeShutdown};
@@ -178,20 +203,24 @@ const char* CallbackWnd::GetCallbackTypeName(CALLBACK_TYPE type) {
         case TypeRegistry:          return u8"Registry";
         case TypeObject:            return u8"Object";
         case TypeBugCheck:          return u8"BugCheck";
+        case TypeBugCheckReason:    return u8"BugCheckReason";
         case TypeShutdown:          return u8"Shutdown";
-        default:                    return u8"Î´ÖªÀàĞÍ";
+        default:                    return u8"æœªçŸ¥ç±»å‹";
     }
 }
 
+/*
 const char* CallbackWnd::GetCallbackTypeDesc(CALLBACK_TYPE type) {
     switch (type) {
-        case TypeProcess:           return u8"¼à¿Ø½ø³Ì´´½¨ºÍÖÕÖ¹ÊÂ¼ş (CreateProcess/Ex)";
-        case TypeThread:            return u8"¼à¿ØÏß³Ì´´½¨ºÍÖÕÖ¹ÊÂ¼ş";
-        case TypeImage:             return u8"¼à¿ØDLL/EXEÄ£¿é¼ÓÔØÊÂ¼ş";
-        case TypeRegistry:          return u8"¼à¿Ø×¢²á±í²Ù×÷ÊÂ¼ş";
-        case TypeObject:            return u8"¼à¿Ø¶ÔÏó·ÃÎÊÊÂ¼ş";
-        case TypeBugCheck:          return u8"ÏµÍ³±ÀÀ£Ê±´¥·¢";
-        case TypeShutdown:          return u8"ÏµÍ³¹Ø»úÊ±´¥·¢";
-        default:                    return u8"Î´Öª»Øµ÷ÀàĞÍ";
+        case TypeProcess:           return u8"ç›‘æ§è¿›ç¨‹åˆ›å»ºå’Œç»ˆæ­¢äº‹ä»¶ (CreateProcess/Ex)";
+        case TypeThread:            return u8"ç›‘æ§çº¿ç¨‹åˆ›å»ºå’Œç»ˆæ­¢äº‹ä»¶";
+        case TypeImage:             return u8"ç›‘æ§DLL/EXEæ¨¡å—åŠ è½½äº‹ä»¶";
+        case TypeRegistry:          return u8"ç›‘æ§æ³¨å†Œè¡¨æ“ä½œäº‹ä»¶";
+        case TypeObject:            return u8"ç›‘æ§å¯¹è±¡è®¿é—®äº‹ä»¶";
+        case TypeBugCheck:          return u8"ç³»ç»Ÿå´©æºƒæ—¶è§¦å‘";
+        case TypeBugCheckReason:    return u8"ç³»ç»Ÿå´©æºƒåŸå› å›è°ƒ";
+        case TypeShutdown:          return u8"ç³»ç»Ÿå…³æœºæ—¶è§¦å‘";
+        default:                    return u8"æœªçŸ¥å›è°ƒç±»å‹";
     }
 }
+*/

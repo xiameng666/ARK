@@ -200,6 +200,7 @@ typedef enum CALLBACK_TYPE {
     TypeRegistry = 3,             // CmRegisterCallback - 注册表操作
     TypeObject = 4,               // ObRegisterCallbacks - 对象操作(进程/线程句柄)
     TypeBugCheck = 5,             // KeRegisterBugCheckCallback - 系统崩溃
+    TypeBugCheckReason = 7,       // KeRegisterBugCheckReasonCallback - 蓝屏原因回调
     TypeShutdown = 6,             // IoRegisterShutdownNotification - 系统关闭
 
     TypeAll                       // 枚举所有回调
@@ -216,7 +217,7 @@ typedef struct CALLBACK_INFO {
     BOOLEAN IsValid;                      // 回调是否有效(暂时不用 后续可能要添加禁用/恢复)
 
     union {
-        PVOID CallbackExtra;              // 这个字段是什么意思？每个回调都有吗 有什么区别
+        PVOID CallbackExtra;              // 
         UCHAR Reserved[32];               // 扩展信息 
     } Extra;
 
