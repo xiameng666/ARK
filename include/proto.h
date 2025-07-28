@@ -72,7 +72,12 @@ enum WindowsVersion
 #define CTL_SET_PDB_PATH            MY_CTL_CODE(50)     // 设置PDB下载路径
 
 #define CTL_ENUM_CALLBACK           MY_CTL_CODE(81)     // 枚举回调信息
-#define CTL_DELETE_CALLBACK        MY_CTL_CODE(82)     //  删除回调
+#define CTL_DELETE_CALLBACK         MY_CTL_CODE(82)     // 删除回调
+
+#define CTL_ENUM_DRIVER_COUNT       MY_CTL_CODE(90)     // 枚举驱动 返回数量  
+#define CTL_ENUM_DRIVER             MY_CTL_CODE(91)     // 枚举驱动 返回数据
+
+#define CTL_ENUM_DISPATCH_HOOK      MY_CTL_CODE(92)     // 枚举派遣函数Hook
 
 
 
@@ -251,5 +256,16 @@ typedef struct CALLBACK_DELETE_REQ {
     };
 
 }  *PCALLBACK_DELETE_REQ;
+
+// 派遣函数Hook检测结果
+typedef struct _DISPATCH_HOOK_INFO {
+    ULONG MajorFunctionCode;            // IRP_MJ_xxx代码
+    CHAR FunctionName[32];              // 函数名称 (IRP_MJ_CREATE等)
+    CHAR DriverName[64];                // 驱动名称
+    PVOID CurrentAddress;               // 当前函数地址  
+    PVOID OriginalAddress;              // 原始函数地址
+    CHAR CurrentModule[64];             // 当前函数地址所在模块
+    BOOLEAN IsHooked;                   // 是否被Hook
+} DISPATCH_HOOK_INFO, *PDISPATCH_HOOK_INFO;
 
 

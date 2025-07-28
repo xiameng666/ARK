@@ -1,364 +1,344 @@
 #include "driver.h"
 
+#define MAX_OBJECT_STORE 500
+DRIVER_OBJECT_INFO g_DriverObjects[MAX_OBJECT_STORE];  // 最多存储500个驱动对象
+ULONG g_DriverObjectCount = 0;            // 当前驱动对象数量
+extern PDRIVER_OBJECT g_DriverObject ;
 
-// 全局变量定义
-extern "C" void _sgdt(void*);
-BOOLEAN g_LogOn = FALSE;
-ULONG_PTR g_VA = 0;
+void CheckDriverMJHooked(PDRIVER_OBJECT DriverObj) {
+    if (!DriverObj || !MmIsAddressValid(DriverObj)) {
+        return;
+    }
 
-wchar_t g_PdbDownloadPath[512] = L"C:\\Symbols";
+    __try {
+        // 获取驱动的模块信息
+        PVOID driverStart = DriverObj->DriverStart;
+        ULONG driverSize = DriverObj->DriverSize;
 
-NTSTATUS SetPdbPath(PWCHAR InputPath)
-{
-    if (!InputPath) {
+        if (!driverStart || driverSize == 0) {
+            Log("[XM]   No module info for driver: %wZ", &DriverObj->DriverName);
+            return;
+        }
+
+        BOOLEAN hasHook = FALSE;
+        ULONG hookCount = 0;
+
+        Log("[XM]   Check MJFUNC for driver: %wZ (Base: %p, Size: 0x%x)",
+            &DriverObj->DriverName, driverStart, driverSize);
+
+        for (ULONG i = 0; i <= IRP_MJ_MAXIMUM_FUNCTION && i < 28; i++) {
+            PVOID majorFunc = DriverObj->MajorFunction[i];
+
+            if (majorFunc) {
+                // 检查函数地址是否在驱动模块范围内
+                if ((ULONG_PTR)majorFunc < (ULONG_PTR)driverStart ||
+                    (ULONG_PTR)majorFunc >= (ULONG_PTR)driverStart + driverSize) {
+
+                    // 查找Hook函数所在的模块
+                    CHAR hookModulePath[256] = { 0 };
+                    PVOID hookImageBase = NULL;
+                    ULONG hookImageSize = 0;
+
+                    NTSTATUS findStatus = FindModuleByAddress(majorFunc, hookModulePath, &hookImageBase, &hookImageSize);
+
+                    if (NT_SUCCESS(findStatus)) {
+                        Log("[XM]  *** HOOK检测到 *** [%02d] %s = %p (在模块: %s, 基址: %p)",
+                            i, majorFunctionNames[i], majorFunc, hookModulePath, hookImageBase);
+                    }
+                    else {
+                        Log("[XM]  *** HOOK检测到 *** [%02d] %s = %p (未知模块)",
+                            i, majorFunctionNames[i], majorFunc);
+                    }
+
+                    hasHook = TRUE;
+                    hookCount++;
+                }
+                else {
+                    Log("[XM] [%02d] %s = %p (normal)", i, majorFunctionNames[i], majorFunc);
+                }
+            }
+            else {
+                Log("[XM] [%02d] %s = NULL", i, majorFunctionNames[i]);
+            }
+        }
+
+        if (hasHook) {
+            Log("[XM] Driver %wZ: %d HOOKS DETECTED", &DriverObj->DriverName, hookCount);
+        }
+        else {
+            Log("[XM] Driver %wZ: No hooks detected", &DriverObj->DriverName);
+        }
+
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        Log("[XM] CheckDriverMJHooked Exception %p", DriverObj);
+    }
+}
+
+NTSTATUS CheckDriverMJHookedForR3(PDISPATCH_HOOK_INFO HookBuffer, PULONG HookCount) {
+    if (!HookBuffer || !HookCount) {
         return STATUS_INVALID_PARAMETER;
     }
 
-    SIZE_T pathLength = wcslen(InputPath);
+    *HookCount = 0;
 
-    // 复制到全局Pdb地址
-    RtlZeroMemory(g_PdbDownloadPath, sizeof(g_PdbDownloadPath));
-    RtlCopyMemory(g_PdbDownloadPath, InputPath, pathLength * sizeof(WCHAR));
+    // 遍历存储的驱动对象
+    for (ULONG i = 0; i < g_DriverObjectCount; i++) {
+        PDRIVER_OBJECT DriverObj = g_DriverObjects[i].DriverObject;
+
+        if (!DriverObj || !MmIsAddressValid(DriverObj)) {
+            continue;
+        }
+
+        __try {
+            PVOID driverStart = DriverObj->DriverStart;
+            ULONG driverSize = DriverObj->DriverSize;
+
+            if (!driverStart || driverSize == 0) {
+                continue;
+            }
+
+            // 检查所有28个MajorFunction
+            for (ULONG j = 0; j <= IRP_MJ_MAXIMUM_FUNCTION && j < 28; j++) {
+                PVOID majorFunc = DriverObj->MajorFunction[j];
+
+                if (majorFunc) {
+                    BOOLEAN isHooked = FALSE;
+
+                    // 检查函数地址是否在驱动模块范围内
+                    if ((ULONG_PTR)majorFunc < (ULONG_PTR)driverStart ||
+                        (ULONG_PTR)majorFunc >= (ULONG_PTR)driverStart + driverSize) {
+                        isHooked = TRUE;
+                    }
+
+                    // 填充Hook信息结构
+                    PDISPATCH_HOOK_INFO pHookInfo = &HookBuffer[*HookCount];
+                    RtlZeroMemory(pHookInfo, sizeof(DISPATCH_HOOK_INFO));
+
+                    pHookInfo->MajorFunctionCode = j;
+                    RtlStringCbCopyA(pHookInfo->FunctionName, sizeof(pHookInfo->FunctionName), majorFunctionNames[j]);
+
+                    // 复制驱动名称 (从UNICODE转换为ANSI)
+                    if (DriverObj->DriverName.Buffer) {
+                        ANSI_STRING ansiString;
+                        UNICODE_STRING unicodeString = DriverObj->DriverName;
+                        RtlUnicodeStringToAnsiString(&ansiString, &unicodeString, TRUE);
+                        if (ansiString.Buffer) {
+                            RtlStringCbCopyA(pHookInfo->DriverName, sizeof(pHookInfo->DriverName), ansiString.Buffer);
+                            RtlFreeAnsiString(&ansiString);
+                        }
+                    }
+
+                    pHookInfo->CurrentAddress = majorFunc;
+                    pHookInfo->IsHooked = isHooked;
+
+                    if (isHooked) {
+                        // 查找Hook函数所在的模块
+                        CHAR hookModulePath[256] = { 0 };
+                        PVOID hookImageBase = NULL;
+                        ULONG hookImageSize = 0;
+
+                        NTSTATUS findStatus = FindModuleByAddress(majorFunc, hookModulePath, &hookImageBase, &hookImageSize);
+                        if (NT_SUCCESS(findStatus)) {
+                            RtlStringCbCopyA(pHookInfo->CurrentModule, sizeof(pHookInfo->CurrentModule), hookModulePath);
+                        }
+                        else {
+                            RtlStringCbCopyA(pHookInfo->CurrentModule, sizeof(pHookInfo->CurrentModule), "Unknown");
+                        }
+                    }
+                    else {
+                        RtlStringCbCopyA(pHookInfo->CurrentModule, sizeof(pHookInfo->CurrentModule), "Normal");
+                    }
+
+                    (*HookCount)++;
+
+                    // 防止缓冲区溢出
+                    if (*HookCount >= 1000) {
+                        return STATUS_SUCCESS;
+                    }
+                }
+            }
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) {
+            Log("[XM] CheckDriverMJHookedForR3 Exception for driver %d", i);
+            continue;
+        }
+    }
 
     return STATUS_SUCCESS;
 }
 
-void Log(const char* Format, ...) {
-    if (!g_LogOn) return;
-    
-    va_list args;
-    va_start(args, Format);
-    
-    char buffer[512];
-    RtlStringCbVPrintfA(buffer, sizeof(buffer), Format, args);
-    
-    DbgPrint("%s\n", buffer);
-    va_end(args);
-}
+void EnumDriverObject() {
+    INIT_PDB;
+    //遍历驱动对象链表
+    PUCHAR DriverObjectByte = (PUCHAR)g_DriverObject;
 
-NTSTATUS CompleteRequest(struct _IRP* Irp, ULONG_PTR Information, NTSTATUS Status) {
-    Irp->IoStatus.Status = Status;
-    Irp->IoStatus.Information = Information;
-    IoCompleteRequest(Irp, IO_NO_INCREMENT);
-    return Status;
-}
-
-NTSTATUS DispatchCreate(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_ struct _IRP* Irp) {
-    UNREFERENCED_PARAMETER(DeviceObject);
-    Log("[XM] DispatchCreate");
-    return CompleteRequest(Irp);
-}
-
-NTSTATUS DispatchClose(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_ struct _IRP* Irp) {
-    UNREFERENCED_PARAMETER(DeviceObject);
-    Log("[XM] DispatchClose");
-    return CompleteRequest(Irp);
-}
-
-NTSTATUS DispatchRead(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_ struct _IRP* Irp) {
-    UNREFERENCED_PARAMETER(DeviceObject);
-    Log("[XM] DispatchRead");
-    return CompleteRequest(Irp);
-}
-
-NTSTATUS DispatchWrite(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_ struct _IRP* Irp) {
-    UNREFERENCED_PARAMETER(DeviceObject);
-    
-    PIO_STACK_LOCATION stack = IoGetCurrentIrpStackLocation(Irp);
-    ULONG length = stack->Parameters.Write.Length;
-    
-    if (length == sizeof(ULONG_PTR)) {
-        PULONG_PTR pData = (PULONG_PTR)Irp->AssociatedIrp.SystemBuffer;
-        if (pData) {
-            g_VA = *pData;
-            Log("[XM] DispatchWrite: 收到VA=0x%p", (PVOID)g_VA);
-            return CompleteRequest(Irp, sizeof(ULONG_PTR));
-        }
-    }
-    
-    Log("[XM] DispatchWrite: 无效数据长度 %d", length);
-    return CompleteRequest(Irp, 0, STATUS_INVALID_PARAMETER);
-}
-
-NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_ struct _IRP* Irp) {
-    UNREFERENCED_PARAMETER(DeviceObject);
-    
-    PIO_STACK_LOCATION stack = IoGetCurrentIrpStackLocation(Irp);
-    ULONG controlCode = stack->Parameters.DeviceIoControl.IoControlCode;
-    NTSTATUS status = STATUS_INVALID_DEVICE_REQUEST;
-    ULONG_PTR information = 0;
-
-    switch (controlCode) {
-        case CTL_SET_PDB_PATH:  //R3下载PDB->发路径给R0->R0解析PDB初始化偏移
-        {
-            __try {
-                PPDB_PATH_REQUEST pdbPathReq = (PPDB_PATH_REQUEST)Irp->AssociatedIrp.SystemBuffer;
-                SetPdbPath(pdbPathReq->DownloadPath);
-                status = STATUS_SUCCESS;
-                Log("[XM] CTL_SET_PDB_PATH: %ws", g_PdbDownloadPath);
-                //KdBreakPoint();
-                InitProcessPdb();
-
-                //ForTest();
-            }
-            __except (EXCEPTION_EXECUTE_HANDLER) {
-                status = STATUS_UNSUCCESSFUL;
-                Log("[XM] CTL_SET_PDB_PATH exception");
-            }
-            break;
-        }
-        
-        case CTL_GET_GDT_DATA:
-        {
-            __try {
-                PGDT_DATA_REQ gdtReq = (PGDT_DATA_REQ)Irp->AssociatedIrp.SystemBuffer;
-                ULONG cpuIndex = gdtReq->CpuIndex;
-                GDTR gdtr = { 0 };
-                
-                KAFFINITY oldAffinity = KeSetSystemAffinityThreadEx(1ULL << cpuIndex);
-                
-                _sgdt(&gdtr);
-                
-                ULONG gdtSize = gdtr.Limit + 1;
-                Log("[XM] CpuIndex: %d GdtBase: %p GdtLimit: %08x, Size: %d",
-                    cpuIndex, (PVOID)gdtr.Base, gdtr.Limit, gdtSize);
-                
-                RtlCopyMemory(Irp->AssociatedIrp.SystemBuffer, (PVOID)gdtr.Base, gdtSize);
-                information = gdtSize;
-                status = STATUS_SUCCESS;
-                
-                KeRevertToUserAffinityThreadEx(oldAffinity);
-            }
-            __except (EXCEPTION_EXECUTE_HANDLER) {
-                status = STATUS_UNSUCCESSFUL;
-                Log("[XM] CTL_GET_GDT_DATA exception");
-            }
-            break;
-        }
-        
-        case CTL_ENUM_PROCESS_COUNT:
-        {
-            __try {
-                //KdBreakPoint();
-                ULONG processCount = 0;
-                status = EnumProcessEx(NULL, TRUE, &processCount);
-                if (NT_SUCCESS(status)) {
-                    *(PULONG)Irp->AssociatedIrp.SystemBuffer = processCount;
-                    information = sizeof(ULONG);
-                    Log("[XM] CTL_ENUM_PROCESS_COUNT: %d 个进程", processCount);
-                }
-            }
-            __except (EXCEPTION_EXECUTE_HANDLER) {
-                status = STATUS_UNSUCCESSFUL;
-                Log("[XM] CTL_ENUM_PROCESS_COUNT exception");
-            }
-            break;
-        }
-        
-        case CTL_ENUM_PROCESS:
-        {
-            __try {
-                ULONG processCount = 0;
-                status = EnumProcessEx((PPROCESS_INFO)Irp->AssociatedIrp.SystemBuffer, FALSE, &processCount);
-                if (NT_SUCCESS(status)) {
-                    information = processCount * sizeof(PROCESS_INFO);
-                    Log("[XM] CTL_ENUM_PROCESS: 返回 %d 个进程信息", processCount);
-                }
-            }
-            __except (EXCEPTION_EXECUTE_HANDLER) {
-                status = STATUS_UNSUCCESSFUL;
-                Log("[XM] CTL_ENUM_PROCESS exception");
-            }
-            break;
-        }
-        
-        case CTL_ENUM_MODULE_COUNT:
-        {
-            __try {
-                ULONG moduleCount = 0;
-                status = EnumModuleEx(NULL, TRUE, &moduleCount);
-                if (NT_SUCCESS(status)) {
-                    *(PULONG)Irp->AssociatedIrp.SystemBuffer = moduleCount;
-                    information = sizeof(ULONG);
-                    Log("[XM] CTL_ENUM_MODULE_COUNT: %d 个模块", moduleCount);
-                }
-            }
-            __except (EXCEPTION_EXECUTE_HANDLER) {
-                status = STATUS_UNSUCCESSFUL;
-                Log("[XM] CTL_ENUM_MODULE_COUNT exception");
-            }
-            break;
-        }
-        
-        case CTL_ENUM_MODULE:
-        {
-            __try {
-                ULONG moduleCount = 0;
-                status = EnumModuleEx((PMODULE_INFO)Irp->AssociatedIrp.SystemBuffer, FALSE, &moduleCount);
-                if (NT_SUCCESS(status)) {
-                    information = moduleCount * sizeof(MODULE_INFO);
-                    Log("[XM] CTL_ENUM_MODULE: 返回 %d 个模块信息", moduleCount);
-                }
-            }
-            __except (EXCEPTION_EXECUTE_HANDLER) {
-                status = STATUS_UNSUCCESSFUL;
-                Log("[XM] CTL_ENUM_MODULE exception");
-            }
-            break;
-        }
-
-        case CTL_ENUM_SSDT:
-        {
-            __try {
-                ULONG ssdtCount = 0;
-                status = EnumSSDT((PSSDT_INFO)Irp->AssociatedIrp.SystemBuffer,&ssdtCount);
-                if (NT_SUCCESS(status)) {
-                    information = ssdtCount * sizeof(SSDT_INFO);
-                    Log("[XM] CTL_ENUM_MODULE: 返回 %d 个SSDT函数", ssdtCount);
-                }
-            }
-            __except (EXCEPTION_EXECUTE_HANDLER) {
-                status = STATUS_UNSUCCESSFUL;
-                Log("[XM] CTL_ENUM_SSDT exception");
-            }
-            break;
-        }
-
-        //case CTL_ENUM_CALLBACK_COUNT: 不需要了 我们在R3申请巨大缓冲区即可。
-       
-        case CTL_ENUM_CALLBACK:
-        {
-            __try {
-                // R3发送回调类型，R0返回该类型的所有回调信息
-                PULONG callbackType = (PULONG)Irp->AssociatedIrp.SystemBuffer;
-                ULONG callbackCount = 0;
-                
-                status = EnumCallbacks((PCALLBACK_INFO)Irp->AssociatedIrp.SystemBuffer, 
-                                     (CALLBACK_TYPE)*callbackType, 
-                                     &callbackCount);
-                                     
-                if (NT_SUCCESS(status)) {
-                    information = callbackCount * sizeof(CALLBACK_INFO);
-                    Log("[XM] CTL_ENUM_CALLBACK: 类型 %d 返回 %d 个回调信息", *callbackType, callbackCount);
-                }
-            }
-            __except (EXCEPTION_EXECUTE_HANDLER) {
-                status = STATUS_UNSUCCESSFUL;
-                Log("[XM] CTL_ENUM_CALLBACK exception");
-            }
-            break;
-        }
-        
-        case CTL_DELETE_CALLBACK:
-        {
-            __try {
-                PCALLBACK_DELETE_REQ restoreReq = (PCALLBACK_DELETE_REQ)Irp->AssociatedIrp.SystemBuffer;
-                
-                status = DeleteCallback(restoreReq->Type, restoreReq->Index, restoreReq->CallbackFuncAddr);
-                
-                if (NT_SUCCESS(status)) {
-                    Log("[XM] CTL_RESTORE_CALLBACK: 成功删除回调，类型=%d，索引=%d", 
-                        restoreReq->Type, restoreReq->Index);
-                } else {
-                    Log("[XM] CTL_RESTORE_CALLBACK: 删除回调失败，类型=%d，索引=%d", 
-                        restoreReq->Type, restoreReq->Index);
-                }
-            }
-            __except (EXCEPTION_EXECUTE_HANDLER) {
-                status = STATUS_UNSUCCESSFUL;
-                Log("[XM] CTL_RESTORE_CALLBACK exception");
-            }
-            break;
-        }
-        
-
-        default:
-            Log("[XM] DispatchDeviceControl: 错误控制码 0x%08X", controlCode);
-            status = STATUS_INVALID_DEVICE_REQUEST;
-            break;
+    ULONG_PTR ObjectHeaderBodyOffset = ntos.GetOffset("_OBJECT_HEADER", "Body");
+    if (ObjectHeaderBodyOffset == 0) {
+        Log("[XM] Failed to get _OBJECT_HEADER Body offset");
+        return;
     }
 
-    return CompleteRequest(Irp, information, status);
+    // _OBJECT_HEADER_NAME_INFO的大小 暂时硬编码
+    ULONG ObjectHeaderNameInfoSize = 0x20;  // _OBJECT_HEADER_NAME_INFO大小
+
+    Log("[XM] Body offset: 0x%x, NameInfo size: 0x%x", ObjectHeaderBodyOffset, ObjectHeaderNameInfoSize);
+
+    // OBJECT_HEADER地址
+    PUCHAR ObjectHeader = DriverObjectByte - ObjectHeaderBodyOffset;
+
+    // OBJECT_HEADER_NAME_INFO地址 (在OBJECT_HEADER上方)
+    PUCHAR PObjHeaderNameInfoPtr = ObjectHeader - ObjectHeaderNameInfoSize;
+
+    __try {
+        if (!MmIsAddressValid(PObjHeaderNameInfoPtr)) {
+            Log("[XM] Invalid OBJECT_HEADER_NAME_INFO address: %p", PObjHeaderNameInfoPtr);
+            return;
+        }
+
+        ULONG_PTR DirectoryOffset = ntos.GetOffset("_OBJECT_HEADER_NAME_INFO", "Directory");  //=0
+        PVOID* PDirectoryPtr = (PVOID*)(PObjHeaderNameInfoPtr + DirectoryOffset);
+        PVOID PDirectory = *PDirectoryPtr;
+
+        if (!PDirectory || !MmIsAddressValid(PDirectory)) {
+            Log("[XM] Invalid Directory pointer: %p", PDirectory);
+            return;
+        }
+
+        Log("[XM] Enumerating Driver Directory at %p", PDirectory);
+
+        ULONG_PTR HashBucketsOffset = ntos.GetOffset("_OBJECT_DIRECTORY", "HashBuckets");//=0
+        ULONG_PTR ObjectOffset = ntos.GetOffset("_OBJECT_DIRECTORY_ENTRY", "Object");//=0x08
+        ULONG_PTR ChainLinkOffset = ntos.GetOffset("_OBJECT_DIRECTORY_ENTRY", "ChainLink");//=0
+
+        // 遍历37个哈希桶
+        PVOID* HashBuckets = (PVOID*)((PUCHAR)PDirectory + HashBucketsOffset);
+
+        for (int i = 0; i < 37; i++) {
+
+            PUCHAR PDirectoryEntry = (PUCHAR)HashBuckets[i];
+            if (PDirectoryEntry == NULL) {
+                continue;
+            }
+
+            PUCHAR PSubDirectoryEntry = PDirectoryEntry;
+            while (PSubDirectoryEntry != NULL) {
+
+                PVOID* ObjectPtr = (PVOID*)(PSubDirectoryEntry + ObjectOffset);
+                PDRIVER_OBJECT TargetDrvObj = (PDRIVER_OBJECT)*ObjectPtr;
+
+                if (TargetDrvObj->Type == IO_TYPE_DRIVER) {
+                    Log("[XM] DrvObj: %p  DrvName: %wZ", TargetDrvObj, &TargetDrvObj->DriverName);
+
+                    // 存储驱动对象信息到全局数据结构
+                    if (g_DriverObjectCount < MAX_OBJECT_STORE) {
+                        g_DriverObjects[g_DriverObjectCount].DriverObject = TargetDrvObj;
+
+                        // 复制驱动名称
+                        if (TargetDrvObj->DriverName.Buffer && TargetDrvObj->DriverName.Length > 0) {
+                            ULONG copyLength = min(TargetDrvObj->DriverName.Length, sizeof(g_DriverObjects[g_DriverObjectCount].DriverName) - sizeof(WCHAR));
+                            RtlCopyMemory(g_DriverObjects[g_DriverObjectCount].DriverName,
+                                TargetDrvObj->DriverName.Buffer, copyLength);
+                            g_DriverObjects[g_DriverObjectCount].DriverName[copyLength / sizeof(WCHAR)] = L'\0';
+                        }
+
+                        // 存储驱动基地址和大小
+                        g_DriverObjects[g_DriverObjectCount].DriverStart = TargetDrvObj->DriverStart;
+                        g_DriverObjects[g_DriverObjectCount].DriverSize = TargetDrvObj->DriverSize;
+
+                        g_DriverObjectCount++;
+                    }
+
+                    //这里拿到了设备对象 然后干点什么
+                    CheckDriverMJHooked(TargetDrvObj);
+                }
+
+                // 获取下一个ChainLink
+                PVOID* ChainLinkPtr = (PVOID*)(PSubDirectoryEntry + ChainLinkOffset);
+                PSubDirectoryEntry = (PUCHAR)*ChainLinkPtr;
+            }
+        }
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        Log("[XM] Exception in EnumDriverObject");
+    }
 }
 
-VOID Unload(__in struct _DRIVER_OBJECT* DriverObject)
+//NTSTATUS MajorFunctionisHooked(PDISPATCH_HOOK_INFO HookBuffer, PULONG HookCount)
+NTSTATUS MajorFunctionisHooked()
 {
-    UNREFERENCED_PARAMETER(DriverObject);
-    UNICODE_STRING usSymbolicLinkName;
-
-    // 删除符号链接
-    RtlInitUnicodeString(&usSymbolicLinkName, SYMBOL_NAME);
-    IoDeleteSymbolicLink(&usSymbolicLinkName);
-
-    // 删除设备对象
-    if (DriverObject->DeviceObject != nullptr) {
-        IoDeleteDevice(DriverObject->DeviceObject);
+    INIT_PDB;
+    // 获取PsLoadedModuleList 
+    ULONG_PTR PsLoadedModuleList = ntos.GetPointer("PsLoadedModuleList");
+    if (!PsLoadedModuleList)
+    {
+        Log("[XM] MajorFunctionisHooked PsLoadedModuleList is NULL");
+        return STATUS_UNSUCCESSFUL;
     }
 
-    Log("[XM] Unload 完成 ");
-}
+    ULONG_PTR IoDriverObjectList = ntos.GetPointer("IoDriverObjectList");
+    Log("[XM] IoDriverObjectList: %p", IoDriverObjectList);
+    // *HookCount = 0;
+    ULONG index = 0;
 
-NTSTATUS DriverEntry(
-    __in struct _DRIVER_OBJECT* DriverObject, __in PUNICODE_STRING RegistryPath)
-{
-    UNREFERENCED_PARAMETER(RegistryPath);
+    /*_KLDR_DATA_TABLE_ENTRY
+        + 0x000 InLoadOrderLinks : _LIST_ENTRY
+        + 0x010 ExceptionTable : Ptr64 Void
+        + 0x018 ExceptionTableSize : Uint4B
+        + 0x020 GpValue : Ptr64 Void
+        + 0x028 NonPagedDebugInfo : Ptr64 _NON_PAGED_DEBUG_INFO
+        + 0x030 DllBase : Ptr64 Void
+        + 0x038 EntryPoint : Ptr64 Void
+        + 0x040 SizeOfImage : Uint4B
+        + 0x048 FullDllName : _UNICODE_STRING
+        + 0x058 BaseDllName : _UNICODE_STRING
+        + 0x068 Flags : Uint4B
+        + 0x06c LoadCount : Uint2B
+        + 0x06e u1 : <anonymous - tag>
+        +0x070 SectionPointer : Ptr64 Void
+        + 0x078 CheckSum : Uint4B
+        + 0x07c CoverageSectionSize : Uint4B
+        + 0x080 CoverageSection : Ptr64 Void
+        + 0x088 LoadedImports : Ptr64 Void
+        + 0x090 Spare : Ptr64 Void
+        + 0x098 SizeOfImageNotRounded : Uint4B
+        + 0x09c TimeDateStamp : Uint4B*/
 
-    Log("[XM] DriverEntry DriverObject:%p RegistryPath:%wZ ",
-        DriverObject, RegistryPath);
+    PLIST_ENTRY moduleList = (PLIST_ENTRY)PsLoadedModuleList;
+    for (PLIST_ENTRY entry = moduleList->Flink; entry != moduleList; entry = entry->Flink) {
 
-    //设置unload
-    DriverObject->DriverUnload = Unload;
+        PVOID moduleEntry = (PVOID)entry;
+        Log("[XM] Module[%d] entry: %p, moduleEntry: %p", index, entry, moduleEntry);
 
-    //设置分发例程 回调函数跟硬件设备通讯 
-    DriverObject->MajorFunction[IRP_MJ_CREATE] = DispatchCreate;
-    DriverObject->MajorFunction[IRP_MJ_CLOSE] = DispatchClose;
-    DriverObject->MajorFunction[IRP_MJ_READ] = DispatchRead;
-    DriverObject->MajorFunction[IRP_MJ_WRITE] = DispatchWrite;
-    DriverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL] = DispatchDeviceControl;
+        ULONG_PTR dllbaseOffset = ntos.GetOffset("_KLDR_DATA_TABLE_ENTRY", "DllBase");
+        ULONG_PTR sizeOfImageOffset = ntos.GetOffset("_KLDR_DATA_TABLE_ENTRY",
+            "SizeOfImage");
+        ULONG_PTR fullDllNameOffset = ntos.GetOffset("_KLDR_DATA_TABLE_ENTRY",
+            "FullDllName");
+        ULONG_PTR baseDllNameOffset = ntos.GetOffset("_KLDR_DATA_TABLE_ENTRY",
+            "BaseDllName");
 
-    // 创建设备对象
-    PDEVICE_OBJECT pDevObj = NULL;
-    UNICODE_STRING usDeviceName;
-    RtlInitUnicodeString(&usDeviceName, DEVICE_NAME);
-    NTSTATUS status = STATUS_UNSUCCESSFUL;
+        Log("[XM]  DllBase=%p, SizeOfImage=%p, FullDllName=%p,BaseDllName = %p", dllbaseOffset, sizeOfImageOffset, fullDllNameOffset, baseDllNameOffset);
 
-    do {
-        status = IoCreateDevice(
-            DriverObject,           // 驱动对象
-            0,                      // 设备扩展大小
-            &usDeviceName,          // 设备名称
-            FILE_DEVICE_UNKNOWN,    // 设备类型
-            FILE_DEVICE_SECURE_OPEN,// 设备特性  权限
-            FALSE,                  // 独占访问 
-            &pDevObj               // 返回的设备对象 
-        );
+        /*
+        PVOID dllBase = *(PVOID*)((ULONG_PTR)moduleEntry + dllbaseOffset);
+        ULONG sizeOfImage = *(PULONG)((ULONG_PTR)moduleEntry + sizeOfImageOffset);
 
-        if (!NT_SUCCESS(status))
-        {
-            Log("[XM] Driver Entry IoCreateDevice ErrCode:%08x ", status);
+        PUNICODE_STRING fullDllName = (PUNICODE_STRING)((ULONG_PTR)moduleEntry +
+            fullDllNameOffset);
+
+        PUNICODE_STRING baseDllName = (PUNICODE_STRING)((ULONG_PTR)moduleEntry +
+            baseDllNameOffset);
+*/
+
+//End
+        index++;
+
+        if (index > 200) {
+            Log("[XM] Too many modules, break");
             break;
         }
-        Log("[XM] Driver Entry IoCreateDevice Ok pDevObj:%p ", pDevObj);
+    }
 
-        // 设置设备标志
-        pDevObj->Flags |= DO_BUFFERED_IO;          // 使用缓冲IO
-        pDevObj->Flags &= ~DO_DEVICE_INITIALIZING; // 清除初始化标志
-
-        //创建符号链接  通讯
-        UNICODE_STRING usSymbolicLinkName;
-        RtlInitUnicodeString(&usSymbolicLinkName, SYMBOL_NAME);
-
-        status = IoCreateSymbolicLink(&usSymbolicLinkName, &usDeviceName);
-        if (!NT_SUCCESS(status))
-        {
-            Log("[XM] IoCreateSymbolicLink ErrCode:%08x ", status);
-            IoDeleteDevice(pDevObj);
-            break;
-        }
-        Log("[XM] IoCreateSymbolicLink Ok ");
-
-    } while (false);
-
-    return status;
+    return STATUS_SUCCESS;
 }
-

@@ -9,7 +9,7 @@
 #include "../include/proto.h"
 #include <ntstrsafe.h>  
 #include <intrin.h>
-#include "driver.h"
+#include "DriverBase.h"
 #include "oxygenPdb.h"
 #include "process.h"
 #include "module.h"

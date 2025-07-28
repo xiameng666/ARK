@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include "driver.h"
+#include "mydef.h"
 
 // 枚举所有回调函数
 void ForTest();
