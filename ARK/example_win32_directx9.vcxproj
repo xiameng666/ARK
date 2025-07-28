@@ -166,6 +166,7 @@
     <ClCompile Include="ArkR3.cpp" />
     <ClCompile Include="CallbackWnd.cpp" />
     <ClCompile Include="driverloader.cpp" />
+    <ClCompile Include="HookWnd.cpp" />
     <ClCompile Include="KernelWnd.cpp" />
     <ClCompile Include="LogWnd.cpp" />
     <ClCompile Include="main.cpp" />
@@ -184,6 +185,7 @@
     <ClInclude Include="CallbackWnd.h" />
     <ClInclude Include="driverloader.h" />
     <ClInclude Include="ezpdb.hpp" />
+    <ClInclude Include="HookWnd.h" />
     <ClInclude Include="imguiLog.h" />
     <ClInclude Include="imgui_momory_editor.h" />
     <ClInclude Include="Interface.h" />

@@ -22,6 +22,7 @@ App::App() :
     , moduleWnd_(&ctx_)
     , processWnd_(&ctx_)
     , callbackWnd_(&ctx_)             
+    , hookWnd_(&ctx_)             
     , menuBar_{ &ctx_ }
 {
     ctx_.arkR3.InitSymbolState();
@@ -59,6 +60,9 @@ void App::Render()
 
     if (ctx_.show_callback_wnd)
         callbackWnd_.Render(&ctx_.show_callback_wnd);
+
+    if (ctx_.show_hook_wnd)
+        hookWnd_.Render(&ctx_.show_hook_wnd);
     /*if (ctx_.show_menu_bar)
         menuBar_.Render(&ctx_.show_menu_bar);
     if (ctx_.show_process_wnd)

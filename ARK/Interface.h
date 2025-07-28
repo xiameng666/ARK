@@ -67,8 +67,11 @@ struct Context {
     bool show_ssdthook_wnd = true;
     bool show_log_wnd = true;
     bool show_kernel_wnd = true;
-    bool show_callback_wnd = true;      
-    bool showMemoryWindow_ = false;
+    bool show_callback_wnd = true;
+    bool show_hook_wnd = true;
+
+    bool showMemoryWindow = false;
+
 
     // UI数据存储
     std::vector<PROCESS_INFO> processUiVec;           // 进程列表数据
@@ -76,6 +79,8 @@ struct Context {
     std::vector<MODULE_INFO> processModuleUiVec;      // 进程模块数据
     std::vector<SSDT_INFO> ssdtUiVec_;                // SSDT数据
     std::vector<CALLBACK_INFO> callbackUiVec;         // 回调数据
+    std::vector<DISPATCH_HOOK_INFO> dispatchHookUiVec;// 派遣函数被hook数据
+    std::vector<DEVICE_STACK_INFO> deviceStackUiVec;  // 设备栈被attach数据
 
     // 进程模块窗口状态
     bool showProcessModuleWnd = false;

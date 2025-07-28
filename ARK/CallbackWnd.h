@@ -1,6 +1,7 @@
 #pragma once
 #include "interface.h"
 #include <vector>
+#include <algorithm>
 
 class CallbackWnd : public ImguiWnd {
 public:

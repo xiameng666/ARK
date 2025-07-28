@@ -1,168 +1,87 @@
-#include "driver.h"
+Ôªø#include "driver.h"
 
-#define MAX_OBJECT_STORE 500
-DRIVER_OBJECT_INFO g_DriverObjects[MAX_OBJECT_STORE];  // ◊Ó∂‡¥Ê¥¢500∏ˆ«˝∂Ø∂‘œÛ
-ULONG g_DriverObjectCount = 0;            // µ±«∞«˝∂Ø∂‘œÛ ˝¡ø
+#define MAX_OBJECT_STORE 500                           // ÊúÄÂ§öÂ≠òÂÇ®500‰∏™È©±Âä®ÂØπË±°
+DRIVER_OBJECT_INFO g_DrvObjs[MAX_OBJECT_STORE]; 
+ULONG g_DrvObjCount = 0;                         // Êûö‰∏æÂæóÂà∞ÁöÑÈ©±Âä®Êï∞Èáè
 extern PDRIVER_OBJECT g_DriverObject ;
 
-void CheckDriverMJHooked(PDRIVER_OBJECT DriverObj) {
-    if (!DriverObj || !MmIsAddressValid(DriverObj)) {
-        return;
+
+NTSTATUS CheckDeviceStack(PDEVICE_STACK_INFO StackBuffer, PULONG StackCount) {
+    EnumDriverObject();
+    *StackCount = 0;
+
+    if (g_DrvObjCount == 0) {
+        Log("[XM] CheckDeviceStack: No cached driver objects");
+        return STATUS_UNSUCCESSFUL;
     }
 
-    __try {
-        // ªÒ»°«˝∂Øµƒƒ£øÈ–≈œ¢
-        PVOID driverStart = DriverObj->DriverStart;
-        ULONG driverSize = DriverObj->DriverSize;
+    EnumModule();
 
-        if (!driverStart || driverSize == 0) {
-            Log("[XM]   No module info for driver: %wZ", &DriverObj->DriverName);
-            return;
-        }
-
-        BOOLEAN hasHook = FALSE;
-        ULONG hookCount = 0;
-
-        Log("[XM]   Check MJFUNC for driver: %wZ (Base: %p, Size: 0x%x)",
-            &DriverObj->DriverName, driverStart, driverSize);
-
-        for (ULONG i = 0; i <= IRP_MJ_MAXIMUM_FUNCTION && i < 28; i++) {
-            PVOID majorFunc = DriverObj->MajorFunction[i];
-
-            if (majorFunc) {
-                // ºÏ≤È∫Ø ˝µÿ÷∑ «∑Ò‘⁄«˝∂Øƒ£øÈ∑∂Œßƒ⁄
-                if ((ULONG_PTR)majorFunc < (ULONG_PTR)driverStart ||
-                    (ULONG_PTR)majorFunc >= (ULONG_PTR)driverStart + driverSize) {
-
-                    // ≤È’“Hook∫Ø ˝À˘‘⁄µƒƒ£øÈ
-                    CHAR hookModulePath[256] = { 0 };
-                    PVOID hookImageBase = NULL;
-                    ULONG hookImageSize = 0;
-
-                    NTSTATUS findStatus = FindModuleByAddress(majorFunc, hookModulePath, &hookImageBase, &hookImageSize);
-
-                    if (NT_SUCCESS(findStatus)) {
-                        Log("[XM]  *** HOOKºÏ≤‚µΩ *** [%02d] %s = %p (‘⁄ƒ£øÈ: %s, ª˘÷∑: %p)",
-                            i, majorFunctionNames[i], majorFunc, hookModulePath, hookImageBase);
-                    }
-                    else {
-                        Log("[XM]  *** HOOKºÏ≤‚µΩ *** [%02d] %s = %p (Œ¥÷™ƒ£øÈ)",
-                            i, majorFunctionNames[i], majorFunc);
-                    }
-
-                    hasHook = TRUE;
-                    hookCount++;
-                }
-                else {
-                    Log("[XM] [%02d] %s = %p (normal)", i, majorFunctionNames[i], majorFunc);
-                }
-            }
-            else {
-                Log("[XM] [%02d] %s = NULL", i, majorFunctionNames[i]);
-            }
-        }
-
-        if (hasHook) {
-            Log("[XM] Driver %wZ: %d HOOKS DETECTED", &DriverObj->DriverName, hookCount);
-        }
-        else {
-            Log("[XM] Driver %wZ: No hooks detected", &DriverObj->DriverName);
-        }
-
-    }
-    __except (EXCEPTION_EXECUTE_HANDLER) {
-        Log("[XM] CheckDriverMJHooked Exception %p", DriverObj);
-    }
-}
-
-NTSTATUS CheckDriverMJHookedForR3(PDISPATCH_HOOK_INFO HookBuffer, PULONG HookCount) {
-    if (!HookBuffer || !HookCount) {
-        return STATUS_INVALID_PARAMETER;
-    }
-
-    *HookCount = 0;
-
-    // ±È¿˙¥Ê¥¢µƒ«˝∂Ø∂‘œÛ
-    for (ULONG i = 0; i < g_DriverObjectCount; i++) {
-        PDRIVER_OBJECT DriverObj = g_DriverObjects[i].DriverObject;
+    for (ULONG i = 0; i < g_DrvObjCount && *StackCount < 2000; i++) {
+        PDRIVER_OBJECT DriverObj = g_DrvObjs[i].DriverObject;
 
         if (!DriverObj || !MmIsAddressValid(DriverObj)) {
             continue;
         }
 
-        __try {
-            PVOID driverStart = DriverObj->DriverStart;
-            ULONG driverSize = DriverObj->DriverSize;
+        PDEVICE_OBJECT CurrentDev = DriverObj->DeviceObject;
 
-            if (!driverStart || driverSize == 0) {
-                continue;
-            }
+        if (CurrentDev && MmIsAddressValid(CurrentDev) && CurrentDev->AttachedDevice) {
+            PDEVICE_STACK_INFO pStackInfo = &StackBuffer[*StackCount];
+            RtlZeroMemory(pStackInfo, sizeof(DEVICE_STACK_INFO));
 
-            // ºÏ≤ÈÀ˘”–28∏ˆMajorFunction
-            for (ULONG j = 0; j <= IRP_MJ_MAXIMUM_FUNCTION && j < 28; j++) {
-                PVOID majorFunc = DriverObj->MajorFunction[j];
+            // Â§çÂà∂È©±Âä®ÂêçÁß∞
+            size_t copyLength = min(wcslen(g_DrvObjs[i].DriverName) * sizeof(WCHAR),
+                sizeof(pStackInfo->OrigDrvName) - sizeof(WCHAR));
+            RtlCopyMemory(pStackInfo->OrigDrvName, g_DrvObjs[i].DriverName, copyLength);
+            pStackInfo->OrigDrvName[copyLength / sizeof(WCHAR)] = L'\0';
 
-                if (majorFunc) {
-                    BOOLEAN isHooked = FALSE;
+            //ÂéüÂßãÈ©±Âä®ÂØπË±° ËÆæÂ§áÂØπË±°
+            pStackInfo->OrigDrvObg = DriverObj;
+            pStackInfo->OrigDevObj = CurrentDev;
+            pStackInfo->IsHooked = TRUE;
 
-                    // ºÏ≤È∫Ø ˝µÿ÷∑ «∑Ò‘⁄«˝∂Øƒ£øÈ∑∂Œßƒ⁄
-                    if ((ULONG_PTR)majorFunc < (ULONG_PTR)driverStart ||
-                        (ULONG_PTR)majorFunc >= (ULONG_PTR)driverStart + driverSize) {
-                        isHooked = TRUE;
-                    }
+            // Ëé∑ÂèñÂéüÂßãÈ©±Âä®Ë∑ØÂæÑ
+            FindModuleByAddress(DriverObj->DriverStart,
+                pStackInfo->OriginalDriverPath, NULL, 0);
+            Log("[XM] Found original driver path: %s", pStackInfo->OriginalDriverPath);
 
-                    // ÃÓ≥‰Hook–≈œ¢Ω·ππ
-                    PDISPATCH_HOOK_INFO pHookInfo = &HookBuffer[*HookCount];
-                    RtlZeroMemory(pHookInfo, sizeof(DISPATCH_HOOK_INFO));
+            // ÈÅçÂéÜËøáÊª§È©±Âä®
+            PDEVICE_OBJECT AttachedDev = CurrentDev->AttachedDevice;
+            ULONG filterIndex = 0;
 
-                    pHookInfo->MajorFunctionCode = j;
-                    RtlStringCbCopyA(pHookInfo->FunctionName, sizeof(pHookInfo->FunctionName), majorFunctionNames[j]);
+            while (AttachedDev&&MmIsAddressValid(AttachedDev)) {
+                PDRIVER_OBJECT AttachedDriver = AttachedDev->DriverObject;
 
-                    // ∏¥÷∆«˝∂Ø√˚≥∆ (¥”UNICODE◊™ªªŒ™ANSI)
-                    if (DriverObj->DriverName.Buffer) {
-                        ANSI_STRING ansiString;
-                        UNICODE_STRING unicodeString = DriverObj->DriverName;
-                        RtlUnicodeStringToAnsiString(&ansiString, &unicodeString, TRUE);
-                        if (ansiString.Buffer) {
-                            RtlStringCbCopyA(pHookInfo->DriverName, sizeof(pHookInfo->DriverName), ansiString.Buffer);
-                            RtlFreeAnsiString(&ansiString);
-                        }
-                    }
+                if (MmIsAddressValid(AttachedDriver)) {
+                    PFILTER_DRIVER_INFO filterInfo = &pStackInfo->Filters[filterIndex];
+                    RtlZeroMemory(filterInfo, sizeof(FILTER_DRIVER_INFO));
 
-                    pHookInfo->CurrentAddress = majorFunc;
-                    pHookInfo->IsHooked = isHooked;
+                    // È©±Âä®ÂêçÁß∞
+                    copyLength = min(AttachedDriver->DriverName.Length,
+                        sizeof(filterInfo->DriverName) - sizeof(WCHAR));
+                    RtlCopyMemory(filterInfo->DriverName, AttachedDriver->DriverName.Buffer, copyLength);
+                    filterInfo->DriverName[copyLength / sizeof(WCHAR)] = L'\0';
 
-                    if (isHooked) {
-                        // ≤È’“Hook∫Ø ˝À˘‘⁄µƒƒ£øÈ
-                        CHAR hookModulePath[256] = { 0 };
-                        PVOID hookImageBase = NULL;
-                        ULONG hookImageSize = 0;
+                    //È©±Âä®ÂØπË±° ËÆæÂ§áÂØπË±°
+                    filterInfo->DriverObject = AttachedDriver;
+                    filterInfo->DeviceObject = AttachedDev;
 
-                        NTSTATUS findStatus = FindModuleByAddress(majorFunc, hookModulePath, &hookImageBase, &hookImageSize);
-                        if (NT_SUCCESS(findStatus)) {
-                            RtlStringCbCopyA(pHookInfo->CurrentModule, sizeof(pHookInfo->CurrentModule), hookModulePath);
-                        }
-                        else {
-                            RtlStringCbCopyA(pHookInfo->CurrentModule, sizeof(pHookInfo->CurrentModule), "Unknown");
-                        }
-                    }
-                    else {
-                        RtlStringCbCopyA(pHookInfo->CurrentModule, sizeof(pHookInfo->CurrentModule), "Normal");
-                    }
+                    // Ê®°ÂùóË∑ØÂæÑÊü•Êâæ
+                    FindModuleByAddress(AttachedDriver->DriverStart,
+                        filterInfo->DriverPath, NULL, 0);
 
-                    (*HookCount)++;
-
-                    // ∑¿÷πª∫≥Â«¯“Á≥ˆ
-                    if (*HookCount >= 1000) {
-                        return STATUS_SUCCESS;
-                    }
+                    filterIndex++;
                 }
+
+                AttachedDev = AttachedDev->AttachedDevice;
             }
+
+            pStackInfo->FilterCount = filterIndex;
+            (*StackCount)++;
         }
-        __except (EXCEPTION_EXECUTE_HANDLER) {
-            Log("[XM] CheckDriverMJHookedForR3 Exception for driver %d", i);
-            continue;
-        }
+
+        // CurrentDev = CurrentDev->NextDevice;
     }
 
     return STATUS_SUCCESS;
@@ -170,7 +89,7 @@ NTSTATUS CheckDriverMJHookedForR3(PDISPATCH_HOOK_INFO HookBuffer, PULONG HookCou
 
 void EnumDriverObject() {
     INIT_PDB;
-    //±È¿˙«˝∂Ø∂‘œÛ¡¥±Ì
+    //ÈÅçÂéÜÈ©±Âä®ÂØπË±°ÈìæË°®
     PUCHAR DriverObjectByte = (PUCHAR)g_DriverObject;
 
     ULONG_PTR ObjectHeaderBodyOffset = ntos.GetOffset("_OBJECT_HEADER", "Body");
@@ -179,15 +98,15 @@ void EnumDriverObject() {
         return;
     }
 
-    // _OBJECT_HEADER_NAME_INFOµƒ¥Û–° ‘› ±”≤±‡¬Î
-    ULONG ObjectHeaderNameInfoSize = 0x20;  // _OBJECT_HEADER_NAME_INFO¥Û–°
+    // _OBJECT_HEADER_NAME_INFOÁöÑÂ§ßÂ∞è ÊöÇÊó∂Á°¨ÁºñÁ†Å
+    ULONG ObjectHeaderNameInfoSize = 0x20;  
 
     Log("[XM] Body offset: 0x%x, NameInfo size: 0x%x", ObjectHeaderBodyOffset, ObjectHeaderNameInfoSize);
 
-    // OBJECT_HEADERµÿ÷∑
+    // OBJECT_HEADERÂú∞ÂùÄ
     PUCHAR ObjectHeader = DriverObjectByte - ObjectHeaderBodyOffset;
 
-    // OBJECT_HEADER_NAME_INFOµÿ÷∑ (‘⁄OBJECT_HEADER…œ∑Ω)
+    // OBJECT_HEADER_NAME_INFOÂú∞ÂùÄ (Âú®OBJECT_HEADER‰∏äÊñπ)
     PUCHAR PObjHeaderNameInfoPtr = ObjectHeader - ObjectHeaderNameInfoSize;
 
     __try {
@@ -211,7 +130,7 @@ void EnumDriverObject() {
         ULONG_PTR ObjectOffset = ntos.GetOffset("_OBJECT_DIRECTORY_ENTRY", "Object");//=0x08
         ULONG_PTR ChainLinkOffset = ntos.GetOffset("_OBJECT_DIRECTORY_ENTRY", "ChainLink");//=0
 
-        // ±È¿˙37∏ˆπ˛œ£Õ∞
+        // ÈÅçÂéÜ37‰∏™ÂìàÂ∏åÊ°∂
         PVOID* HashBuckets = (PVOID*)((PUCHAR)PDirectory + HashBucketsOffset);
 
         for (int i = 0; i < 37; i++) {
@@ -230,30 +149,25 @@ void EnumDriverObject() {
                 if (TargetDrvObj->Type == IO_TYPE_DRIVER) {
                     Log("[XM] DrvObj: %p  DrvName: %wZ", TargetDrvObj, &TargetDrvObj->DriverName);
 
-                    // ¥Ê¥¢«˝∂Ø∂‘œÛ–≈œ¢µΩ»´æ÷ ˝æ›Ω·ππ
-                    if (g_DriverObjectCount < MAX_OBJECT_STORE) {
-                        g_DriverObjects[g_DriverObjectCount].DriverObject = TargetDrvObj;
+                    // Â≠òÂÇ®È©±Âä®ÂØπË±°‰ø°ÊÅØÂà∞ÂÖ®Â±ÄÊï∞ÊçÆÁªìÊûÑ
+                    if (g_DrvObjCount < MAX_OBJECT_STORE) {
+                        g_DrvObjs[g_DrvObjCount].DriverObject = TargetDrvObj;
 
-                        // ∏¥÷∆«˝∂Ø√˚≥∆
-                        if (TargetDrvObj->DriverName.Buffer && TargetDrvObj->DriverName.Length > 0) {
-                            ULONG copyLength = min(TargetDrvObj->DriverName.Length, sizeof(g_DriverObjects[g_DriverObjectCount].DriverName) - sizeof(WCHAR));
-                            RtlCopyMemory(g_DriverObjects[g_DriverObjectCount].DriverName,
-                                TargetDrvObj->DriverName.Buffer, copyLength);
-                            g_DriverObjects[g_DriverObjectCount].DriverName[copyLength / sizeof(WCHAR)] = L'\0';
-                        }
+                        // È©±Âä®ÂêçÁß∞
+                        ULONG copyLength = min(TargetDrvObj->DriverName.Length, sizeof(g_DrvObjs[g_DrvObjCount].DriverName) - sizeof(WCHAR));
+                        RtlCopyMemory(g_DrvObjs[g_DrvObjCount].DriverName,
+                            TargetDrvObj->DriverName.Buffer, copyLength);
+                        g_DrvObjs[g_DrvObjCount].DriverName[copyLength / sizeof(WCHAR)] = L'\0';
 
-                        // ¥Ê¥¢«˝∂Øª˘µÿ÷∑∫Õ¥Û–°
-                        g_DriverObjects[g_DriverObjectCount].DriverStart = TargetDrvObj->DriverStart;
-                        g_DriverObjects[g_DriverObjectCount].DriverSize = TargetDrvObj->DriverSize;
+                        // È©±Âä®Âü∫Âú∞ÂùÄÂíåÂ§ßÂ∞è
+                        g_DrvObjs[g_DrvObjCount].DriverStart = TargetDrvObj->DriverStart;
+                        g_DrvObjs[g_DrvObjCount].DriverSize = TargetDrvObj->DriverSize;
 
-                        g_DriverObjectCount++;
-                    }
-
-                    //’‚¿Ôƒ√µΩ¡À…Ë±∏∂‘œÛ »ª∫Û∏…µ„ ≤√¥
-                    CheckDriverMJHooked(TargetDrvObj);
+                        g_DrvObjCount++;
+                    }                   
                 }
 
-                // ªÒ»°œ¬“ª∏ˆChainLink
+                // Ëé∑Âèñ‰∏ã‰∏Ä‰∏™ChainLink
                 PVOID* ChainLinkPtr = (PVOID*)(PSubDirectoryEntry + ChainLinkOffset);
                 PSubDirectoryEntry = (PUCHAR)*ChainLinkPtr;
             }
@@ -264,79 +178,127 @@ void EnumDriverObject() {
     }
 }
 
-//NTSTATUS MajorFunctionisHooked(PDISPATCH_HOOK_INFO HookBuffer, PULONG HookCount)
-NTSTATUS MajorFunctionisHooked()
-{
-    INIT_PDB;
-    // ªÒ»°PsLoadedModuleList 
-    ULONG_PTR PsLoadedModuleList = ntos.GetPointer("PsLoadedModuleList");
-    if (!PsLoadedModuleList)
-    {
-        Log("[XM] MajorFunctionisHooked PsLoadedModuleList is NULL");
+
+NTSTATUS CheckDrvMJHooked(PDISPATCH_HOOK_INFO HookBuffer, PULONG HookCount) {
+    EnumDriverObject();
+
+    *HookCount = 0;
+
+    if (g_DrvObjCount == 0) {
+        Log("[XM] CheckDrvMJHooked: No cached driver objects");
         return STATUS_UNSUCCESSFUL;
     }
 
-    ULONG_PTR IoDriverObjectList = ntos.GetPointer("IoDriverObjectList");
-    Log("[XM] IoDriverObjectList: %p", IoDriverObjectList);
-    // *HookCount = 0;
-    ULONG index = 0;
+    EnumModule();
 
-    /*_KLDR_DATA_TABLE_ENTRY
-        + 0x000 InLoadOrderLinks : _LIST_ENTRY
-        + 0x010 ExceptionTable : Ptr64 Void
-        + 0x018 ExceptionTableSize : Uint4B
-        + 0x020 GpValue : Ptr64 Void
-        + 0x028 NonPagedDebugInfo : Ptr64 _NON_PAGED_DEBUG_INFO
-        + 0x030 DllBase : Ptr64 Void
-        + 0x038 EntryPoint : Ptr64 Void
-        + 0x040 SizeOfImage : Uint4B
-        + 0x048 FullDllName : _UNICODE_STRING
-        + 0x058 BaseDllName : _UNICODE_STRING
-        + 0x068 Flags : Uint4B
-        + 0x06c LoadCount : Uint2B
-        + 0x06e u1 : <anonymous - tag>
-        +0x070 SectionPointer : Ptr64 Void
-        + 0x078 CheckSum : Uint4B
-        + 0x07c CoverageSectionSize : Uint4B
-        + 0x080 CoverageSection : Ptr64 Void
-        + 0x088 LoadedImports : Ptr64 Void
-        + 0x090 Spare : Ptr64 Void
-        + 0x098 SizeOfImageNotRounded : Uint4B
-        + 0x09c TimeDateStamp : Uint4B*/
+    CHAR ansiDriverNameBuffer[256] = { 0 };
 
-    PLIST_ENTRY moduleList = (PLIST_ENTRY)PsLoadedModuleList;
-    for (PLIST_ENTRY entry = moduleList->Flink; entry != moduleList; entry = entry->Flink) {
+    // ÈÅçÂéÜÂ≠òÂÇ®ÁöÑÈ©±Âä®ÂØπË±°
+    for (ULONG i = 0; i < g_DrvObjCount; i++) {
 
-        PVOID moduleEntry = (PVOID)entry;
-        Log("[XM] Module[%d] entry: %p, moduleEntry: %p", index, entry, moduleEntry);
+        PDRIVER_OBJECT DriverObj = g_DrvObjs[i].DriverObject;
 
-        ULONG_PTR dllbaseOffset = ntos.GetOffset("_KLDR_DATA_TABLE_ENTRY", "DllBase");
-        ULONG_PTR sizeOfImageOffset = ntos.GetOffset("_KLDR_DATA_TABLE_ENTRY",
-            "SizeOfImage");
-        ULONG_PTR fullDllNameOffset = ntos.GetOffset("_KLDR_DATA_TABLE_ENTRY",
-            "FullDllName");
-        ULONG_PTR baseDllNameOffset = ntos.GetOffset("_KLDR_DATA_TABLE_ENTRY",
-            "BaseDllName");
+        if (!DriverObj || !MmIsAddressValid(DriverObj)) {
+            continue;
+        }
 
-        Log("[XM]  DllBase=%p, SizeOfImage=%p, FullDllName=%p,BaseDllName = %p", dllbaseOffset, sizeOfImageOffset, fullDllNameOffset, baseDllNameOffset);
+        //PWCHAR driverName = g_DrvObjs[i].DriverName;
 
-        /*
-        PVOID dllBase = *(PVOID*)((ULONG_PTR)moduleEntry + dllbaseOffset);
-        ULONG sizeOfImage = *(PULONG)((ULONG_PTR)moduleEntry + sizeOfImageOffset);
+        __try {
+            PVOID driverStart = DriverObj->DriverStart;
+            ULONG driverSize = DriverObj->DriverSize;
 
-        PUNICODE_STRING fullDllName = (PUNICODE_STRING)((ULONG_PTR)moduleEntry +
-            fullDllNameOffset);
+            // Ê£ÄÊü•ÊâÄÊúâMajorFunction 
+            for (ULONG j = 0; j <= 27; j++) {
 
-        PUNICODE_STRING baseDllName = (PUNICODE_STRING)((ULONG_PTR)moduleEntry +
-            baseDllNameOffset);
-*/
+                if (!MmIsAddressValid(DriverObj->MajorFunction[j])) {
+                    continue;
+                }
 
-//End
-        index++;
+                PVOID majorFunc = DriverObj->MajorFunction[j];
 
-        if (index > 200) {
-            Log("[XM] Too many modules, break");
-            break;
+                BOOLEAN isHooked = FALSE;
+
+                // NULLÊåáÈíà  Ê≠£Â∏∏
+                if (!majorFunc) {
+                    continue;
+                }
+
+                CHAR modulePath[256] = { 0 };
+                PVOID moduleBase = NULL;
+                ULONG moduleSize = 0;
+
+                NTSTATUS findStatus = FindModuleByAddress(majorFunc, modulePath, &moduleBase, &moduleSize);
+                if (NT_SUCCESS(findStatus)) {
+                    // ÊåáÂêëntoskrnl.exe
+                    if (strstr(modulePath, "ntoskrnl.exe")) {
+                        continue;
+                    }
+
+                    // ÊåáÂêëÈ©±Âä®Ëá™Ë∫´Ê®°Âùó
+                    if ((ULONG_PTR)majorFunc >= (ULONG_PTR)driverStart &&
+                        (ULONG_PTR)majorFunc < (ULONG_PTR)driverStart + driverSize) {
+                        continue;
+                    }
+
+                    // ÊåáÂêëÂÖ∂‰ªñÊ®°Âùó
+                    isHooked = TRUE;
+                }
+
+                if (!isHooked) continue;
+
+                if (*HookCount >= 800) {
+                    Log("[XM] CheckDrvMJHooked: Reached safety limit of 800 entries to avoid buffer overflow");
+                    return STATUS_SUCCESS;
+                }
+
+                PDISPATCH_HOOK_INFO pHookInfo = &HookBuffer[*HookCount];
+                if (!MmIsAddressValid(pHookInfo)) {
+                    Log("[XM] CheckDrvMJHooked: Invalid pHookInfo address at index %d", *HookCount);
+                    return STATUS_INVALID_PARAMETER;
+                }
+
+                RtlZeroMemory(pHookInfo, sizeof(DISPATCH_HOOK_INFO));
+                RtlZeroMemory(ansiDriverNameBuffer, sizeof(ansiDriverNameBuffer));
+                pHookInfo->MajorFunctionCode = j;
+
+                RtlStringCbCopyA(pHookInfo->FunctionName, sizeof(pHookInfo->FunctionName),
+                    majorFunctionNames[j]);
+
+                ANSI_STRING ansiDriverName = { 0 };
+                ansiDriverName.Buffer = ansiDriverNameBuffer;
+                ansiDriverName.MaximumLength = 255;
+
+                UNICODE_STRING unicodeDriverName;
+                RtlInitUnicodeString(&unicodeDriverName, g_DrvObjs[i].DriverName);
+
+                RtlUnicodeStringToAnsiString(&ansiDriverName, &unicodeDriverName, FALSE);
+                RtlStringCbCopyA(pHookInfo->DriverName, sizeof(pHookInfo->DriverName), ansiDriverName.Buffer);
+
+                pHookInfo->CurrentAddress = majorFunc;
+                pHookInfo->IsHooked = isHooked;
+
+                if (NT_SUCCESS(findStatus)) {
+                    RtlStringCbCopyA(pHookInfo->CurrentModule, sizeof(pHookInfo->CurrentModule), modulePath);
+                }
+                else {
+                    RtlStringCbCopyA(pHookInfo->CurrentModule, sizeof(pHookInfo->CurrentModule), "Unknown");
+                }
+
+                (*HookCount)++;
+
+
+                // ÈôêÂà∂ÊúÄÂ§ßÊ£ÄÊµãÊï∞ÈáèÈÅøÂÖçSystemBufferÊ∫¢Âá∫
+                if (*HookCount >= 600) {
+                    Log("[XM] CheckDrvMJHooked: Reached safety limit of 800 entries to avoid buffer overflow");
+                    return STATUS_SUCCESS;
+                }
+
+            }
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) {
+            Log("[XM] CheckDrvMjHooked Exception for driver %d", i);
+            continue;
         }
     }
 

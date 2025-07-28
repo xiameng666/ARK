@@ -1,5 +1,5 @@
 ﻿#include "CallbackWnd.h"
-#include <algorithm>
+
 
 CallbackWnd::CallbackWnd(Context* ctx) 
     : ImguiWnd(ctx)

@@ -6,6 +6,7 @@
 #include "CallbackWnd.h"              
 #include "LogWnd.h"
 #include "MenuBar.h"
+#include "HookWnd.h"
 
 class App
 {
@@ -16,7 +17,10 @@ private:
     KernelWnd kernelWnd_;
     CallbackWnd callbackWnd_;          
     LogWnd logWnd_;
+    HookWnd hookWnd_;
+
     MenuBar menuBar_;
+
 
 public:
     App();

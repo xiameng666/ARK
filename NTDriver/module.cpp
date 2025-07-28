@@ -1,4 +1,7 @@
-#include "module.h"
+ï»¿#include "module.h"
+
+// å…¨å±€éåŽ†æ¨¡å—æ•°æ®ç¼“å­˜
+PRTL_PROCESS_MODULES g_ModuleBuffer = nullptr; //cache
 
 extern "C"
 NTSTATUS NTAPI ZwQuerySystemInformation(
@@ -53,25 +56,25 @@ retry:
         return STATUS_SUCCESS;
     }
 
-    // Ìî³äÄ£¿éÐÅÏ¢
+    // å¡«å……æ¨¡å—ä¿¡æ¯
     for (i = 0, ModuleInfo = &(Modules->Modules[0]);
         i < Modules->NumberOfModules && ModuleBuffer;
         i++, ModuleInfo++) {
 
         __try {
-            // Çå¿Õ½á¹¹Ìå
+            // æ¸…ç©ºç»“æž„ä½“
             RtlZeroMemory(&ModuleBuffer[i], sizeof(MODULE_INFO));
 
-            // ÌáÈ¡Ä£¿éÃû³Æ£¨´ÓÍêÕûÂ·¾¶ÖÐÌáÈ¡ÎÄ¼þÃû£©
+            // æå–æ¨¡å—åç§°ï¼ˆä»Žå®Œæ•´è·¯å¾„ä¸­æå–æ–‡ä»¶åï¼‰
             CHAR* fileName = (CHAR*)ModuleInfo->FullPathName + ModuleInfo->OffsetToFileName;
             RtlCopyMemory(ModuleBuffer[i].Name, fileName,
                 min(strlen(fileName), sizeof(ModuleBuffer[i].Name) - 1));
 
-            // ÍêÕûÂ·¾¶
+            // å®Œæ•´è·¯å¾„
             RtlCopyMemory(ModuleBuffer[i].FullPath, ModuleInfo->FullPathName,
                 min(strlen((CHAR*)ModuleInfo->FullPathName), sizeof(ModuleBuffer[i].FullPath) - 1));
 
-            // »ùµØÖ·ºÍ´óÐ¡
+            // åŸºåœ°å€å’Œå¤§å°
             ModuleBuffer[i].ImageBase = ModuleInfo->ImageBase;
             ModuleBuffer[i].ImageSize = ModuleInfo->ImageSize;
             ModuleBuffer[i].LoadOrderIndex = ModuleInfo->LoadOrderIndex;
@@ -92,26 +95,18 @@ retry:
     return STATUS_SUCCESS;
 }
 
-NTSTATUS FindModuleByAddress(PVOID Address, PCHAR ModulePath, PVOID* ImageBase, PULONG ImageSize)
+
+NTSTATUS EnumModule()
 {
     NTSTATUS Status;
-    PRTL_PROCESS_MODULES Modules;
-    PRTL_PROCESS_MODULE_INFORMATION ModuleInfo;
     PVOID Buffer;
-    ULONG BufferSize = 4096;
+    ULONG BufferSize = 65536;  // ä»Ž64KBå¼€å§‹ï¼Œé¿å…å¤šæ¬¡retry
     ULONG ReturnLength;
-    ULONG i;
-    ULONG_PTR SearchAddress = (ULONG_PTR)Address;
-    ULONG_PTR ModuleStart, ModuleEnd;
 
-    Log("[XM] FindModuleByAddress: Searching for address %p ", Address);
-
-    if (!Address) {
-        return STATUS_INVALID_PARAMETER;
-    }
+    Log("[XM] EnumModule: Caching module information globally");
 
 retry:
-    Buffer = ExAllocatePoolWithTag(NonPagedPool, BufferSize, 'FMBA');
+    Buffer = ExAllocatePoolWithTag(NonPagedPool, BufferSize, 'EMUD');
     if (!Buffer) {
         return STATUS_NO_MEMORY;
     }
@@ -133,25 +128,57 @@ retry:
         return Status;
     }
 
-    Modules = (PRTL_PROCESS_MODULES)Buffer;
+ 
+    if (g_ModuleBuffer) {
+        ExFreePool(g_ModuleBuffer);
+    }
 
-    // ±éÀúÄ£¿é²éÕÒ°üº¬Ä¿±êµØÖ·µÄÄ£¿é
-    for (i = 0, ModuleInfo = &(Modules->Modules[0]);
-        i < Modules->NumberOfModules;
+    // Cache the buffer globally
+    g_ModuleBuffer = (PRTL_PROCESS_MODULES)Buffer;  
+
+    Log("[XM] EnumModule: Successfully cached %d modules", g_ModuleBuffer->NumberOfModules);
+
+    return STATUS_SUCCESS;
+}
+
+//æ‹†åˆ†FindModuleByAddress æ”¹ä¸º EnumModuleï¼ˆéåŽ†æ¨¡å—å†™å…¥ç¼“å­˜ï¼‰ +FindModuleByAddressï¼ˆä»Žç¼“å­˜æ‹¿æ•°æ®ï¼‰
+NTSTATUS FindModuleByAddress(PVOID Address, PCHAR ModulePath, PVOID* ImageBase, PULONG ImageSize)
+{
+    PRTL_PROCESS_MODULE_INFORMATION ModuleInfo;
+    ULONG i;
+    ULONG_PTR SearchAddress = (ULONG_PTR)Address;
+    ULONG_PTR ModuleStart, ModuleEnd;
+
+    if (!Address) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    if (!g_ModuleBuffer) {
+        Log("[XM] FindModuleByAddress: !g_ModuleBuffer");
+        return STATUS_UNSUCCESSFUL;
+    }
+
+    Log("[XM] FindModuleByAddress: Search %p in cached modules", Address);
+
+    for (i = 0, ModuleInfo = &(g_ModuleBuffer->Modules[0]);
+        i < g_ModuleBuffer->NumberOfModules;
         i++, ModuleInfo++) {
 
         ModuleStart = (ULONG_PTR)ModuleInfo->ImageBase;
         ModuleEnd = ModuleStart + ModuleInfo->ImageSize;
+        if (!MmIsAddressValid((PVOID)ModuleStart) || !MmIsAddressValid((PVOID)ModuleStart)) {
+            continue;
+        }
 
-        // ¼ì²éµØÖ·ÊÇ·ñÔÚµ±Ç°Ä£¿é·¶Î§ÄÚ
+        // å¦‚æžœåœ°å€åœ¨æ¨¡å—èŒƒå›´å†…
         if (SearchAddress >= ModuleStart && SearchAddress < ModuleEnd) {
             __try {
-                // °´ÐèÌî³äÊä³ö²ÎÊý
+                
                 if (ModulePath) {
                     size_t CopyLength = min(strlen((CHAR*)ModuleInfo->FullPathName), MAX_PATH - 1);
                     RtlZeroMemory(ModulePath, MAX_PATH);
                     RtlCopyMemory(ModulePath, ModuleInfo->FullPathName, CopyLength);
-                    ModulePath[CopyLength] = '\0';  
+                    ModulePath[CopyLength] = '\0';
                 }
 
                 if (ImageBase) {
@@ -162,22 +189,18 @@ retry:
                     *ImageSize = ModuleInfo->ImageSize;
                 }
 
-                Log("[XM] FindModuleByAddress: Found module %s for address %p (Base=%p, Size=0x%X) ", 
+                Log("[XM] FindModuleByAddress: Found module %s for address %p (Base=%p, Size=0x%X)",
                     ModuleInfo->FullPathName, Address, ModuleInfo->ImageBase, ModuleInfo->ImageSize);
-                
-                ExFreePool(Buffer);
+
                 return STATUS_SUCCESS;
             }
             __except (EXCEPTION_EXECUTE_HANDLER) {
-                Log("[XM] FindModuleByAddress: Exception while processing module info ");
-                ExFreePool(Buffer);
+                Log("[XM] FindModuleByAddress: Exception ");
                 return STATUS_ACCESS_VIOLATION;
             }
         }
     }
 
-    // Ã»ÓÐÕÒµ½°üº¬¸ÃµØÖ·µÄÄ£¿é
-    Log("[XM] FindModuleByAddress: No module found for address %p ", Address);
-    ExFreePool(Buffer);
+    Log("[XM] FindModuleByAddress: No module found for address %p", Address);
     return STATUS_NOT_FOUND;
 }

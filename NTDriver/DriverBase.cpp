@@ -84,7 +84,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
     PIO_STACK_LOCATION stack = IoGetCurrentIrpStackLocation(Irp);
     ULONG controlCode = stack->Parameters.DeviceIoControl.IoControlCode;
     NTSTATUS status = STATUS_INVALID_DEVICE_REQUEST;
-    ULONG_PTR information = 0;
+    ULONG_PTR info = 0;
 
     switch (controlCode) {
         case CTL_SET_PDB_PATH: 
@@ -96,8 +96,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
                 Log("[XM] CTL_SET_PDB_PATH: %ws", g_PdbDownloadPath);
                 //KdBreakPoint();
                 InitProcessPdb();
-                //MajorFunctionisHooked();
-                EnumDriverObject();
+                
                 //ForTest();
             }
             __except (EXCEPTION_EXECUTE_HANDLER) {
@@ -123,7 +122,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
                     cpuIndex, (PVOID)gdtr.Base, gdtr.Limit, gdtSize);
                 
                 RtlCopyMemory(Irp->AssociatedIrp.SystemBuffer, (PVOID)gdtr.Base, gdtSize);
-                information = gdtSize;
+                info = gdtSize;
                 status = STATUS_SUCCESS;
                 
                 KeRevertToUserAffinityThreadEx(oldAffinity);
@@ -143,7 +142,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
                 status = EnumProcessEx(NULL, TRUE, &processCount);
                 if (NT_SUCCESS(status)) {
                     *(PULONG)Irp->AssociatedIrp.SystemBuffer = processCount;
-                    information = sizeof(ULONG);
+                    info = sizeof(ULONG);
                     Log("[XM] CTL_ENUM_PROCESS_COUNT: %d 个进程", processCount);
                 }
             }
@@ -160,7 +159,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
                 ULONG processCount = 0;
                 status = EnumProcessEx((PPROCESS_INFO)Irp->AssociatedIrp.SystemBuffer, FALSE, &processCount);
                 if (NT_SUCCESS(status)) {
-                    information = processCount * sizeof(PROCESS_INFO);
+                    info = processCount * sizeof(PROCESS_INFO);
                     Log("[XM] CTL_ENUM_PROCESS: 获取 %d 个进程信息", processCount);
                 }
             }
@@ -178,7 +177,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
                 status = EnumModuleEx(NULL, TRUE, &moduleCount);
                 if (NT_SUCCESS(status)) {
                     *(PULONG)Irp->AssociatedIrp.SystemBuffer = moduleCount;
-                    information = sizeof(ULONG);
+                    info = sizeof(ULONG);
                     Log("[XM] CTL_ENUM_MODULE_COUNT: %d 个模块", moduleCount);
                 }
             }
@@ -195,7 +194,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
                 ULONG moduleCount = 0;
                 status = EnumModuleEx((PMODULE_INFO)Irp->AssociatedIrp.SystemBuffer, FALSE, &moduleCount);
                 if (NT_SUCCESS(status)) {
-                    information = moduleCount * sizeof(MODULE_INFO);
+                    info = moduleCount * sizeof(MODULE_INFO);
                     Log("[XM] CTL_ENUM_MODULE: 获取 %d 个模块信息", moduleCount);
                 }
             }
@@ -212,7 +211,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
                 ULONG ssdtCount = 0;
                 status = EnumSSDT((PSSDT_INFO)Irp->AssociatedIrp.SystemBuffer,&ssdtCount);
                 if (NT_SUCCESS(status)) {
-                    information = ssdtCount * sizeof(SSDT_INFO);
+                    info = ssdtCount * sizeof(SSDT_INFO);
                     Log("[XM] CTL_ENUM_SSDT: 获取 %d 个SSDT条目", ssdtCount);
                 }
             }
@@ -228,6 +227,8 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
         case CTL_ENUM_CALLBACK:
         {
             __try {
+                EnumModule();
+
                 // R3端发送回调类型，R0端返回该类型的所有回调信息
                 PULONG callbackType = (PULONG)Irp->AssociatedIrp.SystemBuffer;
                 ULONG callbackCount = 0;
@@ -237,7 +238,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
                                      &callbackCount);
                                      
                 if (NT_SUCCESS(status)) {
-                    information = callbackCount * sizeof(CALLBACK_INFO);
+                    info = callbackCount * sizeof(CALLBACK_INFO);
                     Log("[XM] CTL_ENUM_CALLBACK: 类型 %d 获取 %d 个回调信息", *callbackType, callbackCount);
                 }
             }
@@ -273,12 +274,12 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
         case CTL_ENUM_DISPATCH_HOOK:
         {
             __try {
+
                 ULONG hookCount = 0;
-                
-                status = CheckDriverMJHookedForR3((PDISPATCH_HOOK_INFO)Irp->AssociatedIrp.SystemBuffer, &hookCount);
+                status = CheckDrvMJHooked((PDISPATCH_HOOK_INFO)Irp->AssociatedIrp.SystemBuffer, &hookCount);
                 
                 if (NT_SUCCESS(status)) {
-                    information = hookCount * sizeof(DISPATCH_HOOK_INFO);
+                    info = hookCount * sizeof(DISPATCH_HOOK_INFO);
                     Log("[XM] CTL_ENUM_DISPATCH_HOOK: 检测到 %d 个派遣函数信息", hookCount);
                 } else {
                     Log("[XM] CTL_ENUM_DISPATCH_HOOK: 检测失败");
@@ -291,14 +292,34 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
             break;
         }
         
+        case CTL_ENUM_DEVICE_STACK:
+        {
+            __try {
+                ULONG stackCount = 0;
+                status = CheckDeviceStack((PDEVICE_STACK_INFO)Irp->AssociatedIrp.SystemBuffer, &stackCount);
+                
+                if (NT_SUCCESS(status)) {
+                    info = stackCount * sizeof(DEVICE_STACK_INFO);
+                    Log("[XM] CTL_ENUM_DEVICE_STACK: 分析了 %d 个设备栈", stackCount);
+                } else {
+                    Log("[XM] CTL_ENUM_DEVICE_STACK: 分析失败");
+                }
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER) {
+                status = STATUS_UNSUCCESSFUL;
+                Log("[XM] CTL_ENUM_DEVICE_STACK exception");
+            }
+            break;
+        }
+        
 
         default:
-            Log("[XM] DispatchDeviceControl: 无效设备控制码 0x%08X", controlCode);
+            Log("[XM] DispatchDeviceControl: 无效控制码 0x%08X", controlCode);
             status = STATUS_INVALID_DEVICE_REQUEST;
             break;
     }
 
-    return CompleteRequest(Irp, information, status);
+    return CompleteRequest(Irp, info, status);
 }
 
 VOID Unload(__in struct _DRIVER_OBJECT* DriverObject)

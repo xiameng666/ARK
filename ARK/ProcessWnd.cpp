@@ -100,7 +100,7 @@ void ProcessWnd::RenderProcessWnd() {
                 if (ImGui::MenuItem(u8"TODO1")) {
                     ctx_->targetPid_ = process.ProcessId;
                     sprintf_s(ctx_->processIdText_, "%u", process.ProcessId);
-                    ctx_->showMemoryWindow_ = true;
+                    ctx_->showMemoryWindow = true;
                 }
                 if (ImGui::MenuItem(u8"TODO2")) {
                     ctx_->moduleTargetPid = process.ProcessId;
@@ -139,7 +139,7 @@ void ProcessWnd::RenderProcessWnd() {
     ImGui::Text(u8"进程数量: %d", (int)ctx_->processUiVec.size());
 
     // 显示内存操作窗口
-    if (ctx_->showMemoryWindow_) {
+    if (ctx_->showMemoryWindow) {
         RenderMemWnd(ctx_->targetPid_);
     }
 }
@@ -147,7 +147,7 @@ void ProcessWnd::RenderProcessWnd() {
 void ProcessWnd::RenderMemWnd(DWORD pid)
 {
     ImGui::SetNextWindowSize(ImVec2(800, 600), ImGuiCond_FirstUseEver);
-    ImGui::Begin(u8"内存读写", &ctx_->showMemoryWindow_);
+    ImGui::Begin(u8"内存读写", &ctx_->showMemoryWindow);
     
     ImGui::Text(u8"目标进程ID: %u", pid);
     ImGui::Separator();

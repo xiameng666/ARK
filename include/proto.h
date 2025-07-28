@@ -78,6 +78,7 @@ enum WindowsVersion
 #define CTL_ENUM_DRIVER             MY_CTL_CODE(91)     // 枚举驱动 返回数据
 
 #define CTL_ENUM_DISPATCH_HOOK      MY_CTL_CODE(92)     // 枚举派遣函数Hook
+#define CTL_ENUM_DEVICE_STACK       MY_CTL_CODE(93)     // 枚举设备栈分析
 
 
 
@@ -257,15 +258,35 @@ typedef struct CALLBACK_DELETE_REQ {
 
 }  *PCALLBACK_DELETE_REQ;
 
-// 派遣函数Hook检测结果
+// 派遣函数Hook
 typedef struct _DISPATCH_HOOK_INFO {
     ULONG MajorFunctionCode;            // IRP_MJ_xxx代码
-    CHAR FunctionName[32];              // 函数名称 (IRP_MJ_CREATE等)
-    CHAR DriverName[64];                // 驱动名称
+    CHAR FunctionName[128];              // 函数名称 (IRP_MJ_CREATE..)
+    CHAR DriverName[256];                // 驱动名称
     PVOID CurrentAddress;               // 当前函数地址  
     PVOID OriginalAddress;              // 原始函数地址
-    CHAR CurrentModule[64];             // 当前函数地址所在模块
+    CHAR CurrentModule[256];             // 当前函数地址所在模块
     BOOLEAN IsHooked;                   // 是否被Hook
 } DISPATCH_HOOK_INFO, *PDISPATCH_HOOK_INFO;
+
+typedef struct FILTER_DRIVER_INFO {
+    WCHAR DriverName[128];           // 过滤驱动名称 (\Driver\xxx)
+    CHAR DriverPath[256];           // 驱动文件路径
+    PVOID DriverObject;             // 驱动对象地址
+    PVOID DeviceObject;             // 设备对象地址
+} * PFILTER_DRIVER_INFO;
+
+typedef struct DEVICE_STACK_INFO {
+    WCHAR OrigDrvName[128];       // 原始驱动名称
+    CHAR OriginalDriverPath[256];       // 原始驱动路径
+    PVOID OrigDrvObg;         // 原始驱动对象
+    PVOID OrigDevObj;         // 原始设备对象地址
+
+    ULONG FilterCount;                  // 过滤驱动数量
+    FILTER_DRIVER_INFO Filters[8];     // 最多8层过滤驱动
+
+    BOOLEAN IsHooked;                   // 是否被attach
+} * PDEVICE_STACK_INFO;
+
 
 

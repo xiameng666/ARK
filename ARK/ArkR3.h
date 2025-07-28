@@ -100,6 +100,14 @@ public:
     std::vector<CALLBACK_INFO> CallbackGetVec(CALLBACK_TYPE type);      // 获取指定类型的回调列表
     BOOL CallbackDelete(CALLBACK_TYPE type, ULONG index, PVOID CallbackFuncAddr);
     std::vector<CALLBACK_INFO> CallbackVec_;                            // 回调数据缓存
+
+    // 派遣函数Hook检测
+    std::vector<DISPATCH_HOOK_INFO> DispatchHookGetVec();               // 获取派遣函数Hook信息
+    std::vector<DISPATCH_HOOK_INFO> DispatchHookVec_;                   // Hook检测结果缓存
+    
+    // 设备栈分析
+    std::vector<DEVICE_STACK_INFO> DeviceStackGetVec();                 // 获取设备栈分析信息
+    std::vector<DEVICE_STACK_INFO> DeviceStackVec_;                     // 设备栈分析结果缓存
    
 
     // SSDTHOOK

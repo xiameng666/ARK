@@ -1,4 +1,5 @@
 #include "ArkR3.h"
+#include <set>
 
 
 // extern SSDT_INFO g_SSDT_XP_SP3_Table[];
@@ -893,4 +894,113 @@ BOOL ArkR3::CallbackDelete(CALLBACK_TYPE type, ULONG index, PVOID CallbackFuncAd
     }
     
     return result;
+}
+std::vector<DISPATCH_HOOK_INFO> ArkR3::DispatchHookGetVec() {
+    DispatchHookVec_.clear();
+
+    //分配缓冲区给1000个hook
+    const DWORD maxHooks = 2000;
+    DWORD bufferSize = maxHooks * sizeof(DISPATCH_HOOK_INFO);
+    PDISPATCH_HOOK_INFO buffer = (PDISPATCH_HOOK_INFO)malloc(bufferSize);
+
+    if (!buffer) {
+        Log("DispatchHookGetVec: malloc error\n");
+        return DispatchHookVec_;
+    }
+
+    DWORD bytesRet = 0;
+    BOOL result = DeviceIoControl(
+        m_hDriver,
+        CTL_ENUM_DISPATCH_HOOK,
+        NULL,
+        0,
+        buffer,
+        bufferSize,
+        &bytesRet,
+        NULL
+    );
+
+    if (result) {
+        ULONG hookCount = bytesRet / sizeof(DISPATCH_HOOK_INFO);
+        Log("DispatchHookGetVec: 获取 %d 个hook派遣函数\n", hookCount);
+
+        // Copy results to member variable
+        for (ULONG i = 0; i < hookCount; i++) {
+            DispatchHookVec_.emplace_back(buffer[i]);
+        }
+
+    }
+    else {
+        Log("DispatchHookGetVec: 失败, error=%d, bytes=%d\n", GetLastError(),
+            bytesRet);
+    }
+
+    free(buffer);
+
+    return DispatchHookVec_;
+}
+
+// 获取设备栈分析信息
+std::vector<DEVICE_STACK_INFO> ArkR3::DeviceStackGetVec() {
+    DeviceStackVec_.clear();
+
+    // 分配缓冲区给设备栈信息
+    const DWORD maxStacks = 2000;
+    DWORD bufferSize = maxStacks * sizeof(DEVICE_STACK_INFO);
+    PDEVICE_STACK_INFO buffer = (PDEVICE_STACK_INFO)malloc(bufferSize);
+
+    if (!buffer) {
+        Log("DeviceStackGetVec: malloc error\n");
+        return DeviceStackVec_;
+    }
+
+    DWORD bytesRet = 0;
+    BOOL result = DeviceIoControl(
+        m_hDriver,
+        CTL_ENUM_DEVICE_STACK,
+        NULL,
+        0,
+        buffer,
+        bufferSize,
+        &bytesRet,
+        NULL
+    );
+
+    if (result) {
+        
+        ULONG stackCount = bytesRet / sizeof(DEVICE_STACK_INFO);
+        Log("DeviceStackGetVec: 分析了 %d 个设备栈\n", stackCount);
+
+        std::set<PVOID> processedDrivers;//去重
+
+        // 将结果复制到成员变量
+        for (ULONG i = 0; i < stackCount; i++) {
+            DeviceStackVec_.push_back(buffer[i]);
+        }
+
+        /*
+        std::set<PVOID> processedDrivers;//去重
+
+        for (ULONG i = 0; i < stackCount; i++) {
+            PVOID driverObj = buffer[i].OriginalDriverObject;
+
+            // 如果这个驱动对象已经处理过，跳过
+            if (processedDrivers.find(driverObj) != processedDrivers.end()) {
+                continue;
+            }
+
+            // 记录这个驱动对象已处理
+            processedDrivers.insert(driverObj);
+
+            DeviceStackVec_.emplace_back(buffer[i]);
+        }
+        */
+
+    }
+    else {
+        Log("DeviceStackGetVec: DeviceIoControl failed, error=%d\n", GetLastError());
+    }
+
+    free(buffer);
+    return DeviceStackVec_;
 }

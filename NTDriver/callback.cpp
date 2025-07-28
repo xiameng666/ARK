@@ -74,11 +74,11 @@ NTSTATUS EnumCallbacks(PCALLBACK_INFO callbackBuffer, CALLBACK_TYPE type, PULONG
             INIT_PDB;
             ULONG_PTR listHeadPtr = ntos.GetPointer("CallbackListHead");
             Log("[XM] CallbackListHead地址: %p", listHeadPtr);
-            
+
             if (listHeadPtr) {
                 PLIST_ENTRY listHead = (PLIST_ENTRY)listHeadPtr;
                 PLIST_ENTRY currentEntry = listHead->Flink;
-                
+
                 while (currentEntry && currentEntry != listHead) {
                     PCM_NOTIFY_ENTRY callbackEntry = 
                         CONTAINING_RECORD(currentEntry, CM_NOTIFY_ENTRY, ListEntryHead);
@@ -118,7 +118,7 @@ NTSTATUS EnumCallbacks(PCALLBACK_INFO callbackBuffer, CALLBACK_TYPE type, PULONG
             if (listHeadPtr) {
                 PLIST_ENTRY listHead = (PLIST_ENTRY)listHeadPtr;
                 PLIST_ENTRY currentEntry = listHead->Flink;
-                
+
                 while (currentEntry && currentEntry != listHead) {
                     PKBUGCHECK_CALLBACK_RECORD callbackRecord = 
                         CONTAINING_RECORD(currentEntry, KBUGCHECK_CALLBACK_RECORD, Entry);
@@ -152,7 +152,7 @@ NTSTATUS EnumCallbacks(PCALLBACK_INFO callbackBuffer, CALLBACK_TYPE type, PULONG
             if (listHeadPtr) {
                 PLIST_ENTRY listHead = (PLIST_ENTRY)listHeadPtr;
                 PLIST_ENTRY currentEntry = listHead->Flink;
-                
+
                 while (currentEntry && currentEntry != listHead) {
                     PKBUGCHECK_REASON_CALLBACK_RECORD callbackRecord = 
                         CONTAINING_RECORD(currentEntry, KBUGCHECK_REASON_CALLBACK_RECORD, Entry);
@@ -187,7 +187,7 @@ NTSTATUS EnumCallbacks(PCALLBACK_INFO callbackBuffer, CALLBACK_TYPE type, PULONG
             if (listHeadPtr) {
                 PLIST_ENTRY listHead = (PLIST_ENTRY)listHeadPtr;
                 PLIST_ENTRY currentEntry = listHead->Flink;
-                
+
                 while (currentEntry && currentEntry != listHead) {
                     PSHUTDOWN_PACKET shutdownPacket = 
                         CONTAINING_RECORD(currentEntry, SHUTDOWN_PACKET, ListEntry);

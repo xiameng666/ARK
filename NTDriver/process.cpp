@@ -19,13 +19,14 @@ void InitProcessPdb() {
     OFFSET(dtbOffset, "_KPROCESS", "DirectoryTableBase");
     procMeta.DirectoryTableBase = pcbOffset + dtbOffset;
 
-    Log("[XM] Offsets: ETHREAD->EPROCESS=%x, PID=%x, Links=%x, PPID=%x, Name=%x, DTB=%x",
+    /*Log("[XM] Offsets: ETHREAD->EPROCESS=%x, PID=%x, Links=%x, PPID=%x, Name=%x, DTB=%x",
         procMeta.EThreadToProcess,
         procMeta.ProcessId,
         procMeta.ActiveProcessLinks,
         procMeta.ParentProcessId,
         procMeta.ImageFileName,
         procMeta.DirectoryTableBase);
+    */
 }
 
 NTSTATUS EnumProcessEx(PPROCESS_INFO processBuffer, bool onlyGetCount, PULONG processCount) {

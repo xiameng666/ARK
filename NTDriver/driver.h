@@ -1,21 +1,25 @@
 #pragma once
 #include "mydef.h"
 
+
+
 extern "C" {
 
-    NTSTATUS CheckDriverMJHookedForR3(PDISPATCH_HOOK_INFO HookBuffer, PULONG HookCount);
-
-    void CheckDriverMJHooked(PDRIVER_OBJECT DriverObj);
+    //void CheckDriverMJHooked(PDRIVER_OBJECT DriverObj);
 
     void EnumDriverObject();
+
+    NTSTATUS CheckDeviceStack(PDEVICE_STACK_INFO StackBuffer, PULONG StackCount);//鏋氫妇杩囨护椹卞姩
+
+    NTSTATUS CheckDrvMJHooked(PDISPATCH_HOOK_INFO HookBuffer, PULONG HookCount);
+
 }
 
-// 全局驱动对象信息存储
 typedef struct _DRIVER_OBJECT_INFO {
     PDRIVER_OBJECT DriverObject;
-    WCHAR DriverName[128];      // 驱动名称
-    PVOID DriverStart;          // 驱动基地址
-    ULONG DriverSize;           // 驱动大小
+    WCHAR DriverName[128];     
+    PVOID DriverStart;         
+    ULONG DriverSize;         
 } DRIVER_OBJECT_INFO, * PDRIVER_OBJECT_INFO;
 
 
@@ -84,3 +88,7 @@ static const char* majorFunctionNames[] = {
             "IRP_MJ_SET_QUOTA",
             "IRP_MJ_PNP"
 };
+
+
+
+
