@@ -109,6 +109,9 @@ public:
     // 设备栈分析
     std::vector<DEVICE_STACK_INFO> DeviceStackGetVec();                 // 获取设备栈分析信息
     std::vector<DEVICE_STACK_INFO> DeviceStackVec_;                     // 设备栈分析结果缓存
+    
+    std::vector<NETWORK_PORT_INFO> NetworkPortGetVec();     // 获取网络端口相关信息
+    std::vector<NETWORK_PORT_INFO> NetworkPortVec_;         // 网络端口信息缓存
    
 
     // SSDTHOOK

@@ -310,6 +310,25 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
             break;
         }
         
+        case CTL_ENUM_NETWORK_PORT:
+        {
+            __try {
+                ULONG portCount = 0;
+                status = EnumNetworkPort((PNETWORK_PORT_INFO)Irp->AssociatedIrp.SystemBuffer, &portCount);
+                
+                if (NT_SUCCESS(status)) {
+                    info = portCount * sizeof(NETWORK_PORT_INFO);
+                    Log("[XM] CTL_ENUM_NETWORK_PORT: 分析了 %d 个网络端口", portCount);
+                } else {
+                    Log("[XM] CTL_ENUM_NETWORK_PORT: 分析失败");
+                }
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER) {
+                status = STATUS_UNSUCCESSFUL;
+                Log("[XM] CTL_ENUM_NETWORK_PORT exception");
+            }
+            break;
+        }
 
         default:
             Log("[XM] DispatchDeviceControl: 无效控制码 0x%08X", controlCode);

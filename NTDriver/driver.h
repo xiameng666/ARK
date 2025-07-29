@@ -13,6 +13,12 @@ extern "C" {
 
     NTSTATUS EnumDrvMJHooked(PDISPATCH_HOOK_INFO HookBuffer, PULONG HookCount);
 
+    NTSTATUS EnumNetworkPort(PNETWORK_PORT_INFO PortBuffer, PULONG PortCount);//枚举网络端口
+
+    // 网络端口相关函数声明
+    NTSTATUS EnumTcpPorts(PNETWORK_PORT_INFO PortBuffer, PULONG PortCount);
+    NTSTATUS EnumUdpPorts(PNETWORK_PORT_INFO PortBuffer, PULONG PortCount);
+
 }
 
 typedef struct _DRIVER_OBJECT_INFO {
@@ -21,12 +27,6 @@ typedef struct _DRIVER_OBJECT_INFO {
     PVOID DriverStart;         
     ULONG DriverSize;         
 } DRIVER_OBJECT_INFO, * PDRIVER_OBJECT_INFO;
-
-
-enum _OBJECT_HEADER_Offset {
-    _OBJECT_HEADER_Body_Offset = 0x30,
-    _OBJECT_HEADER_TypeIndex_Offset = 0x18
-};
 
 //0x18 bytes (sizeof)
 typedef struct _OBJECT_DIRECTORY_ENTRY

@@ -1037,3 +1037,48 @@ std::vector<DEVICE_STACK_INFO> ArkR3::DeviceStackGetVec() {
     free(buffer);
     return DeviceStackVec_;
 }
+
+
+// 获取网络端口信息
+std::vector<NETWORK_PORT_INFO> ArkR3::NetworkPortGetVec() {
+    NetworkPortVec_.clear();
+
+    // 分配缓冲区给网络端口信息
+    const DWORD maxPorts = 2000;
+    DWORD bufferSize = maxPorts * sizeof(NETWORK_PORT_INFO);
+    PNETWORK_PORT_INFO buffer = (PNETWORK_PORT_INFO)malloc(bufferSize);
+
+    if (!buffer) {
+        Log("NetworkPortGetVec: malloc error\n");
+        return NetworkPortVec_;
+    }
+
+    DWORD bytesRet = 0;
+    BOOL result = DeviceIoControl(
+        m_hDriver,
+        CTL_ENUM_NETWORK_PORT,
+        NULL,
+        0,
+        buffer,
+        bufferSize,
+        &bytesRet,
+        NULL
+    );
+
+    if (result) {
+        ULONG portCount = bytesRet / sizeof(NETWORK_PORT_INFO);
+        Log("NetworkPortGetVec: 分析了 %d 个网络端口\n", portCount);
+
+        // 将结果复制到成员变量
+        for (ULONG i = 0; i < portCount; i++) {
+            NetworkPortVec_.push_back(buffer[i]);
+        }
+
+    }
+    else {
+        Log("NetworkPortGetVec: DeviceIoControl failed, error=%d\n", GetLastError());
+    }
+
+    free(buffer);
+    return NetworkPortVec_;
+}

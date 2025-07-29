@@ -80,6 +80,7 @@ enum WindowsVersion
 #define CTL_ENUM_DISPATCH_HOOK      MY_CTL_CODE(92)     // 枚举派遣函数Hook
 #define CTL_ENUM_DEVICE_STACK       MY_CTL_CODE(93)     // 枚举设备栈分析
 
+#define CTL_ENUM_NETWORK_PORT       MY_CTL_CODE(94)     // 枚举网络连接
 
 
 //#define CTL_ENUM_DRIVER_COUNT       MY_CTL_CODE(40)
@@ -284,12 +285,21 @@ typedef struct DEVICE_STACK_INFO {
     WCHAR OrigDrvName[128];       // 原始驱动名称
     WCHAR OriginalDriverPath[128]; // 原始驱动路径 (UNICODE)
 
-
     ULONG FilterCount;                  // 过滤驱动数量
     FILTER_DRIVER_INFO Filters[8];     // 最多8层过滤驱动
 
     BOOLEAN IsHooked;                   // 是否被attach
 } * PDEVICE_STACK_INFO;
+
+typedef struct NETWORK_PORT_INFO {//与UI字段顺序一致
+    CHAR Protocol[16];                  // 协议 (TCP/UDP)
+    CHAR LocalAddress[64];              // 本地地址 (IP:Port)
+    CHAR RemoteAddress[64];             // 外部地址 (IP:Port)
+    CHAR State[32];                     // 状态 (LISTENING, ESTABLISHED等)
+    ULONG_PTR ConnectionId;             // 连接ID (可选
+    ULONG ProcessId;                    // 进程ID
+    CHAR ProcessPath[256];              // 进程路径
+} *PNETWORK_PORT_INFO;
 
 
 
