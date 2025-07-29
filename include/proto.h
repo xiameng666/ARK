@@ -270,17 +270,20 @@ typedef struct _DISPATCH_HOOK_INFO {
 } DISPATCH_HOOK_INFO, *PDISPATCH_HOOK_INFO;
 
 typedef struct FILTER_DRIVER_INFO {
+
+    ULONG_PTR DriverObject;         // 驱动对象地址
+    ULONG_PTR DeviceObject;         // 设备对象地址
     WCHAR DriverName[128];           // 过滤驱动名称 (\Driver\xxx)
-    CHAR DriverPath[256];           // 驱动文件路径
-    PVOID DriverObject;             // 驱动对象地址
-    PVOID DeviceObject;             // 设备对象地址
+    WCHAR DriverPath[128];           // 驱动文件路径 (UNICODE)
 } * PFILTER_DRIVER_INFO;
 
 typedef struct DEVICE_STACK_INFO {
+    ULONG_PTR OrigDrvObj;         // 原始驱动对象
+    ULONG_PTR OrigDevObj;         // 原始设备对象地址
+
     WCHAR OrigDrvName[128];       // 原始驱动名称
-    CHAR OriginalDriverPath[256];       // 原始驱动路径
-    PVOID OrigDrvObg;         // 原始驱动对象
-    PVOID OrigDevObj;         // 原始设备对象地址
+    WCHAR OriginalDriverPath[128]; // 原始驱动路径 (UNICODE)
+
 
     ULONG FilterCount;                  // 过滤驱动数量
     FILTER_DRIVER_INFO Filters[8];     // 最多8层过滤驱动

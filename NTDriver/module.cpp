@@ -175,10 +175,18 @@ NTSTATUS FindModuleByAddress(PVOID Address, PCHAR ModulePath, PVOID* ImageBase, 
             __try {
                 
                 if (ModulePath) {
-                    size_t CopyLength = min(strlen((CHAR*)ModuleInfo->FullPathName), MAX_PATH - 1);
-                    RtlZeroMemory(ModulePath, MAX_PATH);
-                    RtlCopyMemory(ModulePath, ModuleInfo->FullPathName, CopyLength);
-                    ModulePath[CopyLength] = '\0';
+                    // 安全的字符串复制，目标缓冲区是256字节
+                    size_t srcLength = strlen((CHAR*)ModuleInfo->FullPathName);
+                    size_t maxCopy = 255; // 为终止符留出空间
+                    size_t copyLength = min(srcLength, maxCopy);
+                    
+                    RtlZeroMemory(ModulePath, 256); // 清零整个目标缓冲区
+                    RtlCopyMemory(ModulePath, ModuleInfo->FullPathName, copyLength);
+                    ModulePath[copyLength] = '\0'; // 确保字符串终止
+                    
+                    if (srcLength > maxCopy) {
+                        Log("[XM] FindModuleByAddress: Module path truncated from %zu to %zu chars", srcLength, copyLength);
+                    }
                 }
 
                 if (ImageBase) {

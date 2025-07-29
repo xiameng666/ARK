@@ -115,9 +115,6 @@
       <Filter>Ark\Wnd</Filter>
     </ClInclude>
     <ClInclude Include="ezpdb.hpp" />
-    <ClInclude Include="imguiLog.h">
-      <Filter>Ark\Wnd</Filter>
-    </ClInclude>
     <ClInclude Include="ProcessWnd.h">
       <Filter>Ark\Wnd</Filter>
     </ClInclude>
@@ -125,6 +122,9 @@
       <Filter>Ark\Wnd</Filter>
     </ClInclude>
     <ClInclude Include="CallbackWnd.h">
+      <Filter>Ark\Wnd</Filter>
+    </ClInclude>
+    <ClInclude Include="imguiLog.h">
       <Filter>Ark\Wnd</Filter>
     </ClInclude>
     <ClInclude Include="HookWnd.h">

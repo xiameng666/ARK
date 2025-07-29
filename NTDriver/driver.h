@@ -9,9 +9,9 @@ extern "C" {
 
     void EnumDriverObject();
 
-    NTSTATUS CheckDeviceStack(PDEVICE_STACK_INFO StackBuffer, PULONG StackCount);//枚举过滤驱动
+    NTSTATUS EnumDeviceStackAttach(PDEVICE_STACK_INFO StackBuffer, PULONG StackCount);//枚举过滤驱动
 
-    NTSTATUS CheckDrvMJHooked(PDISPATCH_HOOK_INFO HookBuffer, PULONG HookCount);
+    NTSTATUS EnumDrvMJHooked(PDISPATCH_HOOK_INFO HookBuffer, PULONG HookCount);
 
 }
 

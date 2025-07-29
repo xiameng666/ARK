@@ -6,10 +6,9 @@ ULONG g_DrvObjCount = 0;                         // 枚举得到的驱动数量
 extern PDRIVER_OBJECT g_DriverObject ;
 
 
-NTSTATUS CheckDeviceStack(PDEVICE_STACK_INFO StackBuffer, PULONG StackCount) {
-    EnumDriverObject();
-    *StackCount = 0;
+NTSTATUS EnumDeviceStackAttach(PDEVICE_STACK_INFO StackBuffer, PULONG StackCount) {
 
+    EnumDriverObject();
     if (g_DrvObjCount == 0) {
         Log("[XM] CheckDeviceStack: No cached driver objects");
         return STATUS_UNSUCCESSFUL;
@@ -17,6 +16,7 @@ NTSTATUS CheckDeviceStack(PDEVICE_STACK_INFO StackBuffer, PULONG StackCount) {
 
     EnumModule();
 
+    *StackCount = 0;
     for (ULONG i = 0; i < g_DrvObjCount && *StackCount < 2000; i++) {
         PDRIVER_OBJECT DriverObj = g_DrvObjs[i].DriverObject;
 
@@ -27,50 +27,111 @@ NTSTATUS CheckDeviceStack(PDEVICE_STACK_INFO StackBuffer, PULONG StackCount) {
         PDEVICE_OBJECT CurrentDev = DriverObj->DeviceObject;
 
         if (CurrentDev && MmIsAddressValid(CurrentDev) && CurrentDev->AttachedDevice) {
+
             PDEVICE_STACK_INFO pStackInfo = &StackBuffer[*StackCount];
             RtlZeroMemory(pStackInfo, sizeof(DEVICE_STACK_INFO));
 
-            // 复制驱动名称
-            size_t copyLength = min(wcslen(g_DrvObjs[i].DriverName) * sizeof(WCHAR),
-                sizeof(pStackInfo->OrigDrvName) - sizeof(WCHAR));
-            RtlCopyMemory(pStackInfo->OrigDrvName, g_DrvObjs[i].DriverName, copyLength);
-            pStackInfo->OrigDrvName[copyLength / sizeof(WCHAR)] = L'\0';
-
-            //原始驱动对象 设备对象
-            pStackInfo->OrigDrvObg = DriverObj;
-            pStackInfo->OrigDevObj = CurrentDev;
+            //原始驱动对象 设备对象 
+            pStackInfo->OrigDrvObj = (ULONG_PTR)DriverObj;
+            pStackInfo->OrigDevObj = (ULONG_PTR)CurrentDev;
             pStackInfo->IsHooked = TRUE;
 
-            // 获取原始驱动路径
-            FindModuleByAddress(DriverObj->DriverStart,
-                pStackInfo->OriginalDriverPath, NULL, 0);
-            Log("[XM] Found original driver path: %s", pStackInfo->OriginalDriverPath);
+            Log("[XM] Driver[%lu]: Set OrigDrvObj=0x%p, OrigDevObj=0x%p", 
+                i, (PVOID)pStackInfo->OrigDrvObj, (PVOID)pStackInfo->OrigDevObj);
+
+            // 复制驱动名称
+            size_t nameLen = wcslen(g_DrvObjs[i].DriverName);
+            if (nameLen > 0 && nameLen < sizeof(pStackInfo->OrigDrvName) / sizeof(WCHAR)) {
+                RtlCopyMemory(pStackInfo->OrigDrvName, g_DrvObjs[i].DriverName, 
+                    (nameLen + 1) * sizeof(WCHAR));
+                Log("[XM] Driver[%lu]: Copied driver name: %ws", i, pStackInfo->OrigDrvName);
+            } 
+
+            // 获取原始驱动路径并转换为UNICODE
+            CHAR ansiPath[256] = { 0 };
+            FindModuleByAddress(DriverObj->DriverStart, ansiPath, NULL, 0);
+            
+            // 将ANSI路径转换为UNICODE
+            if (strlen(ansiPath) > 0) {
+                ANSI_STRING ansiString;
+                UNICODE_STRING unicodeString;
+                RtlInitAnsiString(&ansiString, ansiPath);
+                
+                unicodeString.Buffer = pStackInfo->OriginalDriverPath;
+                unicodeString.MaximumLength = sizeof(pStackInfo->OriginalDriverPath);
+                unicodeString.Length = 0;
+                
+                NTSTATUS status = RtlAnsiStringToUnicodeString(&unicodeString, &ansiString, FALSE);
+                if (!NT_SUCCESS(status)) {
+                    pStackInfo->OriginalDriverPath[0] = L'\0';
+                    Log("[XM] Warning: Failed to convert driver path to unicode");
+                }
+            } else {
+                pStackInfo->OriginalDriverPath[0] = L'\0';
+            }
+            //Log("[XM] Found original driver path: %s", pStackInfo->OriginalDriverPath);
 
             // 遍历过滤驱动
             PDEVICE_OBJECT AttachedDev = CurrentDev->AttachedDevice;
             ULONG filterIndex = 0;
 
-            while (AttachedDev&&MmIsAddressValid(AttachedDev)) {
+            while (AttachedDev && MmIsAddressValid(AttachedDev) && filterIndex < 8) {
                 PDRIVER_OBJECT AttachedDriver = AttachedDev->DriverObject;
 
                 if (MmIsAddressValid(AttachedDriver)) {
-                    PFILTER_DRIVER_INFO filterInfo = &pStackInfo->Filters[filterIndex];
-                    RtlZeroMemory(filterInfo, sizeof(FILTER_DRIVER_INFO));
-
-                    // 驱动名称
-                    copyLength = min(AttachedDriver->DriverName.Length,
-                        sizeof(filterInfo->DriverName) - sizeof(WCHAR));
-                    RtlCopyMemory(filterInfo->DriverName, AttachedDriver->DriverName.Buffer, copyLength);
-                    filterInfo->DriverName[copyLength / sizeof(WCHAR)] = L'\0';
+                    FILTER_DRIVER_INFO tempFilterInfo;
+                    RtlZeroMemory(&tempFilterInfo, sizeof(FILTER_DRIVER_INFO));
 
                     //驱动对象 设备对象
-                    filterInfo->DriverObject = AttachedDriver;
-                    filterInfo->DeviceObject = AttachedDev;
+                    tempFilterInfo.DriverObject = (ULONG_PTR)AttachedDriver;
+                    tempFilterInfo.DeviceObject = (ULONG_PTR)AttachedDev;
+                    
+                    // 驱动名称 
+                    if (AttachedDriver->DriverName.Buffer && AttachedDriver->DriverName.Length > 0) {
+                         nameLen = AttachedDriver->DriverName.Length / sizeof(WCHAR);
+                        if (nameLen < sizeof(tempFilterInfo.DriverName) / sizeof(WCHAR)) {
+                            RtlCopyMemory(tempFilterInfo.DriverName, AttachedDriver->DriverName.Buffer, 
+                                AttachedDriver->DriverName.Length);
+                            tempFilterInfo.DriverName[nameLen] = L'\0';
+                        } else {
+                            // 如果名称过长，添加结束符
+                            RtlCopyMemory(tempFilterInfo.DriverName, AttachedDriver->DriverName.Buffer, 
+                                sizeof(tempFilterInfo.DriverName) - sizeof(WCHAR));
+                            tempFilterInfo.DriverName[sizeof(tempFilterInfo.DriverName) / sizeof(WCHAR) - 1] = L'\0';
+                            Log("[XM] EnumDeviceStackAttach 名称过长，添加结束符");
+                        }
+                    } else {
+                        tempFilterInfo.DriverName[0] = L'\0';
+                    }
+
+                    Log("[XM] Filter[%lu]: DriverObject=0x%p, DeviceObject=0x%p, Name=%ws", 
+                        filterIndex, (PVOID)tempFilterInfo.DriverObject, (PVOID)tempFilterInfo.DeviceObject, tempFilterInfo.DriverName);
 
                     // 模块路径查找
-                    FindModuleByAddress(AttachedDriver->DriverStart,
-                        filterInfo->DriverPath, NULL, 0);
+                    CHAR ansiFilterPath[256] = { 0 };
+                    FindModuleByAddress(AttachedDriver->DriverStart, ansiFilterPath, NULL, 0);
+                    
+                    // 转换ANSI路径为UNICODE
+                    if (strlen(ansiFilterPath) > 0) {
+                        ANSI_STRING ansiString;
+                        UNICODE_STRING unicodeString;
+                        RtlInitAnsiString(&ansiString, ansiFilterPath);
+                        
+                        unicodeString.Buffer = tempFilterInfo.DriverPath;
+                        unicodeString.MaximumLength = sizeof(tempFilterInfo.DriverPath);
+                        unicodeString.Length = 0;
+                        
+                        NTSTATUS status = RtlAnsiStringToUnicodeString(&unicodeString, &ansiString, FALSE);
+                        if (!NT_SUCCESS(status)) {
+                            tempFilterInfo.DriverPath[0] = L'\0';
+                            Log("[XM] Warning: Failed to convert filter driver path to unicode");
+                        }
+                    } else {
+                        tempFilterInfo.DriverPath[0] = L'\0';
+                    }
 
+                    // 复制到目标缓冲区
+                    pStackInfo->Filters[filterIndex] = tempFilterInfo;
                     filterIndex++;
                 }
 
@@ -78,6 +139,10 @@ NTSTATUS CheckDeviceStack(PDEVICE_STACK_INFO StackBuffer, PULONG StackCount) {
             }
 
             pStackInfo->FilterCount = filterIndex;
+            
+            Log("[XM] Driver[%lu]: Final OrigDrvObj=0x%p, OrigDevObj=0x%p", 
+                i, (PVOID)pStackInfo->OrigDrvObj, (PVOID)pStackInfo->OrigDevObj);
+            
             (*StackCount)++;
         }
 
@@ -179,7 +244,7 @@ void EnumDriverObject() {
 }
 
 
-NTSTATUS CheckDrvMJHooked(PDISPATCH_HOOK_INFO HookBuffer, PULONG HookCount) {
+NTSTATUS EnumDrvMJHooked(PDISPATCH_HOOK_INFO HookBuffer, PULONG HookCount) {
     EnumDriverObject();
 
     *HookCount = 0;

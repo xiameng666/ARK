@@ -1,7 +1,7 @@
 ﻿#include "DriverBase.h"
 
 extern "C" void _sgdt(void*);
-BOOLEAN g_LogOn = TRUE;
+BOOLEAN g_LogOn = FALSE;
 ULONG_PTR g_VA = 0;
 PDRIVER_OBJECT g_DriverObject = NULL;  // 保存当前驱动对象
 
@@ -227,8 +227,6 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
         case CTL_ENUM_CALLBACK:
         {
             __try {
-                EnumModule();
-
                 // R3端发送回调类型，R0端返回该类型的所有回调信息
                 PULONG callbackType = (PULONG)Irp->AssociatedIrp.SystemBuffer;
                 ULONG callbackCount = 0;
@@ -276,7 +274,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
             __try {
 
                 ULONG hookCount = 0;
-                status = CheckDrvMJHooked((PDISPATCH_HOOK_INFO)Irp->AssociatedIrp.SystemBuffer, &hookCount);
+                status = EnumDrvMJHooked((PDISPATCH_HOOK_INFO)Irp->AssociatedIrp.SystemBuffer, &hookCount);
                 
                 if (NT_SUCCESS(status)) {
                     info = hookCount * sizeof(DISPATCH_HOOK_INFO);
@@ -296,7 +294,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
         {
             __try {
                 ULONG stackCount = 0;
-                status = CheckDeviceStack((PDEVICE_STACK_INFO)Irp->AssociatedIrp.SystemBuffer, &stackCount);
+                status = EnumDeviceStackAttach((PDEVICE_STACK_INFO)Irp->AssociatedIrp.SystemBuffer, &stackCount);
                 
                 if (NT_SUCCESS(status)) {
                     info = stackCount * sizeof(DEVICE_STACK_INFO);

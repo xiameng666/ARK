@@ -871,6 +871,23 @@ std::vector<CALLBACK_INFO> ArkR3::CallbackGetVec(CALLBACK_TYPE type) {
     return CallbackVec_;
 }
 
+std::wstring ArkR3::NormalizePath(const WCHAR* path) {
+    std::wstring fullPath = path;
+    if (fullPath.find(L"\\SystemRoot\\") == 0) {
+        fullPath = L"C:\\Windows\\" + fullPath.substr(12);
+    }
+    else if (fullPath.find(L"\\WINDOWS\\") == 0) {
+        fullPath = L"C:\\Windows\\" + fullPath.substr(9);
+    }
+    else if (fullPath.find(L"\\??\\C:") == 0) {
+        fullPath = L"C:" + fullPath.substr(6);
+    }
+    else if (fullPath.find(L"\\??\\") == 0) {
+        fullPath = fullPath.substr(4);
+    }
+    return fullPath;
+}
+
 BOOL ArkR3::CallbackDelete(CALLBACK_TYPE type, ULONG index, PVOID CallbackFuncAddr) {
 
     CALLBACK_DELETE_REQ request = { type,index,CallbackFuncAddr};
@@ -975,7 +992,23 @@ std::vector<DEVICE_STACK_INFO> ArkR3::DeviceStackGetVec() {
 
         // 将结果复制到成员变量
         for (ULONG i = 0; i < stackCount; i++) {
-            DeviceStackVec_.push_back(buffer[i]);
+            DEVICE_STACK_INFO stackInfo = buffer[i];
+
+            std::wstring normalizedOrigPath =
+                NormalizePath(stackInfo.OriginalDriverPath);
+            wcscpy_s(stackInfo.OriginalDriverPath,
+                sizeof(stackInfo.OriginalDriverPath) / sizeof(WCHAR),
+                normalizedOrigPath.c_str());
+
+            for (ULONG j = 0; j < stackInfo.FilterCount; j++) {
+                std::wstring normalizedFilterPath =
+                    NormalizePath(stackInfo.Filters[j].DriverPath);
+                wcscpy_s(stackInfo.Filters[j].DriverPath,
+                    sizeof(stackInfo.Filters[j].DriverPath) / sizeof(WCHAR),
+                    normalizedFilterPath.c_str());
+            }
+
+            DeviceStackVec_.emplace_back(stackInfo);
         }
 
         /*

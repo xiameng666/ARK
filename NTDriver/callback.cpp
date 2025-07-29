@@ -50,6 +50,8 @@ NTSTATUS EnumCallbacks(PCALLBACK_INFO callbackBuffer, CALLBACK_TYPE type, PULONG
     *callbackCount = 0;
     ULONG count = 0;
 
+    EnumModule();
+
     switch (type) {
         case TypeProcess: 
         {
