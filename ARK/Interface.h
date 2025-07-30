@@ -21,6 +21,9 @@
 #include <imgui_internal.h>
 #include <algorithm>
 
+#include <filesystem>
+#include "imfilebrowser.h"
+
 #define COLOR_RED       ImVec4(1.0f, 0.0f, 0.0f, 1.0f)    // ºìÉ«
 #define COLOR_GREEN     ImVec4(0.0f, 1.0f, 0.0f, 1.0f)    // ÂÌÉ«
 #define COLOR_YELLOW    ImVec4(1.0f, 1.0f, 0.0f, 1.0f)    // »ÆÉ«

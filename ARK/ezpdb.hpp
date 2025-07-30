@@ -1,5 +1,5 @@
 #pragma once
-
+#define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 #include <stdio.h>
 #include <Windows.h>
 #include <DbgHelp.h>
@@ -380,57 +380,35 @@ namespace ez
 
 		std::string download(std::string pe_path, bool bRedownload = false)
 		{
-			// download pdb file from symbol server
-			// return pdb path if success, 
-			// or return empty string if failed, user can call GetLastError() to know wth is going on
-			std::string pdbDownloadPath;
+            std::string pdbDownloadPath;
 
-			WCHAR wszCurrentDir[MAX_PATH] = { 0 };
-			GetModuleFileNameW(NULL, wszCurrentDir, _countof(wszCurrentDir));
-			
+            WCHAR wszCurrentDir[MAX_PATH] = { 0 };
+            GetModuleFileNameW(NULL, wszCurrentDir, _countof(wszCurrentDir));
+            PathCchRemoveFileSpec(wszCurrentDir, _countof(wszCurrentDir));
+            std::wstring wsCurrentDir = wszCurrentDir;
 
-			WCHAR* lastSlash = wcsrchr(wszCurrentDir, L'\\');
-			if (lastSlash != NULL) {
-				*lastSlash = L'\0'; 
-			}
-			
-			std::wstring wsCurrentDir = wszCurrentDir;
-			
-			//setup converter
-			std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
+            // 使用Windows API进行字符串转换，替代已弃用的codecvt
+            int wideLen = WideCharToMultiByte(CP_UTF8, 0, wszCurrentDir, -1, NULL, 0, NULL, NULL);
+            if (wideLen == 0) {
+                return "";
+            }
+            std::string CurrentDir(wideLen - 1, '\0');
+            WideCharToMultiByte(CP_UTF8, 0, wszCurrentDir, -1, &CurrentDir[0], wideLen, NULL, NULL);
 
-			//use converter (.to_bytes: wstr->str, .from_bytes: str->wstr)
-			std::string CurrentDir = converter.to_bytes(wsCurrentDir);
-			
+            if (CurrentDir.back() != '\\')
+            {
+                CurrentDir += '\\';
+            }
+            pdbDownloadPath = CurrentDir += "symbols\\";
 
-			printf("ezpdb CurrentDir: %s\n", CurrentDir.c_str());
-			
-
-			if (CurrentDir.find(".exe") != std::string::npos) {
-				printf("ezpdb Warning: CurrentDir contains .exe, attempting fallback\n");
-	
-				char tempPath[MAX_PATH];
-				GetTempPathA(sizeof(tempPath), tempPath);
-				CurrentDir = tempPath;
-				printf("ezpdb Fallback CurrentDir: %s\n", CurrentDir.c_str());
-			}
-			
-			if (CurrentDir.back() != '\\')
-			{
-				CurrentDir += '\\';
-			}
-			pdbDownloadPath = CurrentDir += "symbols\\";
-
-			// make sure the directory exist
-			if (!CreateDirectoryA(pdbDownloadPath.c_str(), NULL))
-			{
-				if (GetLastError() != ERROR_ALREADY_EXISTS)
-				{
-					printf("ezpdb CreateDirectory failed, error: %d\n", GetLastError());
-					printf("ezpdb Attempted path: %s\n", pdbDownloadPath.c_str());
-					return "";
-				}
-			}
+            // make sure the directory exist
+            if (!CreateDirectoryA(pdbDownloadPath.c_str(), NULL))
+            {
+                if (GetLastError() != ERROR_ALREADY_EXISTS)
+                {
+                    return "";
+                }
+            }
 
 			// read pe file
 

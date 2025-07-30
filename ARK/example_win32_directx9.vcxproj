@@ -107,6 +107,7 @@
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>..\..;..\..\backends;%(AdditionalIncludeDirectories);$(DXSDK_DIR)Include;</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -166,6 +167,7 @@
     <ClCompile Include="ArkR3.cpp" />
     <ClCompile Include="CallbackWnd.cpp" />
     <ClCompile Include="driverloader.cpp" />
+    <ClCompile Include="FileWnd.cpp" />
     <ClCompile Include="HookWnd.cpp" />
     <ClCompile Include="KernelWnd.cpp" />
     <ClCompile Include="LogWnd.cpp" />
@@ -186,7 +188,9 @@
     <ClInclude Include="CallbackWnd.h" />
     <ClInclude Include="driverloader.h" />
     <ClInclude Include="ezpdb.hpp" />
+    <ClInclude Include="FileWnd.h" />
     <ClInclude Include="HookWnd.h" />
+    <ClInclude Include="imfilebrowser.h" />
     <ClInclude Include="imguiLog.h" />
     <ClInclude Include="imgui_momory_editor.h" />
     <ClInclude Include="Interface.h" />

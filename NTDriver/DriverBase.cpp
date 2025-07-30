@@ -327,7 +327,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
             status = TerminateProcessByThread((HANDLE)(ULONG_PTR)PID);
 
             if (NT_SUCCESS(status)) {
-                Log("[ARK] Successfully force terminated process %d", (ULONG)PID);
+                Log("[XM] Success terminate process %d", (ULONG)PID);
             }
             break;
         }

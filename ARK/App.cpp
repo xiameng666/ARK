@@ -70,7 +70,7 @@ void App::Render()
         networkWnd_.Render(&ctx_.show_network_wnd);
 
     if (ctx_.show_file_wnd)
-        fileWnd_.Render();
+        fileWnd_.Render(&ctx_.show_file_wnd);
     /*if (ctx_.show_menu_bar)
         menuBar_.Render(&ctx_.show_menu_bar);
     if (ctx_.show_process_wnd)

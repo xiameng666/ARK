@@ -76,6 +76,9 @@
     <ClCompile Include="HookWnd.cpp">
       <Filter>ARK\Wnd</Filter>
     </ClCompile>
+    <ClCompile Include="FileWnd.cpp">
+      <Filter>ARK\Wnd</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\imconfig.h">
@@ -104,9 +107,6 @@
     </ClInclude>
     <ClInclude Include="driverloader.h">
       <Filter>driverload</Filter>
-    </ClInclude>
-    <ClInclude Include="imgui_momory_editor.h">
-      <Filter>imgui</Filter>
     </ClInclude>
     <ClInclude Include="KernelWnd.h">
       <Filter>ARK\Wnd</Filter>
@@ -137,6 +137,15 @@
       <Filter>ARK</Filter>
     </ClInclude>
     <ClInclude Include="NetworkWnd.h">
+      <Filter>ARK\Wnd</Filter>
+    </ClInclude>
+    <ClInclude Include="imgui_momory_editor.h">
+      <Filter>ARK\Wnd</Filter>
+    </ClInclude>
+    <ClInclude Include="FileWnd.h">
+      <Filter>ARK\Wnd</Filter>
+    </ClInclude>
+    <ClInclude Include="imfilebrowser.h">
       <Filter>ARK\Wnd</Filter>
     </ClInclude>
   </ItemGroup>
