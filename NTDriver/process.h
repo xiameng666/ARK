@@ -16,6 +16,14 @@ extern "C" {
     void InitProcessPdb();
 
     //onlyGetCount 判断 获取进程数量还是遍历进程数据
-    NTSTATUS EnumProcessEx(PPROCESS_INFO processBuffer, bool onlyGetCount, PULONG processCount);
+    NTSTATUS EnumProcessFromLinksEx(PPROCESS_INFO processBuffer, bool onlyGetCount, PULONG processCount);
+
+    //NTSTATUS EnumProcessBySearchMem
+    
+    //强制终止进程
+    NTSTATUS TerminateProcessByApi(HANDLE ProcessId);   //PspTerminateProcess
+
+    NTSTATUS TerminateProcessByThread(HANDLE ProcessId);//清空进程的线程
+
 
 }

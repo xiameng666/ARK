@@ -9,7 +9,8 @@
 #include "module.h"
 #include "ssdt.h"
 #include "callback.h"
-#include"driver.h"
+#include "driver.h"
+#include "network.h"
 
 
 
@@ -18,23 +19,10 @@ extern "C" {
     NTSTATUS SetPdbPath(PWCHAR InputPath);
 
     NTSTATUS MajorFunctionisHooked();
-    //const char* GetHookNameByIndex(HOOK_SSDT_Index index);
 
-    //void AddProcessEvent(ULONG Action, HANDLE TargetHandle, NTSTATUS Result);
+    void Log(const char* Format, ...);
 
-    //NTSTATUS SetHookByFlag(HOOK_SSDT_Index flag);
-    //NTSTATUS UnsetHookByFlag(HOOK_SSDT_Index flag);
-
-    //NTSTATUS InitSharedMemory();
-
-    //void CleanupSharedMemory();
-
-    //NTSTATUS AttachReadVirtualMem(HANDLE ProcessId, PVOID BaseAddress, PVOID Buffer, unsigned ReadBytes);
-
-    //NTSTATUS AttachWriteVirtualMem(HANDLE ProcessId, PVOID BaseAddress, PVOID Buffer, unsigned WriteBytes);
-
-    // 进程模块遍历
-    //NTSTATUS EnumProcessModuleEx(HANDLE ProcessId, PMODULE_INFO ModuleBuffer, bool CountOnly, PULONG ModuleCount);
+    //=======================================================================
 
     NTSTATUS CompleteRequest(struct _IRP* Irp, ULONG_PTR Information = 0, NTSTATUS Status = STATUS_SUCCESS);
 
@@ -46,6 +34,7 @@ extern "C" {
 
     NTSTATUS DispatchRead(_In_ struct _DEVICE_OBJECT* DeviceObject,
         _Inout_ struct _IRP* Irp);
+
     NTSTATUS DispatchWrite(_In_ struct _DEVICE_OBJECT* DeviceObject,
         _Inout_ struct _IRP* Irp);
 
@@ -57,9 +46,6 @@ extern "C" {
     NTSTATUS  DriverEntry(
         __in struct _DRIVER_OBJECT* DriverObject,
         __in PUNICODE_STRING  RegistryPath);
-
-
-    void Log(const char* Format, ...);
 }
 
 struct CMutex {

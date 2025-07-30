@@ -1,6 +1,6 @@
 #include "ProcessWnd.h"
 #include  "ModuleWnd.h"
-#include <algorithm>
+
 ProcessWnd::ProcessWnd(Context* ctx) 
     :ImguiWnd(ctx)
 {
@@ -16,21 +16,48 @@ void ProcessWnd::Render(bool* p_open)
     
     ImGui::End();
     
-    // 渲染进程模块窗口（如果需要显示）
     if (ctx_->showProcessModuleWnd) {
         RenderProcessModuleWnd();
     }
 }
 
-void ProcessWnd::RenderProcessWnd() {
 
-    if (ImGui::Button(u8"刷新")) {
-        // 获取进程列表
-       /* processList = ctx_->arkR3.EnumProcesses32();*/
+void ProcessWnd::Flush(ProcSearchType type) {
+
+    ctx_->processUiVec.clear();
+
+    if (type == Links) {
         DWORD count = ctx_->arkR3.ProcessGetCount();
-        ctx_->arkR3.Log("数量%d", count);
+        ctx_->arkR3.Log("数量%d\n", count);
         ctx_->processUiVec = ctx_->arkR3.ProcessGetVec(count);
     }
+    else if (type == Mem){
+
+    }
+    
+}
+
+void ProcessWnd::RenderProcessWnd() {
+
+    //自动刷新
+    SetAutoFlush(true);
+    if (ActiveFlushWnd) {
+        auto now = std::chrono::steady_clock::now();
+        auto pased = std::chrono::duration_cast<std::chrono::seconds>(now - lastFlushTime);
+
+        if (pased.count() >= flushSecond) {
+            ctx_->arkR3.Log("自动刷新");
+            Flush(Links);
+            lastFlushTime = now;
+        }
+    }
+
+    //手动刷新
+    if (ImGui::Button(u8"遍历链表")) {
+        Flush(Links);
+        lastFlushTime = std::chrono::steady_clock::now(); // 重置计时器
+    }
+
     ImGui::Separator();
 
     if (ImGui::BeginTable("proc_table", 5, ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_Sortable)) {
@@ -84,11 +111,14 @@ void ProcessWnd::RenderProcessWnd() {
         for (const auto& process : ctx_->processUiVec) { 
             ImGui::TableNextRow();
 
-            // 第0列：进程名 + 选择
+            
+            // 0 显示进程名 + 整行选择
             ImGui::TableSetColumnIndex(0);
             bool is_selected = (selected_index == row);
-            char selectableId[64];
-            sprintf_s(selectableId, "%s##%d", process.ImageFileName, row);
+
+            char selectableId[32];
+            sprintf_s(selectableId, "##%u", process.ProcessId);  //pid当id
+
             if (ImGui::Selectable(selectableId, is_selected, ImGuiSelectableFlags_SpanAllColumns)) {
                 selected_index = row;
             }
@@ -97,6 +127,22 @@ void ProcessWnd::RenderProcessWnd() {
             char popupId[64];
             sprintf_s(popupId, "ProcessMenu##%d", row);
             if (ImGui::BeginPopupContextItem(popupId)) {
+                if (ImGui::MenuItem(u8"强制终止进程")) {
+
+                    bool result = ctx_->arkR3.ProcessForceKill(process.ProcessId);
+                    if (result) {
+                        ctx_->arkR3.Log("成功终止进程 %s (PID: %u)\n", process.ImageFileName, process.ProcessId);
+
+                    }
+                    else {
+                        ctx_->arkR3.Log("终止进程失败 %s (PID: %u)\n", process.ImageFileName, process.ProcessId);
+                    }
+
+                    Flush(Links);
+                    lastFlushTime = std::chrono::steady_clock::now(); // 重置计时器
+
+                }
+
                 if (ImGui::MenuItem(u8"TODO1")) {
                     ctx_->targetPid_ = process.ProcessId;
                     sprintf_s(ctx_->processIdText_, "%u", process.ProcessId);
@@ -106,7 +152,7 @@ void ProcessWnd::RenderProcessWnd() {
                     ctx_->moduleTargetPid = process.ProcessId;
                     sprintf_s(ctx_->moduleTargetProcessName, "%s", process.ImageFileName);
                     ctx_->showProcessModuleWnd = true;
-                    
+
                     // 加载进程模块
                     //DWORD moduleCount = ctx_->arkR3.ProcessModuleGetCount(ctx_->moduleTargetPid);
                     //ctx_->processModuleUiVec = ctx_->arkR3.ProcessModuleGetVec(ctx_->moduleTargetPid, moduleCount);
@@ -115,19 +161,23 @@ void ProcessWnd::RenderProcessWnd() {
                 ImGui::EndPopup();
             }
 
-            // 第1列：进程ID
+            // 在第0列显示进程名（覆盖在Selectable上面）
+            ImGui::SameLine(0, 0); 
+            ImGui::Text("%s", process.ImageFileName);
+
+            // 1 进程ID
             ImGui::TableSetColumnIndex(1);
             ImGui::Text("%u", process.ProcessId);
 
-            // 第2列：父PID
+            // 2 父PID
             ImGui::TableSetColumnIndex(2);
             ImGui::Text("%u", process.ParentProcessId);
 
-            // 第3列：页目录地址（十六进制）
+            // 3 页目录地址
             ImGui::TableSetColumnIndex(3);
             ImGui::Text("0x%08X", process.DirectoryTableBase);
 
-            // 第4列：EPROCESS地址
+            // 4 EPROCESS地址
             ImGui::TableSetColumnIndex(4);
             ImGui::Text("%p", process.EprocessAddr);
 
@@ -162,7 +212,7 @@ void ProcessWnd::RenderMemWnd(DWORD pid)
     ImGui::SetNextItemWidth(80);
     ImGui::InputText("##Size", ctx_->sizeText_, sizeof(ctx_->sizeText_));
 
-        if (ImGui::Button(u8"读")) {
+    if (ImGui::Button(u8"读")) {
         ULONG processId = strtoul(ctx_->processIdText_, NULL, 10);
         ULONG address = strtoul(ctx_->addressText_, NULL, 16);
         DWORD size = strtoul(ctx_->sizeText_, NULL, 10);

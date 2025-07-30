@@ -1,7 +1,7 @@
 ﻿#include "DriverBase.h"
 
 extern "C" void _sgdt(void*);
-BOOLEAN g_LogOn = FALSE;
+BOOLEAN g_LogOn = TRUE;
 ULONG_PTR g_VA = 0;
 PDRIVER_OBJECT g_DriverObject = NULL;  // 保存当前驱动对象
 
@@ -139,7 +139,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
             __try {
                 //KdBreakPoint();
                 ULONG processCount = 0;
-                status = EnumProcessEx(NULL, TRUE, &processCount);
+                status = EnumProcessFromLinksEx(NULL, TRUE, &processCount);
                 if (NT_SUCCESS(status)) {
                     *(PULONG)Irp->AssociatedIrp.SystemBuffer = processCount;
                     info = sizeof(ULONG);
@@ -157,7 +157,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
         {
             __try {
                 ULONG processCount = 0;
-                status = EnumProcessEx((PPROCESS_INFO)Irp->AssociatedIrp.SystemBuffer, FALSE, &processCount);
+                status = EnumProcessFromLinksEx((PPROCESS_INFO)Irp->AssociatedIrp.SystemBuffer, FALSE, &processCount);
                 if (NT_SUCCESS(status)) {
                     info = processCount * sizeof(PROCESS_INFO);
                     Log("[XM] CTL_ENUM_PROCESS: 获取 %d 个进程信息", processCount);
@@ -257,10 +257,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
                 if (NT_SUCCESS(status)) {
                     Log("[XM] CTL_DELETE_CALLBACK: 成功删除回调 类型=%d 索引=%d", 
                         restoreReq->Type, restoreReq->Index);
-                } else {
-                    Log("[XM] CTL_DELETE_CALLBACK: 删除回调失败 类型=%d 索引=%d", 
-                        restoreReq->Type, restoreReq->Index);
-                }
+                } 
             }
             __except (EXCEPTION_EXECUTE_HANDLER) {
                 status = STATUS_UNSUCCESSFUL;
@@ -279,9 +276,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
                 if (NT_SUCCESS(status)) {
                     info = hookCount * sizeof(DISPATCH_HOOK_INFO);
                     Log("[XM] CTL_ENUM_DISPATCH_HOOK: 检测到 %d 个派遣函数信息", hookCount);
-                } else {
-                    Log("[XM] CTL_ENUM_DISPATCH_HOOK: 检测失败");
-                }
+                } 
             }
             __except (EXCEPTION_EXECUTE_HANDLER) {
                 status = STATUS_UNSUCCESSFUL;
@@ -299,9 +294,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
                 if (NT_SUCCESS(status)) {
                     info = stackCount * sizeof(DEVICE_STACK_INFO);
                     Log("[XM] CTL_ENUM_DEVICE_STACK: 分析了 %d 个设备栈", stackCount);
-                } else {
-                    Log("[XM] CTL_ENUM_DEVICE_STACK: 分析失败");
-                }
+                } 
             }
             __except (EXCEPTION_EXECUTE_HANDLER) {
                 status = STATUS_UNSUCCESSFUL;
@@ -310,22 +303,31 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
             break;
         }
         
-        case CTL_ENUM_NETWORK_PORT:
+        case CTL_ENUM_NETWORK_PORT://暂时没用 在R3实现了
         {
             __try {
+                //后续可能需要R0提供路径 先保留
                 ULONG portCount = 0;
                 status = EnumNetworkPort((PNETWORK_PORT_INFO)Irp->AssociatedIrp.SystemBuffer, &portCount);
                 
                 if (NT_SUCCESS(status)) {
                     info = portCount * sizeof(NETWORK_PORT_INFO);
-                    Log("[XM] CTL_ENUM_NETWORK_PORT: 分析了 %d 个网络端口", portCount);
-                } else {
-                    Log("[XM] CTL_ENUM_NETWORK_PORT: 分析失败");
-                }
+                } 
             }
             __except (EXCEPTION_EXECUTE_HANDLER) {
                 status = STATUS_UNSUCCESSFUL;
                 Log("[XM] CTL_ENUM_NETWORK_PORT exception");
+            }
+            break;
+        }
+
+        case CTL_FORCE_KILL_PROCESS:
+        {
+            ULONG PID = *(PULONG)Irp->AssociatedIrp.SystemBuffer;
+            status = TerminateProcessByThread((HANDLE)(ULONG_PTR)PID);
+
+            if (NT_SUCCESS(status)) {
+                Log("[ARK] Successfully force terminated process %d", (ULONG)PID);
             }
             break;
         }

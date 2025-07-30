@@ -5,7 +5,7 @@ class HookWnd : public ImguiWnd {
 public:
     explicit HookWnd(Context* ctx);
     void Render(bool* p_open = nullptr) override;
-    void RenderMJHookWnd();           // æ´¾é£å‡½æ•°Hookæ£€æµ‹UI
-    void RenderDeviceStackWnd();      // è®¾å¤‡æ ˆåˆ†æUI
+    void RenderMJHookWnd();           // ÅÉÇ²º¯ÊıHook¼ì²â
+    void RenderDeviceStackWnd();      // Éè±¸Õ»
 
 };

@@ -17,7 +17,8 @@ void MenuBar::Render(bool* p_open)
             ImGui::MenuItem(u8"模块面板", nullptr, &ctx_->show_module_wnd);
             ImGui::MenuItem(u8"内核面板", nullptr, &ctx_->show_kernel_wnd);
             ImGui::MenuItem(u8"回调面板", nullptr, &ctx_->show_callback_wnd);  
-            ImGui::MenuItem(u8"注册表面板", nullptr, &ctx_->show_regedit_wnd);
+            ImGui::MenuItem(u8"网络面板", nullptr, &ctx_->show_network_wnd);
+            ImGui::MenuItem(u8"设备栈面板", nullptr, &ctx_->show_hook_wnd);
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu(u8"驱动"))
@@ -67,7 +68,7 @@ void MenuBar::Render(bool* p_open)
     ImGui::Checkbox("内核面板", &ctx_->show_kernel_wnd);
     ImGui::Checkbox("注册表面板", &ctx_->show_regedit_wnd);
     ImGui::Checkbox("文件面板", &ctx_->show_file_wnd);
-    ImGui::Checkbox("网络面板", &ctx_->show_net_wnd);
+    ImGui::Checkbox("网络面板", &ctx_->show_network_wnd);
 
     ImGui::Separator();
     ImGui::Text("驱动操作");

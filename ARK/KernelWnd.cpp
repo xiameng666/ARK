@@ -7,7 +7,6 @@ KernelWnd::KernelWnd(Context* ctx)
     viewRenderers_[GDT] = [this]() { RenderGDTTable(); };
     viewRenderers_[IDT] = [this]() { RenderIDTTable(); };
     viewRenderers_[SSDT] = [this]() { RenderSSDTTable(); };
-    // าฦณý SSDTHOOK ฯเนุด๚ย๋
 }
 
 void KernelWnd::Render(bool* p_open)

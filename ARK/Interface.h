@@ -17,7 +17,9 @@
 #include <map>
 #include <functional>
 #include <vector>
-
+#include <chrono>
+#include <imgui_internal.h>
+#include <algorithm>
 
 #define COLOR_RED       ImVec4(1.0f, 0.0f, 0.0f, 1.0f)    // 红色
 #define COLOR_GREEN     ImVec4(0.0f, 1.0f, 0.0f, 1.0f)    // 绿色
@@ -69,6 +71,7 @@ struct Context {
     bool show_kernel_wnd = true;
     bool show_callback_wnd = true;
     bool show_hook_wnd = true;
+    bool show_network_wnd = true;
 
     bool showMemoryWindow = false;
 
@@ -108,6 +111,12 @@ struct Context {
 };
 
 
+/*
+- ImGui::IsWindowFocused() - 窗口是否有焦点
+- ImGui::IsWindowHovered() - 鼠标是否悬停在窗口上
+- ImGui::IsWindowAppearing() - 窗口是否正在显示
+*/
+#define ActiveFlushWnd isAutoFlush && IsWindowVisible() 
 
 class ImguiWnd {
 protected:
@@ -118,6 +127,21 @@ public:
     explicit ImguiWnd(Context* ctx) : ctx_(ctx) {}
     virtual void Render(bool* p_open = nullptr) = 0;
     virtual ~ImguiWnd() = default;
+
+    //用来自动刷新的
+    std::chrono::steady_clock::time_point lastFlushTime;
+    bool isAutoFlush = true;
+    int flushSecond = 4;
+
+    void SetAutoFlush(bool enable) { isAutoFlush = enable; }
+    void SetFlushSeconds(int seconds) { flushSecond = seconds; }
+
+    bool IsWindowVisible() {
+        return !ImGui::IsWindowCollapsed() &&
+            ImGui::GetCurrentWindow() &&
+            !ImGui::GetCurrentWindow()->Hidden;
+    }
+
 };
 
 

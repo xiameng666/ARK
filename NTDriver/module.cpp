@@ -100,7 +100,7 @@ NTSTATUS EnumModule()
 {
     NTSTATUS Status;
     PVOID Buffer;
-    ULONG BufferSize = 65536;  // 从64KB开始，避免多次retry
+    ULONG BufferSize = 4096;
     ULONG ReturnLength;
 
     Log("[XM] EnumModule: Caching module information globally");
@@ -149,16 +149,10 @@ NTSTATUS FindModuleByAddress(PVOID Address, PCHAR ModulePath, PVOID* ImageBase, 
     ULONG_PTR SearchAddress = (ULONG_PTR)Address;
     ULONG_PTR ModuleStart, ModuleEnd;
 
-    if (!Address) {
-        return STATUS_INVALID_PARAMETER;
-    }
-
     if (!g_ModuleBuffer) {
         Log("[XM] FindModuleByAddress: !g_ModuleBuffer");
         return STATUS_UNSUCCESSFUL;
     }
-
-    Log("[XM] FindModuleByAddress: Search %p in cached modules", Address);
 
     for (i = 0, ModuleInfo = &(g_ModuleBuffer->Modules[0]);
         i < g_ModuleBuffer->NumberOfModules;
@@ -175,18 +169,13 @@ NTSTATUS FindModuleByAddress(PVOID Address, PCHAR ModulePath, PVOID* ImageBase, 
             __try {
                 
                 if (ModulePath) {
-                    // 安全的字符串复制，目标缓冲区是256字节
                     size_t srcLength = strlen((CHAR*)ModuleInfo->FullPathName);
-                    size_t maxCopy = 255; // 为终止符留出空间
-                    size_t copyLength = min(srcLength, maxCopy);
+                    size_t copyLength = min(srcLength, 255);
                     
-                    RtlZeroMemory(ModulePath, 256); // 清零整个目标缓冲区
+                    RtlZeroMemory(ModulePath, 256); 
                     RtlCopyMemory(ModulePath, ModuleInfo->FullPathName, copyLength);
-                    ModulePath[copyLength] = '\0'; // 确保字符串终止
+                    ModulePath[copyLength] = '\0'; 
                     
-                    if (srcLength > maxCopy) {
-                        Log("[XM] FindModuleByAddress: Module path truncated from %zu to %zu chars", srcLength, copyLength);
-                    }
                 }
 
                 if (ImageBase) {

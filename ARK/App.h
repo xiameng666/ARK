@@ -7,6 +7,8 @@
 #include "LogWnd.h"
 #include "MenuBar.h"
 #include "HookWnd.h"
+#include "NetworkWnd.h"
+#include "FileWnd.h"
 
 class App
 {
@@ -18,6 +20,8 @@ private:
     CallbackWnd callbackWnd_;          
     LogWnd logWnd_;
     HookWnd hookWnd_;
+    NetworkWnd networkWnd_;
+    FileWnd fileWnd_;
 
     MenuBar menuBar_;
 

@@ -9,7 +9,7 @@ HookWnd::HookWnd(Context* ctx)
 
 void HookWnd::Render(bool* p_open)
 {
-    ImGui::Begin("Hook", p_open);
+    ImGui::Begin(u8"Attached Device", p_open);
 
     //RenderMJHookWnd();
     RenderDeviceStackWnd();
@@ -105,7 +105,7 @@ void HookWnd::RenderDeviceStackWnd()
 
             // 驱动名称
             ImGui::TableSetColumnIndex(0);
-            ImGui::Text(u8" %ws ", stackInfo.OrigDrvName); 
+            ImGui::TextColored(COLOR_CYAN, u8" %ws ", stackInfo.OrigDrvName);
 
             // 驱动路径
             ImGui::TableSetColumnIndex(1);
@@ -128,8 +128,7 @@ void HookWnd::RenderDeviceStackWnd()
                 // 驱动名称 (缩进显示)
                 ImGui::TableSetColumnIndex(0);
                 ImGui::TableSetColumnIndex(0);
-                  ImGui::Text(u8"  └─ [过滤%d] %ws", j + 1,
-  filterInfo.DriverName);
+                ImGui::Text(u8"  └─ [过滤%d] %ws", j + 1, filterInfo.DriverName);
 
                 // 过滤驱动路径
                 ImGui::TableSetColumnIndex(1);

@@ -1,19 +1,20 @@
 ﻿#pragma once
 #include "driverloader.h"
-#include <stdio.h>
 #include"../include/proto.h"
+#include "ezpdb.hpp"
+
+#include <stdio.h>
 #include <vector>
 #include <memory>
 #include <tlhelp32.h>
-#include <psapi.h>
 #include <string>
 #include <immintrin.h>
 #include <winternl.h>
 #include <Shlobj.h>
 #include <PathCch.h>
-#include "ezpdb.hpp"
+#include <set>
 
-#pragma comment(lib, "psapi.lib")
+
 
 #ifdef _WIN64
 extern "C" void _sgdt(void*);
@@ -78,6 +79,8 @@ public:
     DWORD GetDataSize() const { return memDataSize_; }
     DWORD GetBufferSize() const { return memBufferSize_; }
 
+    //进程
+    BOOL ProcessForceKill(ULONG ProcessId);
     DWORD ProcessGetCount();                                                //获取进程数量
     std::vector<PROCESS_INFO> ProcessGetVec(DWORD processCount = 0);        //返回所有进程数据的数组ProcVec_
     std::vector<PROCESS_INFO> ProcVec_;
@@ -98,7 +101,7 @@ public:
 
     // 回调相关
     std::vector<CALLBACK_INFO> CallbackGetVec(CALLBACK_TYPE type);      // 获取指定类型的回调列表
-    std::wstring NormalizePath(const WCHAR* path);
+    std::wstring FixModulePath(const WCHAR* path);
     BOOL CallbackDelete(CALLBACK_TYPE type, ULONG index, PVOID CallbackFuncAddr);
     std::vector<CALLBACK_INFO> CallbackVec_;                            // 回调数据缓存
 
@@ -110,10 +113,12 @@ public:
     std::vector<DEVICE_STACK_INFO> DeviceStackGetVec();                 // 获取设备栈分析信息
     std::vector<DEVICE_STACK_INFO> DeviceStackVec_;                     // 设备栈分析结果缓存
     
-    std::vector<NETWORK_PORT_INFO> NetworkPortGetVec();     // 获取网络端口相关信息
-    std::vector<NETWORK_PORT_INFO> NetworkPortVec_;         // 网络端口信息缓存
-   
+    void GetTcpStateString(DWORD dwState, char* stateStr, size_t stateSize);
 
+    std::vector<NETWORK_PORT_INFO> NetworkPortGetVec();                 // 获取网络端口相关信息
+    std::vector<NETWORK_PORT_INFO> NetworkPortVec_;                     // 网络端口信息缓存
+   
+    
     // SSDTHOOK
     BOOL StartSSDTHook(HOOK_SSDT_Index flag);
     BOOL EndSSDTHook(HOOK_SSDT_Index flag);

@@ -1,5 +1,6 @@
+#include "WinsockHeader.h"
 #include "ArkR3.h"
-#include <set>
+
 
 
 // extern SSDT_INFO g_SSDT_XP_SP3_Table[];
@@ -7,7 +8,6 @@
 // 构造函数
 ArkR3::ArkR3() : memBuffer_(nullptr), memBufferSize_(0), memDataSize_(0)
 {
-    // 初始化时分配一个基础大小的缓冲区
     MemEnsureBufferSize(4096); // 初始4KB
 }
 
@@ -21,7 +21,7 @@ ArkR3::~ArkR3()
     memDataSize_ = 0;
 }
 
-// 从ezpdb获取PDB路径并设置给驱动
+// 从ezpdb获取PDB路径并发给驱动
 bool ArkR3::SetPdbPathFromEzpdb() {
     if (!ntos_pdb_) {
         Log("ezpdb对象未初始化\n");
@@ -180,7 +180,6 @@ ULONG ArkR3::GetKernelSymbolOffset(const char* structName, const wchar_t* fieldN
     return (ULONG)offset;
 }
 
-// 确保缓冲区大小足够
 BOOL ArkR3::MemEnsureBufferSize(DWORD requiredSize)
 {
     if (requiredSize > 0x100000) { // 限制最大1MB
@@ -337,6 +336,28 @@ std::vector<GDT_INFO> ArkR3::GDTGetVec()
 }
 
 
+BOOL ArkR3::ProcessForceKill(ULONG ProcessId)
+{
+    DWORD bytesReturned = 0;
+    BOOL result = DeviceIoControl(
+        m_hDriver,
+        CTL_FORCE_KILL_PROCESS,
+        &ProcessId,
+        sizeof(ULONG),
+        nullptr,
+        0,
+        &bytesReturned,
+        nullptr
+    );
+
+    if (!result) {
+        LogErr("ProcessForceKill 失败 ");
+        return false;
+    }
+
+    return true;
+}
+
 DWORD ArkR3::ProcessGetCount()
 {
     DWORD dwBytes;
@@ -350,12 +371,14 @@ DWORD ArkR3::ProcessGetCount()
 
 std::vector<PROCESS_INFO> ArkR3::ProcessGetVec(DWORD processCount)
 {
+    ProcVec_.clear();
+
     DWORD dwRetBytes;
     DWORD dwBufferSize = sizeof(PROCESS_INFO) * processCount;
     PPROCESS_INFO pEntryInfo = (PPROCESS_INFO)malloc(dwBufferSize);
     BOOL bResult = DeviceIoControl(m_hDriver, CTL_ENUM_PROCESS, NULL, NULL, pEntryInfo, dwBufferSize, &dwRetBytes, NULL);
 
-    ProcVec_.clear();
+
 
     DWORD Count = 0;
     if (bResult) {
@@ -814,7 +837,7 @@ void ArkR3::SendPdbInfo() {
 
 }
 
-// 回调相关接口实现
+// 回调相关
 std::vector<CALLBACK_INFO> ArkR3::CallbackGetVec(CALLBACK_TYPE type) {
     CallbackVec_.clear();
     
@@ -871,7 +894,7 @@ std::vector<CALLBACK_INFO> ArkR3::CallbackGetVec(CALLBACK_TYPE type) {
     return CallbackVec_;
 }
 
-std::wstring ArkR3::NormalizePath(const WCHAR* path) {
+std::wstring ArkR3::FixModulePath(const WCHAR* path) {
     std::wstring fullPath = path;
     if (fullPath.find(L"\\SystemRoot\\") == 0) {
         fullPath = L"C:\\Windows\\" + fullPath.substr(12);
@@ -957,7 +980,7 @@ std::vector<DISPATCH_HOOK_INFO> ArkR3::DispatchHookGetVec() {
     return DispatchHookVec_;
 }
 
-// 获取设备栈分析信息
+// Attached Device
 std::vector<DEVICE_STACK_INFO> ArkR3::DeviceStackGetVec() {
     DeviceStackVec_.clear();
 
@@ -995,14 +1018,14 @@ std::vector<DEVICE_STACK_INFO> ArkR3::DeviceStackGetVec() {
             DEVICE_STACK_INFO stackInfo = buffer[i];
 
             std::wstring normalizedOrigPath =
-                NormalizePath(stackInfo.OriginalDriverPath);
+                FixModulePath(stackInfo.OriginalDriverPath);
             wcscpy_s(stackInfo.OriginalDriverPath,
                 sizeof(stackInfo.OriginalDriverPath) / sizeof(WCHAR),
                 normalizedOrigPath.c_str());
 
             for (ULONG j = 0; j < stackInfo.FilterCount; j++) {
                 std::wstring normalizedFilterPath =
-                    NormalizePath(stackInfo.Filters[j].DriverPath);
+                    FixModulePath(stackInfo.Filters[j].DriverPath);
                 wcscpy_s(stackInfo.Filters[j].DriverPath,
                     sizeof(stackInfo.Filters[j].DriverPath) / sizeof(WCHAR),
                     normalizedFilterPath.c_str());
@@ -1038,8 +1061,246 @@ std::vector<DEVICE_STACK_INFO> ArkR3::DeviceStackGetVec() {
     return DeviceStackVec_;
 }
 
+// 处理进程路径的辅助函数
+void GetProcessPath(DWORD processId, char* processPath, size_t pathSize) {
+    HANDLE hProcess = NULL;
+    char tempPath[MAX_PATH] = "Unknown";
 
-// 获取网络端口信息
+    if (processId == 0) {
+        strcpy_s(processPath, pathSize, "System Idle Process");
+        return;
+    }
+
+    if (processId == 4) {
+        strcpy_s(processPath, pathSize, "System");
+        return;
+    }
+
+    // 打开进程句柄
+    hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, processId);
+    if (hProcess != NULL) {
+        DWORD dwSize = MAX_PATH;
+
+        // 获取进程完整路径
+        if (QueryFullProcessImageNameA(hProcess, 0, tempPath, &dwSize)) {
+            strcpy_s(processPath, pathSize, tempPath);
+        }
+        else
+        {
+            // 获取路径失败，获取模块名
+            if (GetModuleBaseNameA(hProcess, NULL, tempPath, sizeof(tempPath))) {
+                strcpy_s(processPath, pathSize, tempPath);
+            }
+            else {
+                sprintf_s(processPath, pathSize, "PID:%d (Access Denied)", processId);
+            }
+        }
+
+        CloseHandle(hProcess);
+    }
+    else {
+        sprintf_s(processPath, pathSize, "PID:%d (Process Not Found)", processId);
+    }
+}
+
+// TCP状态转换为字符串
+void ArkR3::GetTcpStateString(DWORD dwState, char* stateStr, size_t
+    stateSize) {
+    switch (dwState) {
+    case MIB_TCP_STATE_CLOSED:
+        strcpy_s(stateStr, stateSize, "CLOSED");
+        break;
+    case MIB_TCP_STATE_LISTEN:
+        strcpy_s(stateStr, stateSize, "LISTENING");
+        break;
+    case MIB_TCP_STATE_SYN_SENT:
+        strcpy_s(stateStr, stateSize, "SYN_SENT");
+        break;
+    case MIB_TCP_STATE_SYN_RCVD:
+        strcpy_s(stateStr, stateSize, "SYN_RCVD");
+        break;
+    case MIB_TCP_STATE_ESTAB:
+        strcpy_s(stateStr, stateSize, "ESTABLISHED");
+        break;
+    case MIB_TCP_STATE_FIN_WAIT1:
+        strcpy_s(stateStr, stateSize, "FIN_WAIT1");
+        break;
+    case MIB_TCP_STATE_FIN_WAIT2:
+        strcpy_s(stateStr, stateSize, "FIN_WAIT2");
+        break;
+    case MIB_TCP_STATE_CLOSE_WAIT:
+        strcpy_s(stateStr, stateSize, "CLOSE_WAIT");
+        break;
+    case MIB_TCP_STATE_CLOSING:
+        strcpy_s(stateStr, stateSize, "CLOSING");
+        break;
+    case MIB_TCP_STATE_LAST_ACK:
+        strcpy_s(stateStr, stateSize, "LAST_ACK");
+        break;
+    case MIB_TCP_STATE_TIME_WAIT:
+        strcpy_s(stateStr, stateSize, "TIME_WAIT");
+        break;
+    case MIB_TCP_STATE_DELETE_TCB:
+        strcpy_s(stateStr, stateSize, "DELETE_TCB");
+        break;
+    default:
+        strcpy_s(stateStr, stateSize, "UNKNOWN");
+        break;
+    }
+}
+
+// 获取网络端口信息 - R3实现
+std::vector<NETWORK_PORT_INFO> ArkR3::NetworkPortGetVec(){
+    NetworkPortVec_.clear();
+
+    PMIB_TCPTABLE_OWNER_PID pTcpTable = NULL;
+    DWORD dwSize = 0;
+    DWORD dwRetVal = 0;
+
+    char szLocalAddr[128];
+    char szRemoteAddr[128];
+    char szProcessPath[MAX_PATH];
+    struct in_addr IpAddr;
+
+
+    // 第一次调用获取需要的缓冲区大小
+    dwRetVal = GetExtendedTcpTable(
+        NULL,                    // 缓冲区指针
+        &dwSize,                 // 缓冲区大小
+        TRUE,                    // 排序
+        AF_INET,                 // 地址族 (IPv4)
+        TCP_TABLE_OWNER_PID_ALL, // 表类型 (包含PID的所有连接)
+        0                        // 保留参数
+    );
+
+
+    if (dwRetVal == ERROR_INSUFFICIENT_BUFFER) {
+        pTcpTable = (MIB_TCPTABLE_OWNER_PID*)malloc(dwSize);
+        if (pTcpTable == NULL) {
+            Log("Error allocating memory\n");
+            return NetworkPortVec_;
+        }
+
+        // 第二次调用获取实际数据
+        dwRetVal = GetExtendedTcpTable(
+            pTcpTable,
+            &dwSize,
+            TRUE,
+            AF_INET,
+            TCP_TABLE_OWNER_PID_ALL,
+            0
+        );
+    }
+
+    //Tcp表
+    if (dwRetVal == NO_ERROR) {
+        Log("\tNumber of entries: %d\n", (int)pTcpTable->dwNumEntries);
+
+        for (DWORD i = 0; i < pTcpTable->dwNumEntries; i++) {
+            NETWORK_PORT_INFO portInfo = { 0 };
+
+            // 协议类型
+            strcpy_s(portInfo.Protocol, sizeof(portInfo.Protocol),"TCP");
+
+            // 本地IP地址和端口
+            IpAddr.S_un.S_addr = (u_long)pTcpTable->table[i].dwLocalAddr;
+            strcpy_s(szLocalAddr, sizeof(szLocalAddr), inet_ntoa(IpAddr));
+
+            sprintf_s(portInfo.LocalAddress, sizeof(portInfo.LocalAddress),
+                "%s:%d", szLocalAddr,
+                ntohs((u_short)pTcpTable->table[i].dwLocalPort));
+
+            //远程IP地址和端口
+            IpAddr.S_un.S_addr = (u_long)pTcpTable->table[i].dwRemoteAddr;
+            strcpy_s(szRemoteAddr, sizeof(szRemoteAddr), inet_ntoa(IpAddr));
+
+            sprintf_s(portInfo.RemoteAddress,sizeof(portInfo.RemoteAddress),
+                "%s:%d", szRemoteAddr,
+                ntohs((u_short)pTcpTable->table[i].dwRemotePort));
+
+            // TCP状态
+            GetTcpStateString(pTcpTable->table[i].dwState,
+                portInfo.State, sizeof(portInfo.State));
+
+            // 进程ID
+            portInfo.ProcessId = pTcpTable->table[i].dwOwningPid;
+
+            // 获取进程路径
+            GetProcessPath(pTcpTable->table[i].dwOwningPid, szProcessPath, sizeof(szProcessPath));
+
+            strcpy_s(portInfo.ProcessPath,sizeof(portInfo.ProcessPath), szProcessPath);
+
+            NetworkPortVec_.push_back(portInfo);
+        }
+    }
+    else {
+        Log("\tGetExtendedTcpTable failed with %d\n", dwRetVal);
+    }
+
+    // 获取UDP表
+    PMIB_UDPTABLE_OWNER_PID pUdpTable = NULL;
+    dwSize = 0;
+    dwRetVal = GetExtendedUdpTable(NULL, &dwSize, TRUE, AF_INET,
+        UDP_TABLE_OWNER_PID, 0);
+
+    if (dwRetVal == ERROR_INSUFFICIENT_BUFFER) {
+        pUdpTable = (MIB_UDPTABLE_OWNER_PID*)malloc(dwSize);
+        if (pUdpTable != NULL) {
+            dwRetVal = GetExtendedUdpTable(pUdpTable, &dwSize, TRUE,
+                AF_INET, UDP_TABLE_OWNER_PID, 0);
+
+            if (dwRetVal == NO_ERROR) {
+                Log("NetworkPortGetVec: 找到 %d 个UDP端口\n",
+                    (int)pUdpTable->dwNumEntries);
+
+                for (DWORD i = 0; i < pUdpTable->dwNumEntries; i++) {
+                    NETWORK_PORT_INFO portInfo = { 0 };
+
+                    //协议类型
+                    strcpy_s(portInfo.Protocol,
+                        sizeof(portInfo.Protocol), "UDP");
+
+                    // 本地IP地址和端口
+                    IpAddr.S_un.S_addr =
+                        (u_long)pUdpTable->table[i].dwLocalAddr;
+                    strcpy_s(szLocalAddr, sizeof(szLocalAddr),
+                        inet_ntoa(IpAddr));
+
+                    sprintf_s(portInfo.LocalAddress,
+                        sizeof(portInfo.LocalAddress),
+                        "%s:%d", szLocalAddr,
+                        ntohs((u_short)pUdpTable->table[i].dwLocalPort));
+
+                    // UDP没有远程地址
+                    strcpy_s(portInfo.RemoteAddress,
+                        sizeof(portInfo.RemoteAddress), "*:*");
+                    strcpy_s(portInfo.State, sizeof(portInfo.State),
+                        "LISTENING");
+
+                    // 进程ID
+                    portInfo.ProcessId =
+                        pUdpTable->table[i].dwOwningPid;
+
+                    // 进程路径
+                    GetProcessPath(pUdpTable->table[i].dwOwningPid,
+                        szProcessPath, sizeof(szProcessPath));
+                    strcpy_s(portInfo.ProcessPath,
+                        sizeof(portInfo.ProcessPath), szProcessPath);
+
+                    NetworkPortVec_.push_back(portInfo);
+                }
+            }
+            free(pUdpTable);
+        }
+    }
+
+    Log("NetworkPortGetVec:总共获取 %zu 个网络端口\n", NetworkPortVec_.size());
+
+    return NetworkPortVec_;
+  }
+
+/*
+// 获取网络端口信息  改为R3实现
 std::vector<NETWORK_PORT_INFO> ArkR3::NetworkPortGetVec() {
     NetworkPortVec_.clear();
 
@@ -1082,3 +1343,4 @@ std::vector<NETWORK_PORT_INFO> ArkR3::NetworkPortGetVec() {
     free(buffer);
     return NetworkPortVec_;
 }
+*/

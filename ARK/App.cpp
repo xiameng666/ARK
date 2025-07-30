@@ -22,7 +22,9 @@ App::App() :
     , moduleWnd_(&ctx_)
     , processWnd_(&ctx_)
     , callbackWnd_(&ctx_)             
-    , hookWnd_(&ctx_)             
+    , hookWnd_(&ctx_)
+    , networkWnd_(&ctx_)
+    , fileWnd_(&ctx_)
     , menuBar_{ &ctx_ }
 {
     ctx_.arkR3.InitSymbolState();
@@ -63,6 +65,12 @@ void App::Render()
 
     if (ctx_.show_hook_wnd)
         hookWnd_.Render(&ctx_.show_hook_wnd);
+
+    if (ctx_.show_network_wnd)
+        networkWnd_.Render(&ctx_.show_network_wnd);
+
+    if (ctx_.show_file_wnd)
+        fileWnd_.Render();
     /*if (ctx_.show_menu_bar)
         menuBar_.Render(&ctx_.show_menu_bar);
     if (ctx_.show_process_wnd)

@@ -1,7 +1,5 @@
-#pragma once
+﻿#pragma once
 #include "mydef.h"
-
-
 
 extern "C" {
 
@@ -19,13 +17,18 @@ extern "C" {
     NTSTATUS EnumTcpPorts(PNETWORK_PORT_INFO PortBuffer, PULONG PortCount);
     NTSTATUS EnumUdpPorts(PNETWORK_PORT_INFO PortBuffer, PULONG PortCount);
 
+    // TCP端口枚举的辅助函数
+    NTSTATUS EnumTcpPortsViaDevice(PNETWORK_PORT_INFO PortBuffer, PULONG PortCount);
+    NTSTATUS EnumTcpPortsViaHook(PNETWORK_PORT_INFO PortBuffer, PULONG PortCount);
+    NTSTATUS EnumTcpPortsSimulated(PNETWORK_PORT_INFO PortBuffer, PULONG PortCount);
+
 }
 
 typedef struct _DRIVER_OBJECT_INFO {
     PDRIVER_OBJECT DriverObject;
-    WCHAR DriverName[128];     
-    PVOID DriverStart;         
-    ULONG DriverSize;         
+    WCHAR DriverName[128];
+    PVOID DriverStart;
+    ULONG DriverSize;
 } DRIVER_OBJECT_INFO, * PDRIVER_OBJECT_INFO;
 
 //0x18 bytes (sizeof)

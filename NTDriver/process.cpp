@@ -29,7 +29,7 @@ void InitProcessPdb() {
     */
 }
 
-NTSTATUS EnumProcessEx(PPROCESS_INFO processBuffer, bool onlyGetCount, PULONG processCount) {
+NTSTATUS EnumProcessFromLinksEx(PPROCESS_INFO processBuffer, bool onlyGetCount, PULONG processCount) {
     PEPROCESS CurrentProcess = NULL;
     PEPROCESS StartProcess = NULL;
     ULONG Counter = 0;
@@ -73,4 +73,76 @@ NTSTATUS EnumProcessEx(PPROCESS_INFO processBuffer, bool onlyGetCount, PULONG pr
         Log("[XM] err EnumerateProcessCount");
         return STATUS_UNSUCCESSFUL;
     }
+}
+
+
+
+typedef NTSTATUS(*PspTerminateProcess)(PEPROCESS, NTSTATUS);
+
+NTSTATUS TerminateProcessByApi(HANDLE ProcessId) {
+    INIT_PDB;
+    UNREFERENCED_PARAMETER(ProcessId);
+    PspTerminateProcess pfn = (PspTerminateProcess)ntos.GetPointer("PspTerminateProcess");
+    Log("[XM] PspTerminateProcess address: %p", pfn);
+
+    if (!pfn) {
+        Log("[XM] PspTerminateProcess not found");
+        return STATUS_UNSUCCESSFUL;
+    }
+    /*
+    PEPROCESS Process = NULL;
+    NTSTATUS Status = PsLookupProcessByProcessId(ProcessId, &Process);
+    if (!NT_SUCCESS(Status)) {
+        Log("[XM] PsLookupProcessByProcessId fail PID %p: 0x%X", ProcessId, Status);
+        return Status;
+    }
+
+    Status = pfn(Process, 0);
+    ObDereferenceObject(Process);
+    Log("[XM] PspTerminateProcess result: 0x%X", Status);
+    */
+
+    return STATUS_SUCCESS;
+}
+
+typedef NTSTATUS(NTAPI* PspTerminateThreadByPointer)(
+    IN PETHREAD Thread,
+    IN NTSTATUS ExitStatus,
+    IN BOOLEAN bSelf
+    );
+
+NTSTATUS TerminateProcessByThread(HANDLE ProcessId)
+{
+    Log("[XM] TerminateProcessByThread: ProcessId = %p", ProcessId);
+
+    INIT_PDB;
+    PspTerminateThreadByPointer pfn = (PspTerminateThreadByPointer)ntos.GetPointer("PspTerminateThreadByPointer");
+
+    if (!pfn) {
+        Log("[XM] PspTerminateThreadByPointer GetPointer err");
+        return STATUS_UNSUCCESSFUL;
+    }
+
+    ULONG Count = 0;
+
+    //遍历所有线程
+    for (int i = 0; i < 65536; i += 4) {
+        PETHREAD Thread = NULL;
+        NTSTATUS Status = PsLookupThreadByThreadId((HANDLE)i, &Thread);
+
+        if (NT_SUCCESS(Status)) {
+            PEPROCESS Process = IoThreadToProcess(Thread);
+            HANDLE CurProcessId = PsGetProcessId(Process);
+
+            if (CurProcessId == ProcessId) {
+                Log("[XM] PspTerminateThreadByPointer Thread:%p\n", Thread);
+                pfn(Thread, 0, FALSE);
+
+                Count++;
+            }
+            ObDereferenceObject(Thread);
+        }
+    }
+
+    return Count > 0 ? STATUS_SUCCESS : STATUS_NOT_FOUND;
 }

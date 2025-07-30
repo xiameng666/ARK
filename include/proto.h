@@ -57,6 +57,7 @@ enum WindowsVersion
 #define CTL_ENUM_PROCESS_COUNT      MY_CTL_CODE(20)     // 枚举进程 返回数量
 #define CTL_ENUM_PROCESS            MY_CTL_CODE(21)     // 返回数据
 #define CTL_KILL_PROCESS            MY_CTL_CODE(22)     // 终止进程
+#define CTL_FORCE_KILL_PROCESS      MY_CTL_CODE(24)     // 强制终止进程
 
 #define CTL_ENUM_MODULE_COUNT       MY_CTL_CODE(30)     // 枚举模块 返回数量
 #define CTL_ENUM_MODULE             MY_CTL_CODE(31)     // 枚举模块 返回数据
@@ -82,6 +83,8 @@ enum WindowsVersion
 
 #define CTL_ENUM_NETWORK_PORT       MY_CTL_CODE(94)     // 枚举网络连接
 
+
+#define CTL_UNLOCK_FILE             MY_CTL_CODE(100)     // 解锁文件
 
 //#define CTL_ENUM_DRIVER_COUNT       MY_CTL_CODE(40)
 //#define CTL_ENUM_DRIVER             MY_CTL_CODE(41)   // 枚举驱动
@@ -116,9 +119,9 @@ typedef struct KERNEL_RW_REQ {
 
 //读写目标进程内存
 typedef struct PROCESS_MEM_REQ {
-    HANDLE ProcessId;        // 目标进程ID
-    PVOID VirtualAddress;    // 虚拟地址
-    unsigned Size;           // 数据大小  
+    HANDLE ProcessId;                   // 目标进程ID
+    PVOID VirtualAddress;               // 虚拟地址
+    unsigned Size;                      // 数据大小  
 }*PPROCESS_MEM_REQ;
 
 #pragma pack(push, 1)
@@ -159,19 +162,19 @@ typedef struct PROCESS_MODULE_REQ {
 }*PPROCESS_MODULE_REQ;
 
 typedef struct SegmentDescriptor {
-    unsigned Limit1 : 16;    // 界限低16位
-    unsigned Base1 : 16;     // 基址低16位  
-    unsigned Base2 : 8;      // 基址中8位
-    unsigned type : 4;       // 段类型
-    unsigned s : 1;          // 系统段标志
-    unsigned dpl : 2;        // 特权级
-    unsigned p : 1;          // 存在位
-    unsigned Limit2 : 4;     // 界限高4位
-    unsigned avl : 1;        // 软件可用位
-    unsigned l : 1;          // 64位代码段标志
-    unsigned db : 1;         // 操作数大小
-    unsigned g : 1;          // 粒度位
-    unsigned Base3 : 8;      // 基址高8位
+    unsigned Limit1 : 16;        // 界限低16位
+    unsigned Base1 : 16;         // 基址低16位  
+    unsigned Base2 : 8;          // 基址中8位
+    unsigned type : 4;           // 段类型
+    unsigned s : 1;              // 系统段标志
+    unsigned dpl : 2;            // 特权级
+    unsigned p : 1;              // 存在位
+    unsigned Limit2 : 4;         // 界限高4位
+    unsigned avl : 1;            // 软件可用位
+    unsigned l : 1;              // 64位代码段标志
+    unsigned db : 1;             // 操作数大小
+    unsigned g : 1;              // 粒度位
+    unsigned Base3 : 8;          // 基址高8位
 } SegmentDescriptor, *PSEGDESC;  // 确保是8字节
 
 // 64位系统段描述符（16字节）
@@ -213,19 +216,19 @@ typedef enum CALLBACK_TYPE {
     TypeAll                       // 枚举所有回调
 } *PCALLBACK_TYPE;
 
-// 回调信息结构 R0初始化结构 R3收到这个结构 选部分展示到UI
+// 回调信息  部分展示到UI
 typedef struct CALLBACK_INFO {
     CALLBACK_TYPE Type;                   // 回调类型
     ULONG Index;                          // 在回调数组中的索引
     PVOID CallbackEntry;                  // 回调入口地址
     
     CHAR ModulePath[256];                 // 模块完整路径
-    //CHAR Company[64];                   // 文件厂商信息(需要解析PE? 暂时不考虑)
+    //CHAR Company[64];                   // 文件厂商信息(需要解析PE? 暂时不用)
     BOOLEAN IsValid;                      // 回调是否有效(暂时不用 后续可能要添加禁用/恢复)
 
     union {
         PVOID CallbackExtra;              // 
-        UCHAR Reserved[32];               // 扩展信息 
+        UCHAR Reserved[32];               // 
     } Extra;
 
 } *PCALLBACK_INFO;
@@ -251,9 +254,9 @@ enum CALLBACK_REQ_TYPE {
 
 //回调请求
 typedef struct CALLBACK_DELETE_REQ {
-    CALLBACK_TYPE Type;               // 回调类型
-    ULONG Index;                      // 回调索引
-    union {                           // 从CallbackDeleteInfo复制
+    CALLBACK_TYPE Type;                // 回调类型
+    ULONG Index;                       // 回调索引 （在数组/链表下标)
+    union {                            
         PVOID CallbackFuncAddr;
     };
 
@@ -262,43 +265,43 @@ typedef struct CALLBACK_DELETE_REQ {
 // 派遣函数Hook
 typedef struct _DISPATCH_HOOK_INFO {
     ULONG MajorFunctionCode;            // IRP_MJ_xxx代码
-    CHAR FunctionName[128];              // 函数名称 (IRP_MJ_CREATE..)
-    CHAR DriverName[256];                // 驱动名称
+    CHAR FunctionName[128];             // 函数名称 (IRP_MJ_CREATE..)
+    CHAR DriverName[256];               // 驱动名称
     PVOID CurrentAddress;               // 当前函数地址  
     PVOID OriginalAddress;              // 原始函数地址
-    CHAR CurrentModule[256];             // 当前函数地址所在模块
+    CHAR CurrentModule[256];            // 当前函数地址所在模块
     BOOLEAN IsHooked;                   // 是否被Hook
 } DISPATCH_HOOK_INFO, *PDISPATCH_HOOK_INFO;
 
 typedef struct FILTER_DRIVER_INFO {
 
-    ULONG_PTR DriverObject;         // 驱动对象地址
-    ULONG_PTR DeviceObject;         // 设备对象地址
-    WCHAR DriverName[128];           // 过滤驱动名称 (\Driver\xxx)
-    WCHAR DriverPath[128];           // 驱动文件路径 (UNICODE)
+    ULONG_PTR DriverObject;             // 驱动对象地址
+    ULONG_PTR DeviceObject;             // 设备对象地址
+    WCHAR DriverName[128];              // 过滤驱动名称 (\Driver\xxx)
+    WCHAR DriverPath[128];              // 驱动文件路径 (UNICODE)
 } * PFILTER_DRIVER_INFO;
 
 typedef struct DEVICE_STACK_INFO {
-    ULONG_PTR OrigDrvObj;         // 原始驱动对象
-    ULONG_PTR OrigDevObj;         // 原始设备对象地址
+    ULONG_PTR OrigDrvObj;               // 原始驱动对象
+    ULONG_PTR OrigDevObj;               // 原始设备对象地址
 
-    WCHAR OrigDrvName[128];       // 原始驱动名称
-    WCHAR OriginalDriverPath[128]; // 原始驱动路径 (UNICODE)
+    WCHAR OrigDrvName[128];             // 原始驱动名称
+    WCHAR OriginalDriverPath[128];      // 原始驱动路径 (UNICODE)
 
     ULONG FilterCount;                  // 过滤驱动数量
-    FILTER_DRIVER_INFO Filters[8];     // 最多8层过滤驱动
+    FILTER_DRIVER_INFO Filters[8];      // 最多8层过滤驱动
 
     BOOLEAN IsHooked;                   // 是否被attach
 } * PDEVICE_STACK_INFO;
 
-typedef struct NETWORK_PORT_INFO {//与UI字段顺序一致
+typedef struct NETWORK_PORT_INFO {
     CHAR Protocol[16];                  // 协议 (TCP/UDP)
     CHAR LocalAddress[64];              // 本地地址 (IP:Port)
     CHAR RemoteAddress[64];             // 外部地址 (IP:Port)
-    CHAR State[32];                     // 状态 (LISTENING, ESTABLISHED等)
-    ULONG_PTR ConnectionId;             // 连接ID (可选
+    CHAR State[32];                     // 状态 (LISTENING, ESTABLISHE...)
+    ULONG_PTR ConnectionId;             // 连接ID R0拿
     ULONG ProcessId;                    // 进程ID
-    CHAR ProcessPath[256];              // 进程路径
+    CHAR ProcessPath[256];              // 进程路径 可以R0拿
 } *PNETWORK_PORT_INFO;
 
 
