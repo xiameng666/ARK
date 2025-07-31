@@ -10,18 +10,6 @@ extern "C" {
     NTSTATUS EnumDeviceStackAttach(PDEVICE_STACK_INFO StackBuffer, PULONG StackCount);//枚举过滤驱动
 
     NTSTATUS EnumDrvMJHooked(PDISPATCH_HOOK_INFO HookBuffer, PULONG HookCount);
-
-    NTSTATUS EnumNetworkPort(PNETWORK_PORT_INFO PortBuffer, PULONG PortCount);//枚举网络端口
-
-    // 网络端口相关函数声明
-    NTSTATUS EnumTcpPorts(PNETWORK_PORT_INFO PortBuffer, PULONG PortCount);
-    NTSTATUS EnumUdpPorts(PNETWORK_PORT_INFO PortBuffer, PULONG PortCount);
-
-    // TCP端口枚举的辅助函数
-    NTSTATUS EnumTcpPortsViaDevice(PNETWORK_PORT_INFO PortBuffer, PULONG PortCount);
-    NTSTATUS EnumTcpPortsViaHook(PNETWORK_PORT_INFO PortBuffer, PULONG PortCount);
-    NTSTATUS EnumTcpPortsSimulated(PNETWORK_PORT_INFO PortBuffer, PULONG PortCount);
-
 }
 
 typedef struct _DRIVER_OBJECT_INFO {

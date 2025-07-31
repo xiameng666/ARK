@@ -81,8 +81,8 @@ enum WindowsVersion
 
 #define CTL_ENUM_NETWORK_PORT       MY_CTL_CODE(94)     // 枚举网络连接
 
-#define CTL_UNLOCK_FILE             MY_CTL_CODE(100)     // 解锁文件
-#define CTL_SHRED_FILE              MY_CTL_CODE(101)     // 粉碎文件
+#define CTL_UNLOCK_FILE             MY_CTL_CODE(100)            // 解锁文件
+#define CTL_FORCE_DELETE_FILE              MY_CTL_CODE(101)     // 粉碎文件
 
 typedef struct PDB_PATH_REQUEST {
     wchar_t DownloadPath[MAX_PATH];    // PDB下载路径

@@ -25,6 +25,6 @@ private:
     void NavigateUp();                                     // 导航上级目录
     
     // 文件操作功能
-    void ShowFileContextMenu(const FileItem& file);        // 显示文件右键菜单
-    void ShowDirectoryContextMenu(const DirectoryNode& dir); // 显示目录右键菜单
+    void FilePopMenu(const FileItem& file);                // 显示文件右键菜单
+    void DirPopMenu(const DirectoryNode& dir);              // 显示目录右键菜单
 };

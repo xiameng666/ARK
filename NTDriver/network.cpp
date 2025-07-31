@@ -1,6 +1,6 @@
 #include "network.h"
 
-
+//R3й╣ожак 
 NTSTATUS EnumNetworkPort(PNETWORK_PORT_INFO PortBuffer, PULONG PortCount) {
     UNREFERENCED_PARAMETER(PortBuffer);
     *PortCount = 0;

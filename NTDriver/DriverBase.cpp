@@ -1,5 +1,6 @@
 ﻿#include "DriverBase.h"
 
+
 extern "C" void _sgdt(void*);
 BOOLEAN g_LogOn = TRUE;
 ULONG_PTR g_VA = 0;
@@ -139,7 +140,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
             __try {
                 //KdBreakPoint();
                 ULONG processCount = 0;
-                status = EnumProcessFromLinksEx(NULL, TRUE, &processCount);
+                status = EnumProcessByApiEx(NULL, TRUE, &processCount);
                 if (NT_SUCCESS(status)) {
                     *(PULONG)Irp->AssociatedIrp.SystemBuffer = processCount;
                     info = sizeof(ULONG);
@@ -157,7 +158,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
         {
             __try {
                 ULONG processCount = 0;
-                status = EnumProcessFromLinksEx((PPROCESS_INFO)Irp->AssociatedIrp.SystemBuffer, FALSE, &processCount);
+                status = EnumProcessByApiEx((PPROCESS_INFO)Irp->AssociatedIrp.SystemBuffer, FALSE, &processCount);
                 if (NT_SUCCESS(status)) {
                     info = processCount * sizeof(PROCESS_INFO);
                     Log("[XM] CTL_ENUM_PROCESS: 获取 %d 个进程信息", processCount);
@@ -328,6 +329,40 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
 
             if (NT_SUCCESS(status)) {
                 Log("[XM] Success terminate process %d", (ULONG)PID);
+            }
+            break;
+        }
+
+        case CTL_UNLOCK_FILE:
+        {
+            __try {
+                PFILE_REQ req = (PFILE_REQ)Irp->AssociatedIrp.SystemBuffer;
+                status = UnlockFile(req->FilePath);
+
+                if (NT_SUCCESS(status)) {
+                    Log("[XM] 解锁文件成功 %ws", req->FilePath);
+                }
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER) {
+                status = STATUS_UNSUCCESSFUL;
+                Log("[XM] CTL_UNLOCK_FILE exception");
+            }
+            break;
+        }
+
+        case CTL_FORCE_DELETE_FILE:
+        {
+            __try {
+                PFILE_REQ req = (PFILE_REQ)Irp->AssociatedIrp.SystemBuffer;
+                status = ForceDeleteFile(req->FilePath);
+
+                if (NT_SUCCESS(status)) {
+                    Log("[XM] 粉碎文件成功 %ws", req->FilePath);
+                }
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER) {
+                status = STATUS_UNSUCCESSFUL;
+                Log("[XM] CTL_FORCE_DELETE_FILE exception");
             }
             break;
         }

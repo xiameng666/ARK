@@ -53,7 +53,7 @@ void ProcessWnd::RenderProcessWnd() {
     }
 
     //手动刷新
-    if (ImGui::Button(u8"遍历链表")) {
+    if (ImGui::Button(u8"刷新")) {
         Flush(Links);
         lastFlushTime = std::chrono::steady_clock::now(); // 重置计时器
     }

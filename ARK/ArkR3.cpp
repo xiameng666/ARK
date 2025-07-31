@@ -1299,6 +1299,128 @@ std::vector<NETWORK_PORT_INFO> ArkR3::NetworkPortGetVec(){
     return NetworkPortVec_;
   }
 
+
+  //typedef struct _UNICODE_STRING {
+  //    USHORT Length;
+  //    USHORT MaximumLength;
+  //    PWCH   Buffer;
+  //} UNICODE_STRING;
+
+  //typedef UNICODE_STRING* PUNICODE_STRING;
+
+  //typedef struct _RTL_BUFFER {
+  //    PWCHAR    Buffer;
+  //    PWCHAR    StaticBuffer;
+  //    SIZE_T    Size;
+  //    SIZE_T    StaticSize;
+  //    SIZE_T    ReservedForAllocatedSize; // for future doubling
+  //    PVOID     ReservedForIMalloc; // for future pluggable growth
+  //} RTL_BUFFER, * PRTL_BUFFER;
+
+  //typedef struct _RTL_UNICODE_STRING_BUFFER {
+  //    UNICODE_STRING String;
+  //    RTL_BUFFER     ByteBuffer;
+  //    WCHAR          MinimumStaticBufferForTerminalNul[sizeof(WCHAR)];
+  //} RTL_UNICODE_STRING_BUFFER, * PRTL_UNICODE_STRING_BUFFER;
+
+  std::wstring ConvertToDevicePath(const std::wstring& dosPath) {
+      if (dosPath.length() < 3) return L"";
+
+      WCHAR driveLetter[3] = { dosPath[0], L':', L'\0' };
+      WCHAR deviceName[MAX_PATH];
+
+      if (QueryDosDeviceW(driveLetter, deviceName, MAX_PATH)) {
+          std::wstring result = deviceName;
+          result += dosPath.substr(2); // 跳过 "C:"
+          return result;
+      }
+      return L"";
+  }
+
+BOOL ArkR3::UnlockFile(const std::string& filePath)
+{
+    Log("[XM] 原始路径: %s\n", filePath.c_str());
+
+    // 转换路径为宽字符
+    std::wstring widePath(filePath.begin(), filePath.end());
+    Log("[XM] 宽字符路径: %ws\n", widePath.c_str());
+
+    std::wstring devicePath = ConvertToDevicePath(widePath);
+    Log("[XM] 设备路径: %ws\n", devicePath.c_str());  // 用 %ws
+
+    if (devicePath.empty()) {
+        Log("[XM] ConvertToDevicePath 失败\n");
+        return FALSE;
+    }
+
+    FILE_REQ fileReq = { 0 };
+    wcscpy_s(fileReq.FilePath, devicePath.c_str());
+
+    DWORD bytesReturned = 0;
+    BOOL result = DeviceIoControl(
+        m_hDriver,
+        CTL_UNLOCK_FILE,
+        &fileReq,
+        sizeof(fileReq),
+        NULL,
+        0,
+        &bytesReturned,
+        NULL
+    );
+
+    if (result) {
+        Log("UnlockFile: 成功解锁文件 %s\n", filePath.c_str());
+        return TRUE;
+    }
+    else {
+        DWORD error = GetLastError();
+        Log("UnlockFile: 解锁文件失败 %s, 错误码: %d\n", filePath.c_str(), error);
+        return FALSE;
+    }
+}
+
+BOOL ArkR3::ForceDeleteFile(const std::string& filePath)
+{
+    Log("[XM] 原始路径: %s\n", filePath.c_str());
+
+    // 转换路径为宽字符
+    std::wstring widePath(filePath.begin(), filePath.end());
+    Log("[XM] 宽字符路径: %ws\n", widePath.c_str());
+
+    std::wstring devicePath = ConvertToDevicePath(widePath);
+    Log("[XM] 设备路径: %ws\n", devicePath.c_str());  
+
+    if (devicePath.empty()) {
+        Log("[XM] ConvertToDevicePath 失败\n");
+        return FALSE;
+    }
+
+    FILE_REQ fileReq = { 0 };
+    wcscpy_s(fileReq.FilePath, devicePath.c_str());
+
+    DWORD bytesReturned = 0;
+    BOOL result = DeviceIoControl(
+        m_hDriver,
+        CTL_FORCE_DELETE_FILE,
+        &fileReq,
+        sizeof(fileReq),
+        NULL,
+        0,
+        &bytesReturned,
+        NULL
+    );
+
+    if (result) {
+        Log("ForceDeleteFile: 成功粉碎文件 %s\n", filePath.c_str());
+        return TRUE;
+    }
+    else {
+        DWORD error = GetLastError();
+        Log("ForceDeleteFile: 粉碎文件失败 %s, 错误码: %d\n", filePath.c_str(), error);
+        return FALSE;
+    }
+}
+
 /*
 // 获取网络端口信息  改为R3实现
 std::vector<NETWORK_PORT_INFO> ArkR3::NetworkPortGetVec() {

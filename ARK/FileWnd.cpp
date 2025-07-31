@@ -6,8 +6,64 @@ FileWnd::FileWnd(Context* ctx) : ImguiWnd(ctx) {
     currentDirs_ = fileManager_.GetSubDirectories(currentPath_);
 }
 
+void FileWnd::FilePopMenu(const FileItem& file) {
+    std::string fullPath = currentPath_ + "\\" + file.fileName;
+
+    if (ImGui::MenuItem(u8"复制路径")) {
+        ImGui::SetClipboardText(fullPath.c_str());
+    }
+
+    ImGui::Separator();
+
+    if (ImGui::MenuItem(u8"解除占用")) {
+
+        ctx_->arkR3.Log("尝试解除文件占用: %s\n", fullPath.c_str());
+        ctx_->arkR3.UnlockFile(fullPath);
+    }
+
+    if (ImGui::MenuItem(u8"粉碎文件")) {
+
+        ctx_->arkR3.Log("尝试粉碎文件: %s\n", fullPath.c_str());
+        if (ctx_->arkR3.ForceDeleteFile(fullPath)) {
+            ctx_->arkR3.Log("粉碎文件成功: %s\n", fullPath.c_str());
+
+            // 立即从当前列表中移除该文件，避免继续访问
+            auto it = std::remove_if(currentFiles_.begin(), currentFiles_.end(),
+                [&](const FileItem& f) { return f.fileName == file.fileName; });
+            currentFiles_.erase(it, currentFiles_.end());
+
+            // 重置选中索引
+            selectedFileIndex_ = -1;
+
+            // 延时后刷新目录
+            Sleep(100);
+            FlushCurrentDirectory();
+        }
+        else {
+            ctx_->arkR3.Log("粉碎文件失败: %s\n", fullPath.c_str());
+        }
+    }
+}
+
+void FileWnd::DirPopMenu(const DirectoryNode& dir) {
+
+    if (ImGui::MenuItem(u8"复制路径")) {
+        ImGui::SetClipboardText(dir.path.c_str());
+    }
+    /*
+    ImGui::Separator();
+
+
+    if (ImGui::MenuItem(u8"粉碎目录")) {
+
+        ctx_->arkR3.Log("尝试粉碎目录: %s\n", dir.path.c_str());
+        // ctx_->arkR3.ShredDirectory(dir.path);
+    }
+    */
+}
+
 void FileWnd::Render(bool* p_open) {
-    ImGui::Begin(u8"文件浏览器", p_open, ImGuiWindowFlags_MenuBar);
+    ImGui::Begin(u8"文件", p_open, ImGuiWindowFlags_MenuBar);
 
     // 菜单栏
     if (ImGui::BeginMenuBar()) {
@@ -38,21 +94,28 @@ void FileWnd::Render(bool* p_open) {
 
 void FileWnd::RenderDirectoryTree() {
     ImGui::BeginChild("DirectoryTree", ImVec2(0, 0), true);
-    ImGui::Text(u8"目录树");
+    ImGui::Text(u8"目录");
     ImGui::Separator();
 
     // 显示桌面选项
     ImGui::PushID("Desktop");
-    ImGui::TreeNodeEx(u8"桌面", ImGuiTreeNodeFlags_OpenOnArrow);
+    bool desktopExpanded  = ImGui::TreeNodeEx(u8"桌面", ImGuiTreeNodeFlags_OpenOnArrow);
     
     if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
-        // 获取桌面路径
-        char desktopPath[MAX_PATH];
-        if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_DESKTOP, NULL, 0, desktopPath))) {
+        // 使用环境变量获取桌面路径
+        char* userProfile = nullptr;
+        size_t len = 0;
+        if (_dupenv_s(&userProfile, &len, "USERPROFILE") == 0 && userProfile) {
+            std::string desktopPath = std::string(userProfile) + "\\Desktop";
             ChangeDirectory(desktopPath);
+            free(userProfile);
         }
     }
-    
+
+    if (desktopExpanded) {
+        ImGui::TreePop();
+    }
+
     ImGui::PopID();
     
     ImGui::Separator();
@@ -82,7 +145,7 @@ void FileWnd::RenderDirectoryNode(const std::string& path) {
     auto subDirs = fileManager_.GetSubDirectories(path);
 
     for (const auto& dir : subDirs) {
-        // 检查字符串安全性 - 防止内存访问冲突
+
         if (dir.name.empty() || dir.path.empty()) {
             continue;
         }
@@ -90,7 +153,7 @@ void FileWnd::RenderDirectoryNode(const std::string& path) {
         const char* displayName = dir.name.c_str();
         bool isExpanded = ImGui::TreeNodeEx(displayName, ImGuiTreeNodeFlags_OpenOnArrow);
 
-        // 检查是否点击了目录文本（不是展开箭头）                                               
+        // 是否点击了目录文本                                          
         if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
             ChangeDirectory(dir.path);
         }
@@ -113,7 +176,7 @@ void FileWnd::RenderFileList() {
     ImGui::Separator();
 
     // 搜索过滤器
-    ImGui::InputText(u8"搜索", fileSearchFilter_, sizeof(fileSearchFilter_));
+    ImGui::InputText(u8"过滤", fileSearchFilter_, sizeof(fileSearchFilter_));
     ImGui::Separator();
 
     // 文件列表表格
@@ -141,14 +204,14 @@ void FileWnd::RenderFileList() {
 
         // 显示目录
         for (const auto& dir : currentDirs_) {
-            // 应用搜索过滤器
+            // 应用过滤器
             if (strlen(fileSearchFilter_) > 0) {
                 std::string filter(fileSearchFilter_);
                 std::string name = dir.name;
 
                 // 转换为小写进行比较
-                for (char& c : name) c = (char)tolower(c);
-                for (char& c : filter) c = (char)tolower(c);
+                for (char& c : name) c = tolower(c);
+                for (char& c : filter) c = tolower(c);
 
                 if (name.find(filter) == std::string::npos) {
                     continue;
@@ -163,7 +226,7 @@ void FileWnd::RenderFileList() {
                     continue;
                 }
                 
-                // 创建字符串副本避免悬挂指针
+                // 创建字符串副本
                 std::string safeName = dir.name;
                 std::string safePath = dir.path;
                 
@@ -173,7 +236,7 @@ void FileWnd::RenderFileList() {
                  
                  // 右键菜单
                  if (ImGui::BeginPopupContextItem(("dir_context_" + safeName).c_str())) {
-                     ShowDirectoryContextMenu(dir);
+                     DirPopMenu(dir);
                      ImGui::EndPopup();
                  }
             } catch (...) {
@@ -189,18 +252,22 @@ void FileWnd::RenderFileList() {
             ImGui::Text("");
         }
 
-        // 显示文件
-        for (int i = 0; i < currentFiles_.size(); i++) {
-            const auto& file = currentFiles_[i];
+        auto filesCopy = currentFiles_;  // 创建副本 避免遍历时修改
+        for (int i = 0; i < (int)filesCopy.size(); i++) {
+            const auto& file = filesCopy[i];
 
-            // 应用搜索过滤器
+            if (file.fileName.empty()) {
+                continue;
+            }
+
+            // 过滤器
             if (strlen(fileSearchFilter_) > 0) {
                 std::string filter(fileSearchFilter_);
                 std::string name = file.fileName;
 
-                // 转换为小写进行比较
-                for (char& c : name) c = (char)tolower(c);
-                for (char& c : filter) c = (char)tolower(c);
+                // 转为小写
+                for (char& c : name) c = tolower(c);
+                for (char& c : filter) c = tolower(c);
 
                 if (name.find(filter) == std::string::npos) {
                     continue;
@@ -210,27 +277,51 @@ void FileWnd::RenderFileList() {
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
 
-                         bool isSelected = (selectedFileIndex_ == i);
-             if (ImGui::Selectable(file.fileName.c_str(), isSelected)) {
-                 selectedFileIndex_ = i;
-             }
-             
-             // 右键菜单
-             if (ImGui::BeginPopupContextItem(("file_context_" + std::to_string(i)).c_str())) {
-                 ShowFileContextMenu(file);
-                 ImGui::EndPopup();
-             }
+            // 使用原始索引查找是否选中（需要在原数组中查找）
+            int originalIndex = -1;
+            for (int j = 0; j < (int)currentFiles_.size(); j++) {
+                if (currentFiles_[j].fileName == file.fileName) {
+                    originalIndex = j;
+                    break;
+                }
+            }
+
+            bool isSelected = (selectedFileIndex_ == originalIndex);
+            if (ImGui::Selectable(file.fileName.c_str(), isSelected)) {
+                selectedFileIndex_ = originalIndex;
+            }
+
+            // 右键菜单
+            if (ImGui::BeginPopupContextItem(("file_context_" + std::to_string(i)).c_str())) {
+                FilePopMenu(file);
+                ImGui::EndPopup();
+            }
 
             ImGui::TableNextColumn();
-            ImGui::Text("%s", fileManager_.FormatFileSize(file.fileSize).c_str());
+
+            try {
+                ImGui::Text("%s", fileManager_.FormatFileSize(file.fileSize).c_str());
+            }
+            catch (...) {
+                ImGui::Text("错误");
+            }
 
             ImGui::TableNextColumn();
-            ImGui::Text("%s", file.fileType.c_str());
+            try {
+                ImGui::Text("%s", file.fileType.c_str());
+            }
+            catch (...) {
+                ImGui::Text("未知");
+            }
 
             ImGui::TableNextColumn();
-            ImGui::Text("%s", fileManager_.FormatFileTime(file.modifyTime).c_str());
+            try {
+                ImGui::Text("%s", fileManager_.FormatFileTime(file.modifyTime).c_str());
+            }
+            catch (...) {
+                ImGui::Text("未知时间");
+            }
         }
-
         ImGui::EndTable();
     }
 
@@ -243,7 +334,7 @@ void FileWnd::ChangeDirectory(const std::string& newPath) {
 }
 
 void FileWnd::FlushCurrentDirectory() {
-    // 清空当前数据，避免使用失效的引用
+    // 清空
     currentFiles_.clear();
     currentDirs_.clear();
     
@@ -264,42 +355,5 @@ void FileWnd::NavigateUp() {
     }
 }
 
-void FileWnd::ShowFileContextMenu(const FileItem& file) {
-    std::string fullPath = currentPath_ + "\\" + file.fileName;
-    
-    if (ImGui::MenuItem(u8"复制路径")) {
-        ImGui::SetClipboardText(fullPath.c_str());
-    }
-    
-    ImGui::Separator();
-    
-    if (ImGui::MenuItem(u8"解除占用")) {
-
-        ctx_->arkR3.Log(u8"尝试解除文件占用: %s\n", fullPath.c_str());
-        // ctx_->arkR3.UnlockFile(fullPath);
-    }
-    
-    if (ImGui::MenuItem(u8"粉碎文件")) {
-
-        ctx_->arkR3.Log(u8"尝试粉碎文件: %s\n", fullPath.c_str());
-        // ctx_->arkR3.ShredFile(fullPath);
-        FlushCurrentDirectory(); // 刷新列表
-    }
-}
-
-void FileWnd::ShowDirectoryContextMenu(const DirectoryNode& dir) {
-
-    if (ImGui::MenuItem(u8"复制路径")) {
-        ImGui::SetClipboardText(dir.path.c_str());
-    }
-    
-    ImGui::Separator();
-    
-    if (ImGui::MenuItem(u8"粉碎目录")) {
-
-        ctx_->arkR3.Log(u8"尝试粉碎目录: %s\n", dir.path.c_str());
-        // ctx_->arkR3.ShredDirectory(dir.path);
-    }
-}
 
 

@@ -146,7 +146,7 @@ std::string FileManager::GetFileTypeFromExtension(const std::string& fileName) {
     if (dotPos != std::string::npos && dotPos < fileName.length() - 1) {
         std::string ext = fileName.substr(dotPos + 1);
         for (char& c : ext) {
-            c = (char)toupper(c);
+            c = (char)tolower(c);
         }
         return ext;
     }

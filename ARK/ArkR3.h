@@ -14,8 +14,6 @@
 #include <PathCch.h>
 #include <set>
 
-
-
 #ifdef _WIN64
 extern "C" void _sgdt(void*);
 #endif
@@ -112,14 +110,17 @@ public:
     // 设备栈分析
     std::vector<DEVICE_STACK_INFO> DeviceStackGetVec();                 // 获取设备栈分析信息
     std::vector<DEVICE_STACK_INFO> DeviceStackVec_;                     // 设备栈分析结果缓存
-    
-    void GetTcpStateString(DWORD dwState, char* stateStr, size_t stateSize);
 
+    //网络
+    void GetTcpStateString(DWORD dwState, char* stateStr, size_t stateSize);
     std::vector<NETWORK_PORT_INFO> NetworkPortGetVec();                 // 获取网络端口相关信息
     std::vector<NETWORK_PORT_INFO> NetworkPortVec_;                     // 网络端口信息缓存
-   
+
+    //文件
+    BOOL ForceDeleteFile(const std::string& filePath);
+    BOOL UnlockFile(const std::string& filePath);
     
-    // SSDTHOOK
+    // SSDTHOOK 
     BOOL StartSSDTHook(HOOK_SSDT_Index flag);
     BOOL EndSSDTHook(HOOK_SSDT_Index flag);
 

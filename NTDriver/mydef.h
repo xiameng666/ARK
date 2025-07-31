@@ -27,4 +27,5 @@ extern wchar_t g_PdbDownloadPath[512];
     ntos.init();
 
 #define OFFSET(value, structName, memberName) value = ((ULONG)ntos.GetOffset((structName), (memberName)))
-#
+
+

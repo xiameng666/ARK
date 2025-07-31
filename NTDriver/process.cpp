@@ -1,4 +1,4 @@
-#include "process.h"
+ï»¿#include "process.h"
 
 //NTKERNELAPI UCHAR* PsGetProcessImageFileName(PEPROCESS Process);
 
@@ -13,7 +13,7 @@ void InitProcessPdb() {
     OFFSET(procMeta.ParentProcessId, "_EPROCESS", "InheritedFromUniqueProcessId");
     OFFSET(procMeta.ImageFileName, "_EPROCESS", "ImageFileName");
 
-    // ³õÊ¼»¯±äÁ¿
+    // åˆå§‹åŒ–å˜é‡
     ULONG pcbOffset = 0, dtbOffset = 0;
     OFFSET(pcbOffset, "_EPROCESS", "Pcb");
     OFFSET(dtbOffset, "_KPROCESS", "DirectoryTableBase");
@@ -29,16 +29,16 @@ void InitProcessPdb() {
     */
 }
 
-NTSTATUS EnumProcessFromLinksEx(PPROCESS_INFO processBuffer, bool onlyGetCount, PULONG processCount) {
+NTSTATUS EnumProcessFromLinksEx(PPROCESS_INFO processBuffer, BOOLEAN onlyGetCount, PULONG processCount) {
     PEPROCESS CurrentProcess = NULL;
     PEPROCESS StartProcess = NULL;
     ULONG Counter = 0;
 
     __try {
-        StartProcess = PsInitialSystemProcess;//Ö¸ÏòÏµÍ³½ø³ÌµÄ½ø³Ì¶ÔÏó
+        StartProcess = PsInitialSystemProcess;//æŒ‡å‘ç³»ç»Ÿè¿›ç¨‹çš„è¿›ç¨‹å¯¹è±¡
         CurrentProcess = StartProcess;
 
-        Log("[XM] ¿ªÊ¼±éÀú½ø³Ì£¬ÆğÊ¼EPROCESS: %p ", CurrentProcess);
+        Log("[XM] å¼€å§‹éå†è¿›ç¨‹ï¼Œèµ·å§‹EPROCESS: %p ", CurrentProcess);
 
         do {
             if (!onlyGetCount && processBuffer != NULL) {
@@ -53,13 +53,13 @@ NTSTATUS EnumProcessFromLinksEx(PPROCESS_INFO processBuffer, bool onlyGetCount, 
                 RtlCopyMemory(pInfo->ImageFileName, (PUCHAR)CurrentProcess + procMeta.ImageFileName, 15);
                 pInfo->ImageFileName[15] = '\0';
 
-                Log("[XM] ½ø³Ì[%d]: PID=%d, Name=%s, EPROCESS=%p ",
+                Log("[XM] è¿›ç¨‹[%d]: PID=%d, Name=%s, EPROCESS=%p ",
                     Counter, pInfo->ProcessId, pInfo->ImageFileName, CurrentProcess);
             }
 
             Counter++;
 
-            // Í¨¹ıÆ«ÒÆ»ñÈ¡ActiveProcessLinks
+            // é€šè¿‡åç§»è·å–ActiveProcessLinks
             PLIST_ENTRY pListEntry = (PLIST_ENTRY)((PUCHAR)CurrentProcess + procMeta.ActiveProcessLinks);
             PLIST_ENTRY pNextListEntry = pListEntry->Flink;
             CurrentProcess = (PEPROCESS)((PUCHAR)pNextListEntry - procMeta.ActiveProcessLinks);
@@ -74,8 +74,6 @@ NTSTATUS EnumProcessFromLinksEx(PPROCESS_INFO processBuffer, bool onlyGetCount, 
         return STATUS_UNSUCCESSFUL;
     }
 }
-
-
 
 typedef NTSTATUS(*PspTerminateProcess)(PEPROCESS, NTSTATUS);
 
@@ -125,7 +123,7 @@ NTSTATUS TerminateProcessByThread(HANDLE ProcessId)
 
     ULONG Count = 0;
 
-    //±éÀúËùÓĞÏß³Ì
+    //éå†æ‰€æœ‰çº¿ç¨‹
     for (int i = 0; i < 65536; i += 4) {
         PETHREAD Thread = NULL;
         NTSTATUS Status = PsLookupThreadByThreadId((HANDLE)i, &Thread);
@@ -145,4 +143,54 @@ NTSTATUS TerminateProcessByThread(HANDLE ProcessId)
     }
 
     return Count > 0 ? STATUS_SUCCESS : STATUS_NOT_FOUND;
+}
+
+NTSTATUS EnumProcessByApiEx(PPROCESS_INFO ProcessInfos, BOOLEAN bCountOnly, PULONG pCount) {
+    Log("[XM] EnumProcessByApiEx å¼€å§‹æšä¸¾è¿›ç¨‹ï¼ŒCountOnly=%d", bCountOnly);
+
+    ULONG processCount = 0;
+    NTSTATUS status = STATUS_SUCCESS;
+
+    for (ULONG pid = 0; pid < 65536; pid += 4) {
+        PEPROCESS process = NULL;
+
+        NTSTATUS lookupStatus = PsLookupProcessByProcessId((HANDLE)(ULONG_PTR)pid, &process);
+
+        if (NT_SUCCESS(lookupStatus) && process) {
+
+            if (bCountOnly) {
+                // åªè®¡æ•°
+                processCount++;
+            }
+            else {
+                if (ProcessInfos) {
+                    // å¡«å……è¿›ç¨‹ä¿¡æ¯
+                    PROCESS_INFO* info = &ProcessInfos[processCount];
+                    RtlZeroMemory(info, sizeof(PROCESS_INFO));
+
+                    info->ProcessId = *(ULONG*)((PUCHAR)process + procMeta.ProcessId);
+                    info->ParentProcessId = *(ULONG*)((PUCHAR)process + procMeta.ParentProcessId);
+                    info->EprocessAddr = process;
+                    info->DirectoryTableBase = *(ULONG*)((PUCHAR)process + procMeta.DirectoryTableBase);
+
+                    // åç§°
+                    RtlCopyMemory(info->ImageFileName, (PUCHAR)process + procMeta.ImageFileName, 15);
+                    info->ImageFileName[15] = '\0';
+
+                    Log("[XM] è¿›ç¨‹[%d]: PID=%d, Name=%s, EPROCESS=%p ",
+                        processCount, info->ProcessId, info->ImageFileName, process);
+                }
+
+                processCount++;
+            }
+
+            ObDereferenceObject(process);
+        }
+    }
+
+    *pCount = processCount;
+
+    Log("[XM] EnumProcessByApiEx å…±æ‰¾åˆ° %d ä¸ªè¿›ç¨‹", processCount);
+
+    return status;
 }
