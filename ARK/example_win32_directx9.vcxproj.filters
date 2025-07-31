@@ -17,6 +17,9 @@
     <Filter Include="ARK\Wnd">
       <UniqueIdentifier>{fda8cafc-d1e0-4968-8e60-b8c934e08b09}</UniqueIdentifier>
     </Filter>
+    <Filter Include="other">
+      <UniqueIdentifier>{a23d773d-6d9b-4ad3-92e0-cc7fb84687f1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -79,6 +82,9 @@
     <ClCompile Include="FileWnd.cpp">
       <Filter>ARK\Wnd</Filter>
     </ClCompile>
+    <ClCompile Include="FileManager.cpp">
+      <Filter>other</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\imconfig.h">
@@ -127,9 +133,6 @@
     <ClInclude Include="CallbackWnd.h">
       <Filter>ARK\Wnd</Filter>
     </ClInclude>
-    <ClInclude Include="imguiLog.h">
-      <Filter>ARK\Wnd</Filter>
-    </ClInclude>
     <ClInclude Include="HookWnd.h">
       <Filter>ARK\Wnd</Filter>
     </ClInclude>
@@ -139,14 +142,20 @@
     <ClInclude Include="NetworkWnd.h">
       <Filter>ARK\Wnd</Filter>
     </ClInclude>
-    <ClInclude Include="imgui_momory_editor.h">
-      <Filter>ARK\Wnd</Filter>
-    </ClInclude>
     <ClInclude Include="FileWnd.h">
       <Filter>ARK\Wnd</Filter>
     </ClInclude>
     <ClInclude Include="imfilebrowser.h">
       <Filter>ARK\Wnd</Filter>
+    </ClInclude>
+    <ClInclude Include="imguiLog.h">
+      <Filter>other</Filter>
+    </ClInclude>
+    <ClInclude Include="imgui_momory_editor.h">
+      <Filter>other</Filter>
+    </ClInclude>
+    <ClInclude Include="FileManager.h">
+      <Filter>other</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

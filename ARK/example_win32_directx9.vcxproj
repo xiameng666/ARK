@@ -167,6 +167,7 @@
     <ClCompile Include="ArkR3.cpp" />
     <ClCompile Include="CallbackWnd.cpp" />
     <ClCompile Include="driverloader.cpp" />
+    <ClCompile Include="FileManager.cpp" />
     <ClCompile Include="FileWnd.cpp" />
     <ClCompile Include="HookWnd.cpp" />
     <ClCompile Include="KernelWnd.cpp" />
@@ -188,6 +189,7 @@
     <ClInclude Include="CallbackWnd.h" />
     <ClInclude Include="driverloader.h" />
     <ClInclude Include="ezpdb.hpp" />
+    <ClInclude Include="FileManager.h" />
     <ClInclude Include="FileWnd.h" />
     <ClInclude Include="HookWnd.h" />
     <ClInclude Include="imfilebrowser.h" />
