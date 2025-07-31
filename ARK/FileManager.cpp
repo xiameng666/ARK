@@ -74,7 +74,7 @@ std::vector<DirectoryNode> FileManager::GetSubDirectories(const std::string& pat
     if (LoadDirectory(path)) {
         auto it = directoryCache_.find(path);
         if (it != directoryCache_.end()) {
-            // 验证数据完整性
+
             std::vector<DirectoryNode> result;
             for (const auto& dir : it->second.subDirs) {
                 // 只返回有效的DirectoryNode对象
@@ -145,7 +145,9 @@ std::string FileManager::GetFileTypeFromExtension(const std::string& fileName) {
     size_t dotPos = fileName.find_last_of('.');
     if (dotPos != std::string::npos && dotPos < fileName.length() - 1) {
         std::string ext = fileName.substr(dotPos + 1);
-        std::transform(ext.begin(), ext.end(), ext.begin(), ::toupper);
+        for (char& c : ext) {
+            c = (char)toupper(c);
+        }
         return ext;
     }
     return "";
@@ -172,7 +174,7 @@ bool FileManager::EnumDirectory(const std::string& path, DirectoryNode& node) {
         }
         
         std::string fileName = WStringToUTF8(findData.cFileName);
-        // 安全性检查 - 确保转换后的字符串有效
+
         if (fileName.empty()) {
             continue;
         }
@@ -226,7 +228,7 @@ std::string FileManager::WStringToUTF8(const std::wstring& wstr) {
     
     int sizeNeeded = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, NULL, 0, NULL, NULL);
     if (sizeNeeded <= 0) {
-        // 转换失败时返回安全的ASCII替代
+        // 转换失败时
         return std::string("?");
     }
     

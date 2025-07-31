@@ -23,4 +23,8 @@ private:
     void ChangeDirectory(const std::string& newPath);      // 切换目录
     void FlushCurrentDirectory();                          // 刷新当前目录
     void NavigateUp();                                     // 导航上级目录
+    
+    // 文件操作功能
+    void ShowFileContextMenu(const FileItem& file);        // 显示文件右键菜单
+    void ShowDirectoryContextMenu(const DirectoryNode& dir); // 显示目录右键菜单
 };

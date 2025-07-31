@@ -35,7 +35,6 @@ typedef struct _LOG_BUFFER {
     PROCESS_EVENT Logs[1000];      // 日志数组
 } LOG_BUFFER, *PLOG_BUFFER;
 
-
 enum WindowsVersion
 {
     WinXP,
@@ -46,7 +45,6 @@ enum WindowsVersion
 #define MY_CTL_CODE(code)           CTL_CODE(FILE_DEVICE_UNKNOWN, 0x800 + code, METHOD_BUFFERED, FILE_ANY_ACCESS)
 #define CTL_READ_MEM                MY_CTL_CODE(0)
 #define CTL_WRITE_MEM               MY_CTL_CODE(1)
-
 
 #define CTL_ATTACH_MEM_READ         MY_CTL_CODE(2)      //附加进程读
 #define CTL_ATTACH_MEM_WRITE        MY_CTL_CODE(3)      //写
@@ -83,29 +81,8 @@ enum WindowsVersion
 
 #define CTL_ENUM_NETWORK_PORT       MY_CTL_CODE(94)     // 枚举网络连接
 
-
 #define CTL_UNLOCK_FILE             MY_CTL_CODE(100)     // 解锁文件
-
-//#define CTL_ENUM_DRIVER_COUNT       MY_CTL_CODE(40)
-//#define CTL_ENUM_DRIVER             MY_CTL_CODE(41)   // 枚举驱动
-//
-//#define CTL_ENUM_THREAD_COUNT       MY_CTL_CODE(50)
-//#define CTL_ENUM_THREAD             MY_CTL_CODE(51)   // 枚举线程
-//
-//#define CTL_ENUM_HANDLE_COUNT       MY_CTL_CODE(60)
-//#define CTL_ENUM_HANDLE             MY_CTL_CODE(61)   // 枚举句柄
-//#define CTL_QUERY_SYSINFO           MY_CTL_CODE(62)   // 查询系统信息
-//
-//#define CTL_ENUM_REGISTRY_COUNT     MY_CTL_CODE(70)
-//#define CTL_ENUM_REGISTRY           MY_CTL_CODE(71)   // 枚举注册表项
-//#define CTL_READ_REGISTRY           MY_CTL_CODE(72)  // 读取注册表
-//#define CTL_WRITE_REGISTRY          MY_CTL_CODE(73)  // 写注册表
-//
-
-//
-//#define CTL_ENUM_HOOK_COUNT         MY_CTL_CODE(90)
-//#define CTL_ENUM_HOOK               MY_CTL_CODE(91)  // 
-
+#define CTL_SHRED_FILE              MY_CTL_CODE(101)     // 粉碎文件
 
 typedef struct PDB_PATH_REQUEST {
     wchar_t DownloadPath[MAX_PATH];    // PDB下载路径
@@ -175,7 +152,7 @@ typedef struct SegmentDescriptor {
     unsigned db : 1;             // 操作数大小
     unsigned g : 1;              // 粒度位
     unsigned Base3 : 8;          // 基址高8位
-} SegmentDescriptor, *PSEGDESC;  // 确保是8字节
+} SegmentDescriptor, *PSEGDESC;  
 
 // 64位系统段描述符（16字节）
 typedef struct SystemDescriptor64 {
@@ -183,7 +160,6 @@ typedef struct SystemDescriptor64 {
     unsigned Base4 : 32;     // 基址最高32位
     unsigned reserved : 32;  // 保留字段
 } SystemDescriptor64;
-
 
 typedef struct SSDT_INFO {
     ULONG Index;
@@ -243,15 +219,6 @@ enum CALLBACK_REQ_TYPE {
     */
 };
 
-
-//typedef union CallbackDeleteInfo {
-//    struct {
-//        PVOID CallbackFuncAddr;     // 原始回调函数地址
-//    };
-//
-//
-//}*PCallbackDeleteInfo;
-
 //回调请求
 typedef struct CALLBACK_DELETE_REQ {
     CALLBACK_TYPE Type;                // 回调类型
@@ -304,5 +271,6 @@ typedef struct NETWORK_PORT_INFO {
     CHAR ProcessPath[256];              // 进程路径 可以R0拿
 } *PNETWORK_PORT_INFO;
 
-
-
+typedef struct FILE_REQ {
+    WCHAR FilePath[MAX_PATH];           // 文件路径  解锁/粉碎                     
+} *PFILE_REQ;
