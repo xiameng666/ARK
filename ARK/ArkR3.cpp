@@ -1339,17 +1339,15 @@ std::vector<NETWORK_PORT_INFO> ArkR3::NetworkPortGetVec(){
 
 BOOL ArkR3::UnlockFile(const std::string& filePath)
 {
-    Log("[XM] 原始路径: %s\n", filePath.c_str());
-
     // 转换路径为宽字符
     std::wstring widePath(filePath.begin(), filePath.end());
-    Log("[XM] 宽字符路径: %ws\n", widePath.c_str());
+    Log("宽字符路径: %ws\n", widePath.c_str());
 
     std::wstring devicePath = ConvertToDevicePath(widePath);
-    Log("[XM] 设备路径: %ws\n", devicePath.c_str());  // 用 %ws
+    Log("设备路径: %ws\n", devicePath.c_str());  // 用 %ws
 
     if (devicePath.empty()) {
-        Log("[XM] ConvertToDevicePath 失败\n");
+        Log("ConvertToDevicePath 失败\n");
         return FALSE;
     }
 
@@ -1381,17 +1379,15 @@ BOOL ArkR3::UnlockFile(const std::string& filePath)
 
 BOOL ArkR3::ForceDeleteFile(const std::string& filePath)
 {
-    Log("[XM] 原始路径: %s\n", filePath.c_str());
-
     // 转换路径为宽字符
     std::wstring widePath(filePath.begin(), filePath.end());
-    Log("[XM] 宽字符路径: %ws\n", widePath.c_str());
+    Log("宽字符路径: %ws\n", widePath.c_str());
 
     std::wstring devicePath = ConvertToDevicePath(widePath);
-    Log("[XM] 设备路径: %ws\n", devicePath.c_str());  
+    Log("设备路径: %ws\n", devicePath.c_str());  
 
     if (devicePath.empty()) {
-        Log("[XM] ConvertToDevicePath 失败\n");
+        Log("ConvertToDevicePath 失败\n");
         return FALSE;
     }
 

@@ -192,7 +192,6 @@
     <ClInclude Include="FileManager.h" />
     <ClInclude Include="FileWnd.h" />
     <ClInclude Include="HookWnd.h" />
-    <ClInclude Include="imfilebrowser.h" />
     <ClInclude Include="imguiLog.h" />
     <ClInclude Include="imgui_momory_editor.h" />
     <ClInclude Include="Interface.h" />

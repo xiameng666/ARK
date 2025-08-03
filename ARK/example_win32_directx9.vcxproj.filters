@@ -145,9 +145,6 @@
     <ClInclude Include="FileWnd.h">
       <Filter>ARK\Wnd</Filter>
     </ClInclude>
-    <ClInclude Include="imfilebrowser.h">
-      <Filter>ARK\Wnd</Filter>
-    </ClInclude>
     <ClInclude Include="imguiLog.h">
       <Filter>other</Filter>
     </ClInclude>

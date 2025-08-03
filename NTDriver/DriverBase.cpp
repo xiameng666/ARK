@@ -2,7 +2,7 @@
 
 
 extern "C" void _sgdt(void*);
-BOOLEAN g_LogOn = TRUE;
+BOOLEAN g_LogOn = FALSE;
 ULONG_PTR g_VA = 0;
 PDRIVER_OBJECT g_DriverObject = NULL;  // 保存当前驱动对象
 
