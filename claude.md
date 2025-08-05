@@ -71,7 +71,8 @@ include/proto.h    # 驱动与应用通信协议
 | 进程模块数量 | `CTL_ENUM_PROCESS_MODULE_COUNT` | - | - | ✗ |
 | 进程模块枚举 | `CTL_ENUM_PROCESS_MODULE` | - | - | ✗ |
 | **SSDT** |
-| SSDT枚举 | `CTL_ENUM_SSDT` | `DriverBase.cpp:209` | - | ✓ |
+| SSDT枚举 | `CTL_ENUM_SSDT` | `DriverBase.cpp:209` | `ArkR3.cpp:730` | ✓ |
+| ShadowSSDT枚举 | `CTL_ENUM_ShadowSSDT` | `ssdt.cpp:55` | `ArkR3.cpp:785` | ✓ |
 | 开始监控 | `CTL_START_SSDTHOOK` | - | - | ✗ |
 | 结束监控 | `CTL_END_SSDTHOOK` | - | - | ✗ |
 | **系统回调** |
@@ -91,20 +92,18 @@ include/proto.h    # 驱动与应用通信协议
 | 设置PDB路径 | `CTL_SET_PDB_PATH` | `DriverBase.cpp:91` | `ArkR3.cpp:49` | ✓ |
 | 窗口透明度 | `CTL_SET_WINDOW_TRANSPARENCY` | - | - | ✗ |
 
-## 待实现功能优先级
 
-### HIGH 优先级
-1. **进程强制结束**: `CTL_KILL_PROCESS` - 需实现驱动端和用户态接口  
-2. **内存读写**: `CTL_READ_MEM`, `CTL_WRITE_MEM` - 跨进程内存操作核心功能
-3. **SSDT恢复**: 新增恢复被HOOK系统调用的通讯码
-4. **回调恢复**: 新增恢复被HOOK回调的通讯码
 
-### MEDIUM 优先级  
-5. **隐藏进程检测**: 新增检测隐藏进程的通讯码
-6. **隐藏模块检测**: 新增检测隐藏模块的通讯码
-7. **对象回调**: 新增对象回调枚举的通讯码
-8. **ShadowSSDT**: 新增Win32k系统调用表相关通讯码
-9. **IDT中断表**: 新增中断表枚举和恢复的通讯码
+# TodoList
+
+1. 对象回调与恢复
+2. 进程检测隐藏
+3. 驱动检测隐藏
+4. 中断表恢复  
+5. SSDT恢复  
+6. ShadowSSDT恢复  
+
+
 
 # 项目需求
 
@@ -176,7 +175,7 @@ include/proto.h    # 驱动与应用通信协议
 | SSDT监控 | 开始/结束监控 | `CTL_START_SSDTHOOK`<br>`CTL_END_SSDTHOOK` | **待实现** | **待实现** | `HOOK_SSDT_Index` | ✗ |
 | SSDT恢复 | 恢复被HOOK的调用 | **待新增** | **待实现** | **待实现** | **待设计** | ✗ |
 | **5. ShadowSSDT** |
-| Win32k枚举 | 枚举Win32k调用表 | **待新增** | **待实现** | **待实现** | **待设计** | ✗ |
+| Win32k枚举 | 枚举Win32k调用表 | `CTL_ENUM_ShadowSSDT` | `EnumShadowSSDT()`<br>`ssdt.cpp:55` | `ArkR3::ShadowSSDTGetVec()`<br>`ArkR3.cpp:785` | `ShadowSSDT_INFO` | ✓ |
 | Win32k恢复 | 恢复Win32k HOOK | **待新增** | **待实现** | **待实现** | **待设计** | ✗ |
 | **6. 中断表IDT** |
 | IDT枚举 | 枚举中断描述符表 | **待新增** | **待实现** | **待实现** | **待设计** | ✗ |
@@ -212,5 +211,67 @@ include/proto.h    # 驱动与应用通信协议
 5. **隐藏进程检测** - 对比多种枚举方式差异 (`process.cpp`)
 6. **隐藏模块检测** - 对比PEB与系统枚举差异 (`module.cpp`)  
 7. **对象回调枚举** - 完善TypeObject支持 (`callback.cpp`)
-8. **ShadowSSDT** - Win32k系统调用表分析 (新增`shadowssdt.cpp`)
+8. **ShadowSSDT** - Win32k系统调用表分析 (**已完成**)
 9. **IDT中断表** - 中断描述符表分析 (新增`idt.cpp`)
+
+# ShadowSSDT 实现技术说明
+
+## 完成状态：✅ 已实现
+
+### 核心技术难点解决
+
+**1. KeServiceDescriptorTableShadow 结构理解**
+```cpp
+// KeServiceDescriptorTableShadow 是包含2个元素的数组
+SYSTEM_SERVICE_DESCRIPTOR_TABLE KeServiceDescriptorTableShadow[2] = {
+    [0] - 普通SSDT (与KeServiceDescriptorTable相同)
+    [1] - ShadowSSDT (Win32k系统调用，NtUser*/NtGdi*函数)
+}
+```
+
+**2. 地址编码方式**
+- **关键发现**: ShadowSSDT 使用与普通 SSDT **相同的压缩编码**
+- **错误认知**: 之前以为ShadowSSDT存储直接RVA，实际需要 `SSDT_GetPfnAddr` 解码
+- **数据验证**: 
+  - 原始值: `0xFF962820` 
+  - 解码后: `0x2282` (真实RVA)
+  - 绝对地址: `win32k_base + 0x2282 = 0xFFFFC0CC3CBC2282` ✓
+
+**3. 符号解析架构**
+- **双PDB支持**: ntoskrnl.exe + win32k.sys 
+- **智能路径解析**: win32k函数名通过独立PDB解析
+- **地址计算**: 绝对地址 → RVA → 符号名
+
+### 数据流动链路
+
+```
+R0驱动层:
+KeServiceDescriptorTableShadow[1] → SSDT_GetPfnAddr解码 → 绝对地址
+
+R0→R3通信:
+DeviceIoControl(CTL_ENUM_ShadowSSDT) → SSDT_INFO数组传输
+
+R3用户层:
+绝对地址 → RVA计算 → win32k_pdb符号解析 → NtUser*/NtGdi*函数名
+```
+
+### 实现文件
+
+| 层级 | 文件 | 核心函数 | 功能 |
+|------|------|----------|------|
+| R0 | `ssdt.cpp:55` | `EnumShadowSSDT()` | 枚举ShadowSSDT，处理数组[1]，SSDT_GetPfnAddr解码 |
+| R3 | `ArkR3.cpp:785` | `ShadowSSDTGetVec()` | 获取ShadowSSDT数据，符号解析 |
+| R3 | `ArkR3.cpp:777` | `GetWin32kFunctionName()` | Win32k符号解析，RVA计算 |
+| UI | `KernelWnd.cpp` | `RenderShadowSSDTTable()` | UI显示，区分NtUser*/NtGdi*颜色 |
+
+### 学习要点
+
+**Windows内核架构**:
+- ShadowSSDT 是图形子系统的系统调用表
+- GUI进程可访问完整的KeServiceDescriptorTableShadow[0,1]
+- 普通进程只能访问KeServiceDescriptorTable[0]
+
+**反Rootkit技术**:
+- ShadowSSDT Hook检测：对比原始地址vs当前地址
+- Win32k模块完整性验证：通过PDB符号验证函数地址
+- 双表监控：SSDT + ShadowSSDT 全覆盖系统调用
