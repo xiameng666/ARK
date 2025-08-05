@@ -7,7 +7,7 @@ public:
     void Render(bool* p_open = nullptr) override;
 
     const char* GetInterruptPurpose(ULONG index);
-    const char* GetIDTDescriptorType(USHORT type, USHORT dpl);
+    const char* GetIDTDescriptorType(USHORT type);
 private:
     void RenderGDTTable();
     void RenderShadowSSDTTable();

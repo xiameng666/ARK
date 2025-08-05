@@ -54,7 +54,7 @@ const char* KernelWnd::GetInterruptPurpose(ULONG index) {
     }
 }
 
-const char* KernelWnd::GetIDTDescriptorType(USHORT type, USHORT dpl) {
+const char* KernelWnd::GetIDTDescriptorType(USHORT type) {
     switch (type & 0xF) {
     case 0x5:
         return "Task Gate (32bit)";
@@ -350,7 +350,7 @@ void KernelWnd::RenderShadowSSDTTable()
             ImGui::TableNextColumn();
             ImGui::Text("0x%p", shadowSsdt.FunctionAddress);
 
-            // 函数名 (区分NtUser*和NtGdi*)
+            // 函数名
             ImGui::TableNextColumn();
             if (strstr(shadowSsdt.FunctionName, "NtUser") != nullptr) {
                 ImGui::TextColored(COLOR_CYAN, "%s", shadowSsdt.FunctionName);  // 用户界面函数

@@ -5,10 +5,10 @@
 
 // extern SSDT_INFO g_SSDT_XP_SP3_Table[];
 
-// æ„é€ å‡½æ•°
+// ¹¹Ôìº¯Êı
 ArkR3::ArkR3() : memBuffer_(nullptr), memBufferSize_(0), memDataSize_(0)
 {
-    MemEnsureBufferSize(4096); // åˆå§‹4KB
+    MemEnsureBufferSize(4096); // ³õÊ¼4KB
 }
 
 ArkR3::~ArkR3()
@@ -21,21 +21,21 @@ ArkR3::~ArkR3()
     memDataSize_ = 0;
 }
 
-// ä»ezpdbè·å–PDBè·¯å¾„å¹¶å‘ç»™é©±åŠ¨
+// ´Óezpdb»ñÈ¡PDBÂ·¾¶²¢·¢¸øÇı¶¯
 bool ArkR3::SetPdbPathFromEzpdb() {
     if (!ntos_pdb_) {
-        Log("ezpdbå¯¹è±¡æœªåˆå§‹åŒ–\n");
+        Log("ezpdb¶ÔÏóÎ´³õÊ¼»¯\n");
         return false;
     }
 
-    // ä»ezpdbè·å–å½“å‰PDBè·¯å¾„
+    // ´Óezpdb»ñÈ¡µ±Ç°PDBÂ·¾¶
     std::string pdbPathA = ntos_pdb_->get_current_pdb_path();
     if (pdbPathA.empty()) {
-        Log("æ— æ³•ä»ezpdbè·å–PDBè·¯å¾„\n");
+        Log("ÎŞ·¨´Óezpdb»ñÈ¡PDBÂ·¾¶\n");
         return false;
     }
 
-    // è½¬æ¢ä¸ºUnicodeï¼ˆè·¯å¾„æ˜¯å…¨è‹±æ–‡ï¼‰
+    // ×ª»»ÎªUnicode£¨Â·¾¶ÊÇÈ«Ó¢ÎÄ£©
     wchar_t pdbPathW[MAX_PATH] = { 0 };
     size_t len = strlen(pdbPathA.c_str());
     for (size_t i = 0; i < len && i < MAX_PATH - 1; ++i) {
@@ -69,36 +69,36 @@ bool ArkR3::SetPdbPathFromEzpdb() {
 
 bool ArkR3::InitSymbolState()
 {
-    // === åˆå§‹åŒ–ntoskrnl.exeç¬¦å· ===
+    // === ³õÊ¼»¯ntoskrnl.exe·ûºÅ ===
     char* sysroot = nullptr;
     size_t len = 0;
     if (_dupenv_s(&sysroot, &len, "systemroot") != 0 || !sysroot) return false;
     ntos_path_ = std::string(sysroot) + "\\System32\\ntoskrnl.exe";
     //free(sysroot);
     
-    // è·å–ntoskrnl.exeåŸºå€
+    // »ñÈ¡ntoskrnl.exe»ùÖ·
     ntbase_ = GetModuleBase("ntoskrnl.exe");
     if (!ntbase_) return false;
 
-    // åˆ›å»ºå¹¶åˆå§‹åŒ–PDBå¯¹è±¡
+    // ´´½¨²¢³õÊ¼»¯PDB¶ÔÏó
     ntos_pdb_ = std::make_unique<ez::pdb>(ntos_path_, "http://msdl.blackint3.com:88/download/symbols/");
     if (!ntos_pdb_->init()) {
         ntos_pdb_.reset();
         return false;
     }
 
-    // === åˆå§‹åŒ–win32k.sysç¬¦å· ===
+    // === ³õÊ¼»¯win32k.sys·ûºÅ ===
     win32k_path_ = std::string(sysroot) + "\\System32\\win32k.sys";
     free(sysroot);
 
-    // è·å–win32k.sysåŸºå€
+    // »ñÈ¡win32k.sys»ùÖ·
     win32k_base_ = GetModuleBase("win32k.sys");
     if (!win32k_base_) {
         Log("Win32k.sys not loaded \n");
-        // ä¸æ˜¯é”™è¯¯ï¼ŒæœåŠ¡è¿›ç¨‹å¯èƒ½æ²¡æœ‰åŠ è½½win32k
+        // ²»ÊÇ´íÎó£¬·şÎñ½ø³Ì¿ÉÄÜÃ»ÓĞ¼ÓÔØwin32k
     }
 
-    // åˆ›å»ºå¹¶åˆå§‹åŒ–win32k PDBå¯¹è±¡
+    // ´´½¨²¢³õÊ¼»¯win32k PDB¶ÔÏó
     win32k_pdb_ = std::make_unique<ez::pdb>(win32k_path_, "http://msdl.blackint3.com:88/download/symbols/");
     if (!win32k_pdb_->init()) {
         Log("Failed to initialize win32k PDB\n");
@@ -120,11 +120,11 @@ BOOL ArkR3::SendVA(ULONG_PTR va)
     DWORD written = 0;
     BOOL bResult = WriteFile(m_hDriver, &va, sizeof(va), &written, NULL);
     if (bResult && written == sizeof(va)) {
-        Log("SendVA: å‘é€VA=0x%p\n", va);
+        Log("SendVA: ·¢ËÍVA=0x%p\n", va);
         return TRUE;
     }
     else {
-        LogErr("SendVA: å‘é€å¤±è´¥\n");
+        LogErr("SendVA: ·¢ËÍÊ§°Ü\n");
         return FALSE;
     }
 }
@@ -166,7 +166,7 @@ ULONG_PTR ArkR3::GetModuleBase(const char* moduleName)
         PRTL_PROCESS_MODULE_INFORMATION p = &modules->Modules[i];
         const char* name = (const char*)p->FullPathName + p->OffsetToFileName;
         if (_stricmp(name, moduleName) == 0) {
-            Log("[symbol]è·å–%såŸºå€ 0x%p\n", moduleName, p->ImageBase);
+            Log("[symbol]»ñÈ¡%s»ùÖ· 0x%p\n", moduleName, p->ImageBase);
             ULONG_PTR base = (ULONG_PTR)p->ImageBase;
             free(buffer);
             return base;
@@ -186,7 +186,7 @@ ULONG_PTR ArkR3::GetKernelSymbolVA(const char* symbolName)
     if (!ntbase_)
         return 0;
     ULONG_PTR va = ntbase_ + rva;
-    Log("[symbol] %s çš„VA: 0x%p\n", symbolName, (void*)va);
+    Log("[symbol] %s µÄVA: 0x%p\n", symbolName, (void*)va);
     return va;
 }
 
@@ -199,22 +199,22 @@ ULONG ArkR3::GetKernelSymbolOffset(const char* structName, const wchar_t* fieldN
     if (offset < 0)
         return 0;
 
-    Log("[symbol] %s.%ws çš„åç§»: 0x%x\n", structName, fieldName, offset);
+    Log("[symbol] %s.%ws µÄÆ«ÒÆ: 0x%x\n", structName, fieldName, offset);
     return (ULONG)offset;
 }
 
 BOOL ArkR3::MemEnsureBufferSize(DWORD requiredSize)
 {
-    if (requiredSize > 0x100000) { // é™åˆ¶æœ€å¤§1MB
+    if (requiredSize > 0x100000) { // ÏŞÖÆ×î´ó1MB
         Log("EnsureBufferSize: Size too large (%d bytes)\n", requiredSize);
         return FALSE;
     }
 
     if (memBufferSize_ >= requiredSize) {
-        return TRUE; // å½“å‰ç¼“å†²åŒºå·²è¶³å¤Ÿ
+        return TRUE; // µ±Ç°»º³åÇøÒÑ×ã¹»
     }
 
-    // è®¡ç®—æ–°çš„ç¼“å†²åŒºå¤§å°ï¼ˆå‘ä¸Šå–æ•´åˆ°4KBè¾¹ç•Œï¼‰
+    // ¼ÆËãĞÂµÄ»º³åÇø´óĞ¡£¨ÏòÉÏÈ¡Õûµ½4KB±ß½ç£©
     DWORD newSize = ((requiredSize + 4095) / 4096) * 4096;
 
     PVOID newBuffer = realloc(memBuffer_, newSize);
@@ -241,7 +241,7 @@ void ArkR3::MemClearBuffer()
 
 PSEGDESC ArkR3::GDTGetSingle(UINT cpuIndex, PGDTR pGdtr,DWORD* pRetBytes)
 {
-    DWORD gdtSize = 0x1000; // å›ºå®šå¤§ç¼“å†²åŒº
+    DWORD gdtSize = 0x1000; // ¹Ì¶¨´ó»º³åÇø
     PSEGDESC pBuffer = (PSEGDESC)malloc(gdtSize);
     if (!pBuffer) {
         LogErr("GetSingeGDT malloc err\n");
@@ -272,38 +272,38 @@ std::vector<GDT_INFO> ArkR3::GDTGetVec()
        // Log("GetGDTVec CPU %d: GDTR Base=%p, Limit=%X\n", i, (void*)gdtr.Base, gdtr.Limit);
         GDTR gdtr = { 0 };
         DWORD dwRetBytes = 0;
-        //è¿™é‡ŒR3æ‹¿çš„GDTRæ˜¯é”™è¯¯çš„ ä½†æ˜¯æˆ‘ä¸æƒ³ç ´åä»£ç ç»“æ„ï¼Œæ‰€ä»¥ä¼ ä¸ªç©ºçš„
+        //ÕâÀïR3ÄÃµÄGDTRÊÇ´íÎóµÄ µ«ÊÇÎÒ²»ÏëÆÆ»µ´úÂë½á¹¹£¬ËùÒÔ´«¸ö¿ÕµÄ
         PSEGDESC pGdtData = GDTGetSingle(i, &gdtr, &dwRetBytes);
         if (pGdtData) {
             DWORD descCount = dwRetBytes / 8; 
-            Log("GetGDTVec CPU %d: è§£æ %d ä¸ªæ®µæè¿°ç¬¦ (æ€»å…±%då­—èŠ‚)\n", i, descCount, dwRetBytes);
+            Log("GetGDTVec CPU %d: ½âÎö %d ¸ö¶ÎÃèÊö·û (×Ü¹²%d×Ö½Ú)\n", i, descCount, dwRetBytes);
 
             for (USHORT index = 0; index < descCount; index++) {
                 PSEGDESC pDesc = (PSEGDESC)((PUCHAR)pGdtData + index * 8);
                 
-                // è§£ææˆGDT_INFO
+                // ½âÎö³ÉGDT_INFO
                 GDT_INFO gdtInfo = { 0 };
                 gdtInfo.cpuIndex = i;
                 gdtInfo.selector = index * 8;
                 
-                // å£°æ˜æ®µç±»å‹æè¿°å˜é‡
+                // ÉùÃ÷¶ÎÀàĞÍÃèÊö±äÁ¿
                 const char* segmentType = "Unknown";
                 
-                // 64ä½åŸºå€é‡ç»„ï¼šBase1(16) + Base2(8) + Base3(8)
+                // 64Î»»ùÖ·ÖØ×é£ºBase1(16) + Base2(8) + Base3(8)
                 gdtInfo.base = pDesc->Base1 | 
                                ((ULONG64)pDesc->Base2 << 16) | 
                                ((ULONG64)pDesc->Base3 << 24);
                 
-                // æ£€æŸ¥æ˜¯å¦ä¸º64ä½ç³»ç»Ÿæ®µæè¿°ç¬¦ï¼ˆTSS/LDTï¼‰
+                // ¼ì²éÊÇ·ñÎª64Î»ÏµÍ³¶ÎÃèÊö·û£¨TSS/LDT£©
                 if (pDesc->s == 0 && (pDesc->type == 2 || pDesc->type == 9 || pDesc->type == 11)) {
-                    // è¯»å–ä¸‹ä¸€ä¸ª8å­—èŠ‚è·å–æ‰©å±•åŸºå€
+                    // ¶ÁÈ¡ÏÂÒ»¸ö8×Ö½Ú»ñÈ¡À©Õ¹»ùÖ·
                     if ((unsigned)index + 1 < descCount) {
                         PULONG pExtended = (PULONG)((PUCHAR)pGdtData + (index + 1) * 8);
                         gdtInfo.base |= ((ULONG64)pExtended[0] << 32);  // Base4
                         gdtInfo.is_system_64 = TRUE;
                         
-                        Log("åˆå¹¶64ä½ç³»ç»Ÿæ®µ: 0x%04X (è·³è¿‡0x%04X)\n", index * 8, (index + 1) * 8);
-                        index++; // è·³è¿‡ä¸‹ä¸€ä¸ªæ¡ç›®
+                        Log("ºÏ²¢64Î»ÏµÍ³¶Î: 0x%04X (Ìø¹ı0x%04X)\n", index * 8, (index + 1) * 8);
+                        index++; // Ìø¹ıÏÂÒ»¸öÌõÄ¿
                     }
                 }
                 
@@ -315,7 +315,7 @@ std::vector<GDT_INFO> ArkR3::GDTGetVec()
                 gdtInfo.system = pDesc->s;
                 gdtInfo.p = pDesc->p;
                 
-                // 64ä½æ®µç±»å‹è§£æ
+                // 64Î»¶ÎÀàĞÍ½âÎö
                 if (gdtInfo.system == 0) {
                     switch (gdtInfo.type) {
                     case 9: segmentType = "64-bit TSS (Available)"; break;
@@ -326,13 +326,13 @@ std::vector<GDT_INFO> ArkR3::GDTGetVec()
                     default: segmentType = " "; break;
                     }
                 } else {
-                    if (gdtInfo.type & 8) {  // ä»£ç æ®µ
+                    if (gdtInfo.type & 8) {  // ´úÂë¶Î
                         if (gdtInfo.l) {
                             segmentType = "64-bit Code";
                         } else {
                             segmentType = (gdtInfo.type & 2) ? "32-bit Code (R E)" : "32-bit Code (E)";
                         }
-                    } else {  // æ•°æ®æ®µ
+                    } else {  // Êı¾İ¶Î
                         segmentType = "Data Segment";
                     }
                 }
@@ -351,7 +351,7 @@ std::vector<GDT_INFO> ArkR3::GDTGetVec()
 
     }
 
-    Log("GetGDTVecæˆåŠŸè·å– %zu ä¸ªæ®µæè¿°ç¬¦ä¿¡æ¯\n", GDTVec_.size());
+    Log("GetGDTVec³É¹¦»ñÈ¡ %zu ¸ö¶ÎÃèÊö·ûĞÅÏ¢\n", GDTVec_.size());
     return GDTVec_;
 }
 
@@ -369,11 +369,11 @@ DWORD ArkR3::IdtGetCount() {
     );
 
     if (!bResult || idtCount == 0) {
-        LogErr("IdtGetVec: è·å–IDTæ•°é‡å¤±è´¥\n");
+        LogErr("IdtGetVec: »ñÈ¡IDTÊıÁ¿Ê§°Ü\n");
         return 0;
     }
 
-    Log("IdtGetVec: å‘ç° %d ä¸ªIDTæ¡ç›®\n", idtCount);
+    Log("IdtGetVec: ·¢ÏÖ %d ¸öIDTÌõÄ¿\n", idtCount);
 
     return idtCount;
 }
@@ -385,7 +385,7 @@ std::vector<IDT_INFO> ArkR3::IdtGetVec()
     ULONG bufferSize = IdtGetCount() * sizeof(IDT_INFO);
     PIDT_INFO pIdtData = (PIDT_INFO)malloc(bufferSize);
     if (!pIdtData) {
-        LogErr("IdtGetVec: malloc å¤±è´¥\n");
+        LogErr("IdtGetVec: malloc Ê§°Ü\n");
         return IDTVec_;
     }
 
@@ -401,9 +401,9 @@ std::vector<IDT_INFO> ArkR3::IdtGetVec()
 
     if (bResult && dwRetBytes > 0) {
         ULONG actualCount = dwRetBytes / sizeof(IDT_INFO);
-        Log("IdtGetVec: æˆåŠŸè·å– %d ä¸ªIDTæ¡ç›®\n", actualCount);
+        Log("IdtGetVec: ³É¹¦»ñÈ¡ %d ¸öIDTÌõÄ¿\n", actualCount);
 
-        // ç›´æ¥æ·»åŠ åˆ°vectorä¸­
+        // Ö±½ÓÌí¼Óµ½vectorÖĞ
         for (ULONG i = 0; i < actualCount; i++) {
             
 
@@ -415,7 +415,7 @@ std::vector<IDT_INFO> ArkR3::IdtGetVec()
                     funcName.empty() ? "Unknown" : funcName.c_str());
             }
 
-            //ä¿®å¤æ¨¡å—è·¯å¾„
+            //ĞŞ¸´Ä£¿éÂ·¾¶
             std::string fixedPath = FixModulePath(pIdtData[i].Path);
             strcpy_s(pIdtData[i].Path, sizeof(pIdtData[i].Path), fixedPath.c_str());
 
@@ -430,7 +430,7 @@ std::vector<IDT_INFO> ArkR3::IdtGetVec()
         }
     }
     else {
-        LogErr("IdtGetVec: è·å–IDTæ•°æ®å¤±è´¥\n");
+        LogErr("IdtGetVec: »ñÈ¡IDTÊı¾İÊ§°Ü\n");
     }
 
     free(pIdtData);
@@ -453,7 +453,7 @@ BOOL ArkR3::ProcessForceKill(ULONG ProcessId)
     );
 
     if (!result) {
-        LogErr("ProcessForceKill å¤±è´¥ ");
+        LogErr("ProcessForceKill Ê§°Ü ");
         return false;
     }
 
@@ -490,7 +490,7 @@ std::vector<PROCESS_INFO> ArkR3::ProcessGetVec(DWORD processCount)
             ProcVec_.emplace_back(pInfo);
 
             /*
-            Log("ProcessGetVec è¿›ç¨‹[%d]: PID=%d, çˆ¶PID=%d, åç§°=%s, EPROCESS=%p\n",
+            Log("ProcessGetVec ½ø³Ì[%d]: PID=%d, ¸¸PID=%d, Ãû³Æ=%s, EPROCESS=%p\n",
                 i, pInfo.ProcessId, pInfo.ParentProcessId,
                 pInfo.ImageFileName, pInfo.EprocessAddr);
                 */
@@ -502,24 +502,24 @@ std::vector<PROCESS_INFO> ArkR3::ProcessGetVec(DWORD processCount)
     return ProcVec_;
 }
 
-//// è·å–è¿›ç¨‹ä¿¡æ¯å¹¶å­˜å‚¨åˆ°æ•°ç»„ä¸­  
+//// »ñÈ¡½ø³ÌĞÅÏ¢²¢´æ´¢µ½Êı×éÖĞ  
 //std::vector<PROCESSENTRY32> ArkR3::EnumProcesses32() {
 //    HANDLE hSnapshot = INVALID_HANDLE_VALUE;
 //    PROCESSENTRY32 pe32;
 //
 //    ProcVec_.clear();
 //
-//    // åˆ›å»ºè¿›ç¨‹å¿«ç…§
+//    // ´´½¨½ø³Ì¿ìÕÕ
 //    hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 //    if (hSnapshot == INVALID_HANDLE_VALUE) {
-//        LogErr("CreateToolhelp32Snapshotå¤±è´¥\n");
+//        LogErr("CreateToolhelp32SnapshotÊ§°Ü\n");
 //        return ProcVec_;
 //    }
 //
 //    pe32.dwSize = sizeof(PROCESSENTRY32);
 //
 //    if (!Process32First(hSnapshot, &pe32)) {
-//        Log("Process32Firstå¤±è´¥\n");
+//        Log("Process32FirstÊ§°Ü\n");
 //        CloseHandle(hSnapshot);
 //        return ProcVec_;
 //    }
@@ -529,28 +529,28 @@ std::vector<PROCESS_INFO> ArkR3::ProcessGetVec(DWORD processCount)
 //    } while (Process32Next(hSnapshot, &pe32));
 //
 //    CloseHandle(hSnapshot);
-//    Log("è·å–åˆ° %d ä¸ªè¿›ç¨‹\n", (int)ProcVec_.size());
+//    Log("»ñÈ¡µ½ %d ¸ö½ø³Ì\n", (int)ProcVec_.size());
 //    return ProcVec_;
 //}
 
-//å–
-//R3 : [PROCESS_MEM_REQ] â†’ R0 â†’ R0 : [è¯»å–æ•°æ®] â†’ R3
-//å‘é€12å­—èŠ‚è¯·æ±‚          æ¥æ”¶Sizeå­—èŠ‚
+//È¡
+//R3 : [PROCESS_MEM_REQ] ¡ú R0 ¡ú R0 : [¶ÁÈ¡Êı¾İ] ¡ú R3
+//·¢ËÍ12×Ö½ÚÇëÇó          ½ÓÊÕSize×Ö½Ú
 BOOL ArkR3::MemAttachRead(DWORD ProcessId, ULONG_PTR VirtualAddress, DWORD Size)
 {
-    // å‚æ•°éªŒè¯
+    // ²ÎÊıÑéÖ¤
     if (ProcessId == 0 || Size == 0) {
         LogErr("AttachReadMem: Invalid args\n");
         return FALSE;
     }
 
-    // ç¡®ä¿å†…éƒ¨ç¼“å†²åŒºè¶³å¤Ÿå¤§
+    // È·±£ÄÚ²¿»º³åÇø×ã¹»´ó
     if (!MemEnsureBufferSize(Size)) {
         LogErr("AttachReadMem: Failed to ensure buffer size\n");
         return FALSE;
     }
 
-    // æ„é€ è¯·æ±‚ç»“æ„ä½“ï¼ˆæ ˆä¸Šåˆ†é…å³å¯ï¼‰
+    // ¹¹ÔìÇëÇó½á¹¹Ìå£¨Õ»ÉÏ·ÖÅä¼´¿É£©
     PROCESS_MEM_REQ req;
     req.ProcessId = (HANDLE)ProcessId;
     req.VirtualAddress = (PVOID)VirtualAddress;
@@ -558,12 +558,12 @@ BOOL ArkR3::MemAttachRead(DWORD ProcessId, ULONG_PTR VirtualAddress, DWORD Size)
 
     DWORD dwRetBytes = 0;
     BOOL bResult = DeviceIoControl(m_hDriver, CTL_ATTACH_MEM_READ,
-        &req, sizeof(PROCESS_MEM_REQ),           // è¾“å…¥ï¼šè¯·æ±‚ç»“æ„ä½“
-        memBuffer_, Size,                        // è¾“å‡ºï¼šç›´æ¥å†™å…¥å†…éƒ¨ç¼“å†²åŒº
+        &req, sizeof(PROCESS_MEM_REQ),           // ÊäÈë£ºÇëÇó½á¹¹Ìå
+        memBuffer_, Size,                        // Êä³ö£ºÖ±½ÓĞ´ÈëÄÚ²¿»º³åÇø
         &dwRetBytes, NULL);
 
     if (bResult) {
-        memDataSize_ = Size;  // æ— éœ€é¢å¤–æ‹·è´ï¼
+        memDataSize_ = Size;  // ÎŞĞè¶îÍâ¿½±´£¡
 
         Log("AttachReadMem: PID=%d, Addr=0x%016llX, Size=%d - Success\n",
             ProcessId, VirtualAddress, Size);
@@ -577,18 +577,18 @@ BOOL ArkR3::MemAttachRead(DWORD ProcessId, ULONG_PTR VirtualAddress, DWORD Size)
     }
 }
 
-//å†™å…¥ï¼š
-//R3 : [PROCESS_MEM_REQ] [å†™å…¥æ•°æ®] â†’ R0 â†’ å¤„ç†å®Œæˆ
-//å‘é€12 + Sizeå­—èŠ‚              ä¸éœ€è¦è¿”å›æ•°æ®
+//Ğ´Èë£º
+//R3 : [PROCESS_MEM_REQ] [Ğ´ÈëÊı¾İ] ¡ú R0 ¡ú ´¦ÀíÍê³É
+//·¢ËÍ12 + Size×Ö½Ú              ²»ĞèÒª·µ»ØÊı¾İ
 BOOL ArkR3::MemAttachWrite(DWORD ProcessId, ULONG_PTR VirtualAddress, DWORD Size)
 {
-    // å‚æ•°éªŒè¯
+    // ²ÎÊıÑéÖ¤
     if (ProcessId == 0 || VirtualAddress == 0 || Size == 0) {
         Log("AttachWriteMem: Invalid parameters\n");
         return FALSE;
     }
 
-    // æ£€æŸ¥å†…éƒ¨ç¼“å†²åŒºæ˜¯å¦æœ‰è¶³å¤Ÿçš„æ•°æ®
+    // ¼ì²éÄÚ²¿»º³åÇøÊÇ·ñÓĞ×ã¹»µÄÊı¾İ
     if (memDataSize_ < Size) {
         Log("AttachWriteMem: Not enough data in buffer, available: %d, required: %d\n",
             memDataSize_, Size);
@@ -603,13 +603,13 @@ BOOL ArkR3::MemAttachWrite(DWORD ProcessId, ULONG_PTR VirtualAddress, DWORD Size
         return FALSE;
     }
 
-    // æ„é€ è¯·æ±‚å¤´
+    // ¹¹ÔìÇëÇóÍ·
     PPROCESS_MEM_REQ req = (PPROCESS_MEM_REQ)pBuffer;
     req->ProcessId = (HANDLE)ProcessId;
     req->VirtualAddress = (PVOID)VirtualAddress;
     req->Size = Size;
 
-    // ä»å†…éƒ¨ç¼“å†²åŒºå¤åˆ¶æ•°æ®åˆ°è¯·æ±‚ç¼“å†²åŒº
+    // ´ÓÄÚ²¿»º³åÇø¸´ÖÆÊı¾İµ½ÇëÇó»º³åÇø
     memcpy((PUCHAR)pBuffer + sizeof(PROCESS_MEM_REQ), memBuffer_, Size);
 
     DWORD dwRetBytes = 0;
@@ -631,7 +631,7 @@ BOOL ArkR3::MemAttachWrite(DWORD ProcessId, ULONG_PTR VirtualAddress, DWORD Size
     return bResult;
 }
 
-// è·å–å†…æ ¸æ¨¡å—æ•°é‡
+// »ñÈ¡ÄÚºËÄ£¿éÊıÁ¿
 DWORD ArkR3::ModuleGetCount()
 {
     DWORD dwBytes = 0;
@@ -642,7 +642,7 @@ DWORD ArkR3::ModuleGetCount()
     return dwEntryNum;
 }
 
-//è·å–å†…æ ¸æ¨¡å—ä¿¡æ¯
+//»ñÈ¡ÄÚºËÄ£¿éĞÅÏ¢
 std::vector<MODULE_INFO> ArkR3::ModuleGetVec(DWORD moduleCount)
 {
     DWORD dwRetBytes;
@@ -658,13 +658,13 @@ std::vector<MODULE_INFO> ArkR3::ModuleGetVec(DWORD moduleCount)
         for (DWORD i = 0; i < Count; i++) {
             MODULE_INFO mInfo = pEntryInfo[i];
 
-            // å¤„ç†å®Œæ•´è·¯å¾„
+            // ´¦ÀíÍêÕûÂ·¾¶
             std::string fixedPath = FixModulePath(mInfo.FullPath);
             strcpy_s(mInfo.FullPath, sizeof(mInfo.FullPath), fixedPath.c_str());
 
             MoudleVec_.emplace_back(mInfo);
 
-            Log("ModuleGetVec æ¨¡å—[%d]: åç§°=%s, åŸºåœ°å€=%p, å¤§å°=0x%X, è·¯å¾„=%s\n",
+            Log("ModuleGetVec Ä£¿é[%d]: Ãû³Æ=%s, »ùµØÖ·=%p, ´óĞ¡=0x%X, Â·¾¶=%s\n",
                 i, mInfo.Name, mInfo.ImageBase, mInfo.ImageSize, mInfo.FullPath);
         }
     }
@@ -673,7 +673,7 @@ std::vector<MODULE_INFO> ArkR3::ModuleGetVec(DWORD moduleCount)
     return MoudleVec_;
 }
 
-//// è·å–æŒ‡å®šè¿›ç¨‹çš„æ¨¡å—æ•°é‡
+//// »ñÈ¡Ö¸¶¨½ø³ÌµÄÄ£¿éÊıÁ¿
 //DWORD ArkR3::ProcessModuleGetCount(DWORD processId)
 //{
 //    DWORD dwBytes = 0;
@@ -689,7 +689,7 @@ std::vector<MODULE_INFO> ArkR3::ModuleGetVec(DWORD moduleCount)
 //    return dwEntryNum;
 //}
 
-//// è·å–æŒ‡å®šè¿›ç¨‹çš„æ¨¡å—ä¿¡æ¯
+//// »ñÈ¡Ö¸¶¨½ø³ÌµÄÄ£¿éĞÅÏ¢
 //std::vector<MODULE_INFO> ArkR3::ProcessModuleGetVec(DWORD processId, DWORD moduleCount)
 //{
 //    DWORD dwRetBytes;
@@ -700,7 +700,7 @@ std::vector<MODULE_INFO> ArkR3::ModuleGetVec(DWORD moduleCount)
 //    req.ProcessId = (HANDLE)processId;
 //    req.ModuleCount = moduleCount;
 //
-//    // å°†è¯·æ±‚ç»“æ„å¤åˆ¶åˆ°ç¼“å†²åŒºå¼€å¤´
+//    // ½«ÇëÇó½á¹¹¸´ÖÆµ½»º³åÇø¿ªÍ·
 //    memcpy(pEntryInfo, &req, sizeof(req));
 //
 //    BOOL bResult = DeviceIoControl(m_hDriver, CTL_ENUM_PROCESS_MODULE,
@@ -716,7 +716,7 @@ std::vector<MODULE_INFO> ArkR3::ModuleGetVec(DWORD moduleCount)
 //            MODULE_INFO mInfo = pEntryInfo[i];
 //            ProcessModuleVec_.emplace_back(mInfo);
 //
-//            Log("ProcessModuleGetVec è¿›ç¨‹[%d]æ¨¡å—[%d]: åç§°=%s, åŸºåœ°å€=%p, å¤§å°=0x%X\n",
+//            Log("ProcessModuleGetVec ½ø³Ì[%d]Ä£¿é[%d]: Ãû³Æ=%s, »ùµØÖ·=%p, ´óĞ¡=0x%X\n",
 //                processId, i, mInfo.Name, mInfo.ImageBase, mInfo.ImageSize);
 //        }
 //    }
@@ -726,12 +726,12 @@ std::vector<MODULE_INFO> ArkR3::ModuleGetVec(DWORD moduleCount)
 //    return ProcessModuleVec_;
 //}
 
-// è·å–SSDTä¿¡æ¯
+// »ñÈ¡SSDTĞÅÏ¢
 std::vector<SSDT_INFO> ArkR3::SSDTGetVec()
 {
     SSDTVec_.clear();
 
-    // å‡è®¾æœ€å¤§700ä¸ªSSDTé¡¹
+    // ¼ÙÉè×î´ó700¸öSSDTÏî
     int  nMaxCount = 700;
     DWORD bufferSize = sizeof(SSDT_INFO) * nMaxCount;
     PSSDT_INFO pSsdtInfo = (PSSDT_INFO)malloc(bufferSize);
@@ -753,7 +753,7 @@ std::vector<SSDT_INFO> ArkR3::SSDTGetVec()
 
     if (bResult && dwRetBytes > 0) {
         DWORD count = dwRetBytes / sizeof(SSDT_INFO);
-        Log("SSDTGetVec: æˆåŠŸè·å–%dä¸ªSSDTé¡¹\n", count);
+        Log("SSDTGetVec: ³É¹¦»ñÈ¡%d¸öSSDTÏî\n", count);
 
 
         for (DWORD i = 0; i < count; i++) {
@@ -776,18 +776,17 @@ std::vector<SSDT_INFO> ArkR3::SSDTGetVec()
 
 std::string ArkR3::GetWin32kFunctionName(ULONG_PTR address) {
 
-    //int rva = address - win32k_base_;
-    int rva = address;
-
+    int rva = address - win32k_base_;
+    //int rva = address;
     return win32k_pdb_->get_function_name(rva);
 }
 
-// ShadowSSDTæšä¸¾
+// ShadowSSDTÃ¶¾Ù
 std::vector<ShadowSSDT_INFO> ArkR3::ShadowSSDTGetVec() {
     ShadowSSDTVec_.clear();
 
-    // å‡è®¾æœ€å¤§1000é¡¹
-    int maxCount = 1000;
+    // ¼ÙÉè×î´ó1000Ïî
+    int maxCount = 2000;
     DWORD bufferSize = sizeof(SSDT_INFO) * maxCount;
     PSSDT_INFO pShadowSsdtInfo = (PSSDT_INFO)malloc(bufferSize);
 
@@ -808,7 +807,7 @@ std::vector<ShadowSSDT_INFO> ArkR3::ShadowSSDTGetVec() {
 
     if (bResult && dwRetBytes > 0) {
         DWORD count = dwRetBytes / sizeof(SSDT_INFO);
-        Log("ShadowSSDTGetVec: æˆåŠŸè·å–%dä¸ªShadowSSDTé¡¹\n", count);
+        Log("ShadowSSDTGetVec: ³É¹¦»ñÈ¡%d¸öShadowSSDTÏî\n", count);
 
         for (DWORD i = 0; i < count; i++) {
 
@@ -817,7 +816,7 @@ std::vector<ShadowSSDT_INFO> ArkR3::ShadowSSDTGetVec() {
                 strcpy_s(pShadowSsdtInfo[i].FunctionName,
                     sizeof(pShadowSsdtInfo[i].FunctionName),
                     win32kName.c_str());
-                Log("ShadowSSDT[%03d]: ç¬¦å·è§£ææˆåŠŸ: %s -> 0x%p\n",
+                Log("ShadowSSDT[%03d]: ·ûºÅ½âÎö³É¹¦: %s -> 0x%p\n",
                     i, win32kName.c_str(), pShadowSsdtInfo[i].FunctionAddress);
             }
 
@@ -825,7 +824,7 @@ std::vector<ShadowSSDT_INFO> ArkR3::ShadowSSDTGetVec() {
         }
     }
     else {
-        LogErr("ShadowSSDTGetVec: DeviceIoControl err, å¯èƒ½ShadowSSDTä¸å¯ç”¨\n");
+        LogErr("ShadowSSDTGetVec: DeviceIoControl err, ¿ÉÄÜShadowSSDT²»¿ÉÓÃ\n");
     }
 
     free(pShadowSsdtInfo);
@@ -840,11 +839,11 @@ void ArkR3::SendPdbInfo() {
 
 }
 
-// å›è°ƒç›¸å…³
+// »Øµ÷Ïà¹Ø
 std::vector<CALLBACK_INFO> ArkR3::CallbackGetVec(CALLBACK_TYPE type) {
     CallbackVec_.clear();
     
-    // å‡è®¾æœ€å¤š300ä¸ªå›è°ƒ
+    // ¼ÙÉè×î¶à300¸ö»Øµ÷
     const ULONG maxCallbacks = 300;
     const ULONG bufferSize = maxCallbacks * sizeof(CALLBACK_INFO) + sizeof(ULONG);
     PVOID buffer = malloc(bufferSize);
@@ -853,7 +852,7 @@ std::vector<CALLBACK_INFO> ArkR3::CallbackGetVec(CALLBACK_TYPE type) {
         return CallbackVec_;
     }
     
-    // åœ¨ç¼“å†²åŒºå¼€å¤´å†™å›è°ƒç±»å‹
+    // ÔÚ»º³åÇø¿ªÍ·Ğ´»Øµ÷ÀàĞÍ
     *(PULONG)buffer = (ULONG)type;
     
     DWORD bytesRet = 0;
@@ -861,9 +860,9 @@ std::vector<CALLBACK_INFO> ArkR3::CallbackGetVec(CALLBACK_TYPE type) {
         m_hDriver,
         CTL_ENUM_CALLBACK,
         buffer,
-        sizeof(ULONG),                    // è¾“å…¥ï¼šå›è°ƒç±»å‹
+        sizeof(ULONG),                    // ÊäÈë£º»Øµ÷ÀàĞÍ
         buffer,
-        bufferSize,                       // è¾“å‡ºï¼šå›è°ƒä¿¡æ¯æ•°ç»„
+        bufferSize,                       // Êä³ö£º»Øµ÷ĞÅÏ¢Êı×é
         &bytesRet,
         NULL
     );
@@ -880,7 +879,7 @@ std::vector<CALLBACK_INFO> ArkR3::CallbackGetVec(CALLBACK_TYPE type) {
         }
         
     } else {
-        Log("CallbackGetVec: å¤±è´¥ï¼Œé”™è¯¯ç =%d, è¿”å›å­—èŠ‚=%d\n", GetLastError(), bytesRet);
+        Log("CallbackGetVec: Ê§°Ü£¬´íÎóÂë=%d, ·µ»Ø×Ö½Ú=%d\n", GetLastError(), bytesRet);
     }
     
     free(buffer);
@@ -937,9 +936,9 @@ BOOL ArkR3::CallbackDelete(CALLBACK_TYPE type, ULONG index, PVOID CallbackFuncAd
     );
     
     if (result) {
-        Log("CallbackDelete: æˆåŠŸåˆ é™¤å›è°ƒ (ç±»å‹=%d, ç´¢å¼•=%d)\n", type, index);
+        Log("CallbackDelete: ³É¹¦É¾³ı»Øµ÷ (ÀàĞÍ=%d, Ë÷Òı=%d)\n", type, index);
     } else {
-        Log("CallbackDelete: åˆ é™¤å›è°ƒå¤±è´¥ (ç±»å‹=%d, ç´¢å¼•=%d), é”™è¯¯=%d\n", type, index, GetLastError());
+        Log("CallbackDelete: É¾³ı»Øµ÷Ê§°Ü (ÀàĞÍ=%d, Ë÷Òı=%d), ´íÎó=%d\n", type, index, GetLastError());
     }
     
     return result;
@@ -948,7 +947,7 @@ BOOL ArkR3::CallbackDelete(CALLBACK_TYPE type, ULONG index, PVOID CallbackFuncAd
 std::vector<DISPATCH_HOOK_INFO> ArkR3::DispatchHookGetVec() {
     DispatchHookVec_.clear();
 
-    //åˆ†é…ç¼“å†²åŒºç»™1000ä¸ªhook
+    //·ÖÅä»º³åÇø¸ø1000¸öhook
     const DWORD maxHooks = 2000;
     DWORD bufferSize = maxHooks * sizeof(DISPATCH_HOOK_INFO);
     PDISPATCH_HOOK_INFO buffer = (PDISPATCH_HOOK_INFO)malloc(bufferSize);
@@ -972,7 +971,7 @@ std::vector<DISPATCH_HOOK_INFO> ArkR3::DispatchHookGetVec() {
 
     if (result) {
         ULONG hookCount = bytesRet / sizeof(DISPATCH_HOOK_INFO);
-        Log("DispatchHookGetVec: è·å– %d ä¸ªhookæ´¾é£å‡½æ•°\n", hookCount);
+        Log("DispatchHookGetVec: »ñÈ¡ %d ¸öhookÅÉÇ²º¯Êı\n", hookCount);
 
         // Copy results to member variable
         for (ULONG i = 0; i < hookCount; i++) {
@@ -981,7 +980,7 @@ std::vector<DISPATCH_HOOK_INFO> ArkR3::DispatchHookGetVec() {
 
     }
     else {
-        Log("DispatchHookGetVec: å¤±è´¥, error=%d, bytes=%d\n", GetLastError(),
+        Log("DispatchHookGetVec: Ê§°Ü, error=%d, bytes=%d\n", GetLastError(),
             bytesRet);
     }
 
@@ -994,7 +993,7 @@ std::vector<DISPATCH_HOOK_INFO> ArkR3::DispatchHookGetVec() {
 std::vector<DEVICE_STACK_INFO> ArkR3::DeviceStackGetVec() {
     DeviceStackVec_.clear();
 
-    // åˆ†é…ç¼“å†²åŒºç»™è®¾å¤‡æ ˆä¿¡æ¯
+    // ·ÖÅä»º³åÇø¸øÉè±¸Õ»ĞÅÏ¢
     const DWORD maxStacks = 2000;
     DWORD bufferSize = maxStacks * sizeof(DEVICE_STACK_INFO);
     PDEVICE_STACK_INFO buffer = (PDEVICE_STACK_INFO)malloc(bufferSize);
@@ -1019,11 +1018,11 @@ std::vector<DEVICE_STACK_INFO> ArkR3::DeviceStackGetVec() {
     if (result) {
         
         ULONG stackCount = bytesRet / sizeof(DEVICE_STACK_INFO);
-        Log("DeviceStackGetVec: åˆ†æäº† %d ä¸ªè®¾å¤‡æ ˆ\n", stackCount);
+        Log("DeviceStackGetVec: ·ÖÎöÁË %d ¸öÉè±¸Õ»\n", stackCount);
 
-        std::set<PVOID> processedDrivers;//å»é‡
+        std::set<PVOID> processedDrivers;//È¥ÖØ
 
-        // å°†ç»“æœå¤åˆ¶åˆ°æˆå‘˜å˜é‡
+        // ½«½á¹û¸´ÖÆµ½³ÉÔ±±äÁ¿
         for (ULONG i = 0; i < stackCount; i++) {
             DEVICE_STACK_INFO stackInfo = buffer[i];
 
@@ -1045,17 +1044,17 @@ std::vector<DEVICE_STACK_INFO> ArkR3::DeviceStackGetVec() {
         }
 
         /*
-        std::set<PVOID> processedDrivers;//å»é‡
+        std::set<PVOID> processedDrivers;//È¥ÖØ
 
         for (ULONG i = 0; i < stackCount; i++) {
             PVOID driverObj = buffer[i].OriginalDriverObject;
 
-            // å¦‚æœè¿™ä¸ªé©±åŠ¨å¯¹è±¡å·²ç»å¤„ç†è¿‡ï¼Œè·³è¿‡
+            // Èç¹ûÕâ¸öÇı¶¯¶ÔÏóÒÑ¾­´¦Àí¹ı£¬Ìø¹ı
             if (processedDrivers.find(driverObj) != processedDrivers.end()) {
                 continue;
             }
 
-            // è®°å½•è¿™ä¸ªé©±åŠ¨å¯¹è±¡å·²å¤„ç†
+            // ¼ÇÂ¼Õâ¸öÇı¶¯¶ÔÏóÒÑ´¦Àí
             processedDrivers.insert(driverObj);
 
             DeviceStackVec_.emplace_back(buffer[i]);
@@ -1071,7 +1070,7 @@ std::vector<DEVICE_STACK_INFO> ArkR3::DeviceStackGetVec() {
     return DeviceStackVec_;
 }
 
-// å¤„ç†è¿›ç¨‹è·¯å¾„çš„è¾…åŠ©å‡½æ•°
+// ´¦Àí½ø³ÌÂ·¾¶µÄ¸¨Öúº¯Êı
 void GetProcessPath(DWORD processId, char* processPath, size_t pathSize) {
     HANDLE hProcess = NULL;
     char tempPath[MAX_PATH] = "Unknown";
@@ -1086,18 +1085,18 @@ void GetProcessPath(DWORD processId, char* processPath, size_t pathSize) {
         return;
     }
 
-    // æ‰“å¼€è¿›ç¨‹å¥æŸ„
+    // ´ò¿ª½ø³Ì¾ä±ú
     hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, processId);
     if (hProcess != NULL) {
         DWORD dwSize = MAX_PATH;
 
-        // è·å–è¿›ç¨‹å®Œæ•´è·¯å¾„
+        // »ñÈ¡½ø³ÌÍêÕûÂ·¾¶
         if (QueryFullProcessImageNameA(hProcess, 0, tempPath, &dwSize)) {
             strcpy_s(processPath, pathSize, tempPath);
         }
         else
         {
-            // è·å–è·¯å¾„å¤±è´¥ï¼Œè·å–æ¨¡å—å
+            // »ñÈ¡Â·¾¶Ê§°Ü£¬»ñÈ¡Ä£¿éÃû
             if (GetModuleBaseNameA(hProcess, NULL, tempPath, sizeof(tempPath))) {
                 strcpy_s(processPath, pathSize, tempPath);
             }
@@ -1113,7 +1112,7 @@ void GetProcessPath(DWORD processId, char* processPath, size_t pathSize) {
     }
 }
 
-// TCPçŠ¶æ€è½¬æ¢ä¸ºå­—ç¬¦ä¸²
+// TCP×´Ì¬×ª»»Îª×Ö·û´®
 void ArkR3::GetTcpStateString(DWORD dwState, char* stateStr, size_t
     stateSize) {
     switch (dwState) {
@@ -1159,7 +1158,7 @@ void ArkR3::GetTcpStateString(DWORD dwState, char* stateStr, size_t
     }
 }
 
-// è·å–ç½‘ç»œç«¯å£ä¿¡æ¯ - R3å®ç°
+// »ñÈ¡ÍøÂç¶Ë¿ÚĞÅÏ¢ - R3ÊµÏÖ
 std::vector<NETWORK_PORT_INFO> ArkR3::NetworkPortGetVec(){
     NetworkPortVec_.clear();
 
@@ -1173,14 +1172,14 @@ std::vector<NETWORK_PORT_INFO> ArkR3::NetworkPortGetVec(){
     struct in_addr IpAddr;
 
 
-    // ç¬¬ä¸€æ¬¡è°ƒç”¨è·å–éœ€è¦çš„ç¼“å†²åŒºå¤§å°
+    // µÚÒ»´Îµ÷ÓÃ»ñÈ¡ĞèÒªµÄ»º³åÇø´óĞ¡
     dwRetVal = GetExtendedTcpTable(
-        NULL,                    // ç¼“å†²åŒºæŒ‡é’ˆ
-        &dwSize,                 // ç¼“å†²åŒºå¤§å°
-        TRUE,                    // æ’åº
-        AF_INET,                 // åœ°å€æ— (IPv4)
-        TCP_TABLE_OWNER_PID_ALL, // è¡¨ç±»å‹ (åŒ…å«PIDçš„æ‰€æœ‰è¿æ¥)
-        0                        // ä¿ç•™å‚æ•°
+        NULL,                    // »º³åÇøÖ¸Õë
+        &dwSize,                 // »º³åÇø´óĞ¡
+        TRUE,                    // ÅÅĞò
+        AF_INET,                 // µØÖ·×å (IPv4)
+        TCP_TABLE_OWNER_PID_ALL, // ±íÀàĞÍ (°üº¬PIDµÄËùÓĞÁ¬½Ó)
+        0                        // ±£Áô²ÎÊı
     );
 
 
@@ -1191,7 +1190,7 @@ std::vector<NETWORK_PORT_INFO> ArkR3::NetworkPortGetVec(){
             return NetworkPortVec_;
         }
 
-        // ç¬¬äºŒæ¬¡è°ƒç”¨è·å–å®é™…æ•°æ®
+        // µÚ¶ş´Îµ÷ÓÃ»ñÈ¡Êµ¼ÊÊı¾İ
         dwRetVal = GetExtendedTcpTable(
             pTcpTable,
             &dwSize,
@@ -1202,17 +1201,17 @@ std::vector<NETWORK_PORT_INFO> ArkR3::NetworkPortGetVec(){
         );
     }
 
-    //Tcpè¡¨
+    //Tcp±í
     if (dwRetVal == NO_ERROR) {
         Log("\tNumber of entries: %d\n", (int)pTcpTable->dwNumEntries);
 
         for (DWORD i = 0; i < pTcpTable->dwNumEntries; i++) {
             NETWORK_PORT_INFO portInfo = { 0 };
 
-            // åè®®ç±»å‹
+            // Ğ­ÒéÀàĞÍ
             strcpy_s(portInfo.Protocol, sizeof(portInfo.Protocol),"TCP");
 
-            // æœ¬åœ°IPåœ°å€å’Œç«¯å£
+            // ±¾µØIPµØÖ·ºÍ¶Ë¿Ú
             IpAddr.S_un.S_addr = (u_long)pTcpTable->table[i].dwLocalAddr;
             strcpy_s(szLocalAddr, sizeof(szLocalAddr), inet_ntoa(IpAddr));
 
@@ -1220,7 +1219,7 @@ std::vector<NETWORK_PORT_INFO> ArkR3::NetworkPortGetVec(){
                 "%s:%d", szLocalAddr,
                 ntohs((u_short)pTcpTable->table[i].dwLocalPort));
 
-            //è¿œç¨‹IPåœ°å€å’Œç«¯å£
+            //Ô¶³ÌIPµØÖ·ºÍ¶Ë¿Ú
             IpAddr.S_un.S_addr = (u_long)pTcpTable->table[i].dwRemoteAddr;
             strcpy_s(szRemoteAddr, sizeof(szRemoteAddr), inet_ntoa(IpAddr));
 
@@ -1228,14 +1227,14 @@ std::vector<NETWORK_PORT_INFO> ArkR3::NetworkPortGetVec(){
                 "%s:%d", szRemoteAddr,
                 ntohs((u_short)pTcpTable->table[i].dwRemotePort));
 
-            // TCPçŠ¶æ€
+            // TCP×´Ì¬
             GetTcpStateString(pTcpTable->table[i].dwState,
                 portInfo.State, sizeof(portInfo.State));
 
-            // è¿›ç¨‹ID
+            // ½ø³ÌID
             portInfo.ProcessId = pTcpTable->table[i].dwOwningPid;
 
-            // è·å–è¿›ç¨‹è·¯å¾„
+            // »ñÈ¡½ø³ÌÂ·¾¶
             GetProcessPath(pTcpTable->table[i].dwOwningPid, szProcessPath, sizeof(szProcessPath));
 
             strcpy_s(portInfo.ProcessPath,sizeof(portInfo.ProcessPath), szProcessPath);
@@ -1247,7 +1246,7 @@ std::vector<NETWORK_PORT_INFO> ArkR3::NetworkPortGetVec(){
         Log("\tGetExtendedTcpTable failed with %d\n", dwRetVal);
     }
 
-    // è·å–UDPè¡¨
+    // »ñÈ¡UDP±í
     PMIB_UDPTABLE_OWNER_PID pUdpTable = NULL;
     dwSize = 0;
     dwRetVal = GetExtendedUdpTable(NULL, &dwSize, TRUE, AF_INET,
@@ -1260,17 +1259,17 @@ std::vector<NETWORK_PORT_INFO> ArkR3::NetworkPortGetVec(){
                 AF_INET, UDP_TABLE_OWNER_PID, 0);
 
             if (dwRetVal == NO_ERROR) {
-                Log("NetworkPortGetVec: æ‰¾åˆ° %d ä¸ªUDPç«¯å£\n",
+                Log("NetworkPortGetVec: ÕÒµ½ %d ¸öUDP¶Ë¿Ú\n",
                     (int)pUdpTable->dwNumEntries);
 
                 for (DWORD i = 0; i < pUdpTable->dwNumEntries; i++) {
                     NETWORK_PORT_INFO portInfo = { 0 };
 
-                    //åè®®ç±»å‹
+                    //Ğ­ÒéÀàĞÍ
                     strcpy_s(portInfo.Protocol,
                         sizeof(portInfo.Protocol), "UDP");
 
-                    // æœ¬åœ°IPåœ°å€å’Œç«¯å£
+                    // ±¾µØIPµØÖ·ºÍ¶Ë¿Ú
                     IpAddr.S_un.S_addr =
                         (u_long)pUdpTable->table[i].dwLocalAddr;
                     strcpy_s(szLocalAddr, sizeof(szLocalAddr),
@@ -1281,17 +1280,17 @@ std::vector<NETWORK_PORT_INFO> ArkR3::NetworkPortGetVec(){
                         "%s:%d", szLocalAddr,
                         ntohs((u_short)pUdpTable->table[i].dwLocalPort));
 
-                    // UDPæ²¡æœ‰è¿œç¨‹åœ°å€
+                    // UDPÃ»ÓĞÔ¶³ÌµØÖ·
                     strcpy_s(portInfo.RemoteAddress,
                         sizeof(portInfo.RemoteAddress), "*:*");
                     strcpy_s(portInfo.State, sizeof(portInfo.State),
                         "LISTENING");
 
-                    // è¿›ç¨‹ID
+                    // ½ø³ÌID
                     portInfo.ProcessId =
                         pUdpTable->table[i].dwOwningPid;
 
-                    // è¿›ç¨‹è·¯å¾„
+                    // ½ø³ÌÂ·¾¶
                     GetProcessPath(pUdpTable->table[i].dwOwningPid,
                         szProcessPath, sizeof(szProcessPath));
                     strcpy_s(portInfo.ProcessPath,
@@ -1304,7 +1303,7 @@ std::vector<NETWORK_PORT_INFO> ArkR3::NetworkPortGetVec(){
         }
     }
 
-    Log("NetworkPortGetVec:æ€»å…±è·å– %zu ä¸ªç½‘ç»œç«¯å£\n", NetworkPortVec_.size());
+    Log("NetworkPortGetVec:×Ü¹²»ñÈ¡ %zu ¸öÍøÂç¶Ë¿Ú\n", NetworkPortVec_.size());
 
     return NetworkPortVec_;
   }
@@ -1341,7 +1340,7 @@ std::vector<NETWORK_PORT_INFO> ArkR3::NetworkPortGetVec(){
 
       if (QueryDosDeviceW(driveLetter, deviceName, MAX_PATH)) {
           std::wstring result = deviceName;
-          result += dosPath.substr(2); // è·³è¿‡ "C:"
+          result += dosPath.substr(2); // Ìø¹ı "C:"
           return result;
       }
       return L"";
@@ -1349,15 +1348,15 @@ std::vector<NETWORK_PORT_INFO> ArkR3::NetworkPortGetVec(){
 
 BOOL ArkR3::UnlockFile(const std::string& filePath)
 {
-    // è½¬æ¢è·¯å¾„ä¸ºå®½å­—ç¬¦
+    // ×ª»»Â·¾¶Îª¿í×Ö·û
     std::wstring widePath(filePath.begin(), filePath.end());
-    Log("å®½å­—ç¬¦è·¯å¾„: %ws\n", widePath.c_str());
+    Log("¿í×Ö·ûÂ·¾¶: %ws\n", widePath.c_str());
 
     std::wstring devicePath = ConvertToDevicePath(widePath);
-    Log("è®¾å¤‡è·¯å¾„: %ws\n", devicePath.c_str());  // ç”¨ %ws
+    Log("Éè±¸Â·¾¶: %ws\n", devicePath.c_str());  // ÓÃ %ws
 
     if (devicePath.empty()) {
-        Log("ConvertToDevicePath å¤±è´¥\n");
+        Log("ConvertToDevicePath Ê§°Ü\n");
         return FALSE;
     }
 
@@ -1377,27 +1376,27 @@ BOOL ArkR3::UnlockFile(const std::string& filePath)
     );
 
     if (result) {
-        Log("UnlockFile: æˆåŠŸè§£é”æ–‡ä»¶ %s\n", filePath.c_str());
+        Log("UnlockFile: ³É¹¦½âËøÎÄ¼ş %s\n", filePath.c_str());
         return TRUE;
     }
     else {
         DWORD error = GetLastError();
-        Log("UnlockFile: è§£é”æ–‡ä»¶å¤±è´¥ %s, é”™è¯¯ç : %d\n", filePath.c_str(), error);
+        Log("UnlockFile: ½âËøÎÄ¼şÊ§°Ü %s, ´íÎóÂë: %d\n", filePath.c_str(), error);
         return FALSE;
     }
 }
 
 BOOL ArkR3::ForceDeleteFile(const std::string& filePath)
 {
-    // è½¬æ¢è·¯å¾„ä¸ºå®½å­—ç¬¦
+    // ×ª»»Â·¾¶Îª¿í×Ö·û
     std::wstring widePath(filePath.begin(), filePath.end());
-    Log("å®½å­—ç¬¦è·¯å¾„: %ws\n", widePath.c_str());
+    Log("¿í×Ö·ûÂ·¾¶: %ws\n", widePath.c_str());
 
     std::wstring devicePath = ConvertToDevicePath(widePath);
-    Log("è®¾å¤‡è·¯å¾„: %ws\n", devicePath.c_str());  
+    Log("Éè±¸Â·¾¶: %ws\n", devicePath.c_str());  
 
     if (devicePath.empty()) {
-        Log("ConvertToDevicePath å¤±è´¥\n");
+        Log("ConvertToDevicePath Ê§°Ü\n");
         return FALSE;
     }
 
@@ -1417,22 +1416,22 @@ BOOL ArkR3::ForceDeleteFile(const std::string& filePath)
     );
 
     if (result) {
-        Log("ForceDeleteFile: æˆåŠŸç²‰ç¢æ–‡ä»¶ %s\n", filePath.c_str());
+        Log("ForceDeleteFile: ³É¹¦·ÛËéÎÄ¼ş %s\n", filePath.c_str());
         return TRUE;
     }
     else {
         DWORD error = GetLastError();
-        Log("ForceDeleteFile: ç²‰ç¢æ–‡ä»¶å¤±è´¥ %s, é”™è¯¯ç : %d\n", filePath.c_str(), error);
+        Log("ForceDeleteFile: ·ÛËéÎÄ¼şÊ§°Ü %s, ´íÎóÂë: %d\n", filePath.c_str(), error);
         return FALSE;
     }
 }
 
 /*
-// è·å–ç½‘ç»œç«¯å£ä¿¡æ¯  æ”¹ä¸ºR3å®ç°
+// »ñÈ¡ÍøÂç¶Ë¿ÚĞÅÏ¢  ¸ÄÎªR3ÊµÏÖ
 std::vector<NETWORK_PORT_INFO> ArkR3::NetworkPortGetVec() {
     NetworkPortVec_.clear();
 
-    // åˆ†é…ç¼“å†²åŒºç»™ç½‘ç»œç«¯å£ä¿¡æ¯
+    // ·ÖÅä»º³åÇø¸øÍøÂç¶Ë¿ÚĞÅÏ¢
     const DWORD maxPorts = 2000;
     DWORD bufferSize = maxPorts * sizeof(NETWORK_PORT_INFO);
     PNETWORK_PORT_INFO buffer = (PNETWORK_PORT_INFO)malloc(bufferSize);
@@ -1456,9 +1455,9 @@ std::vector<NETWORK_PORT_INFO> ArkR3::NetworkPortGetVec() {
 
     if (result) {
         ULONG portCount = bytesRet / sizeof(NETWORK_PORT_INFO);
-        Log("NetworkPortGetVec: åˆ†æäº† %d ä¸ªç½‘ç»œç«¯å£\n", portCount);
+        Log("NetworkPortGetVec: ·ÖÎöÁË %d ¸öÍøÂç¶Ë¿Ú\n", portCount);
 
-        // å°†ç»“æœå¤åˆ¶åˆ°æˆå‘˜å˜é‡
+        // ½«½á¹û¸´ÖÆµ½³ÉÔ±±äÁ¿
         for (ULONG i = 0; i < portCount; i++) {
             NetworkPortVec_.push_back(buffer[i]);
         }

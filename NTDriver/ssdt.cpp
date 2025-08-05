@@ -55,20 +55,28 @@ NTSTATUS EnumSSDT(PSSDT_INFO SsdtBuffer, PULONG SsdtCount)//X64的SSDT是rva
 NTSTATUS EnumShadowSSDT(PSSDT_INFO SsdtBuffer, PULONG SsdtCount)
 {
     INIT_PDB;
-    PSYSTEM_SERVICE_DESCRIPTOR_TABLE ShadowTable =
-        (PSYSTEM_SERVICE_DESCRIPTOR_TABLE)ntos.GetPointer("KeServiceDescriptorTableShadow");
+                          
+    PSYSTEM_SERVICE_DESCRIPTOR_TABLE ShadowTableArray =
+    (PSYSTEM_SERVICE_DESCRIPTOR_TABLE)ntos.GetPointer("KeServiceDescriptorTableShadow");
 
-    Log("[XM] KeServiceDescriptorTableShadow ： %p", ShadowTable);
+    Log("[XM] KeServiceDescriptorTableShadow Array: %p", ShadowTableArray);
 
-    if (!ShadowTable) {
+    if (!ShadowTableArray) {
         Log("[XM] KeServiceDescriptorTableShadow == null");
         return STATUS_UNSUCCESSFUL;
     }
-
+    
+    // 访问数组的第二个元素 [1] - 这才是真正的 ShadowSSDT                                     
+    PSYSTEM_SERVICE_DESCRIPTOR_TABLE ShadowTable = &ShadowTableArray[1];
+    
+    Log("[XM] ShadowSSDT [0]: Base=%p, Count=%d",
+        ShadowTableArray[0].Base, ShadowTableArray[0].NumberOfServices);
+    Log("[XM] ShadowSSDT [1]: Base=%p, Count=%d",
+        ShadowTable->Base, ShadowTable->NumberOfServices);
+    
     if (!ShadowTable->Base || ShadowTable->NumberOfServices == 0) {
         Log("[XM] ShadowSSDT not available");
-        *SsdtCount = 0;
-        return STATUS_SUCCESS; 
+        Log("[XM] ShadowSSDT [1] not available");
     }
 
     ULONG nums = ShadowTable->NumberOfServices;
@@ -81,13 +89,10 @@ NTSTATUS EnumShadowSSDT(PSSDT_INFO SsdtBuffer, PULONG SsdtCount)
         SsdtBuffer[i].Index = i + 0x1000;  // ShadowSSDT的调用号从0x1000开始
 
         // ShadowSSDT存储的是相对于win32k.sys的RVA，不需要解码
-        ULONG rva = shadowSsdt[i];
-        SsdtBuffer[i].FunctionAddress = (PVOID)(ULONG_PTR)rva;  // 传递RVA到R3
+        ULONG_PTR pfnAddr = SSDT_GetPfnAddr(i, shadowSsdt);
+        SsdtBuffer[i].FunctionAddress = (PVOID)pfnAddr;
 
-        //函数名在R3解析（R3会用win32k_base + RVA计算真实地址）
-        sprintf_s(SsdtBuffer[i].FunctionName, sizeof(SsdtBuffer[i].FunctionName), "Win32k#%d", i);
-
-        Log("[XM] ShadowSSDT[%d]: RVA=0x%X", i, rva);
+        Log("[XM] ShadowSSDT[%d]: Raw=0x%X, Decoded=0x%p", i, shadowSsdt[i], pfnAddr);
     }
 
     return STATUS_SUCCESS;
