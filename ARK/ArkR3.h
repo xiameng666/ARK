@@ -67,8 +67,8 @@ public:
     std::vector<GDT_INFO> GDTGetVec();                                     //返回所有核心GDT数组_gdtVec
     std::vector<GDT_INFO> GDTVec_;
 
-    BOOL MemAttachRead(DWORD ProcessId, ULONG VirtualAddress, DWORD Size); //附加读
-    BOOL MemAttachWrite(DWORD ProcessId, ULONG VirtualAddress, DWORD Size);
+    BOOL MemAttachRead(DWORD ProcessId, ULONG_PTR VirtualAddress, DWORD Size); //附加读
+    BOOL MemAttachWrite(DWORD ProcessId, ULONG_PTR VirtualAddress, DWORD Size);
 
     //附加写
     BOOL MemEnsureBufferSize(DWORD requiredSize);                          //确保缓冲区大小

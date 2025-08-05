@@ -40,7 +40,7 @@ void ProcessWnd::Flush(ProcSearchType type) {
 void ProcessWnd::RenderProcessWnd() {
 
     //自动刷新
-    SetAutoFlush(true);
+    SetAutoFlush(false);
     if (ActiveFlushWnd) {
         auto now = std::chrono::steady_clock::now();
         auto pased = std::chrono::duration_cast<std::chrono::seconds>(now - lastFlushTime);
@@ -143,7 +143,7 @@ void ProcessWnd::RenderProcessWnd() {
 
                 }
 
-                if (ImGui::MenuItem(u8"TODO1")) {
+                if (ImGui::MenuItem(u8"内存读写")) {
                     ctx_->targetPid_ = process.ProcessId;
                     sprintf_s(ctx_->processIdText_, "%u", process.ProcessId);
                     ctx_->showMemoryWindow = true;
@@ -204,7 +204,7 @@ void ProcessWnd::RenderMemWnd(DWORD pid)
 
     ImGui::Text(u8"地址:");
     ImGui::SameLine();
-    ImGui::SetNextItemWidth(100);
+    ImGui::SetNextItemWidth(300);
     ImGui::InputText("##Address", ctx_->addressText_, sizeof(ctx_->addressText_));
     ImGui::SameLine();
     ImGui::Text(u8"大小:");
@@ -214,23 +214,23 @@ void ProcessWnd::RenderMemWnd(DWORD pid)
 
     if (ImGui::Button(u8"读")) {
         ULONG processId = strtoul(ctx_->processIdText_, NULL, 10);
-        ULONG address = strtoul(ctx_->addressText_, NULL, 16);
+        ULONG_PTR address = strtoull(ctx_->addressText_, NULL, 16);
         DWORD size = strtoul(ctx_->sizeText_, NULL, 10);
 
-        //ctx_->arkR3.MemAttachRead(processId, address, size);
+        ctx_->arkR3.MemAttachRead(processId, address, size);
     }
 
     ImGui::SameLine();
 
     if (ImGui::Button(u8"写")) {
         DWORD processId = strtoul(ctx_->processIdText_, NULL, 10);
-        ULONG address = strtoul(ctx_->addressText_, NULL, 16);
+        ULONG_PTR address = strtoull(ctx_->addressText_, NULL, 16);
         
         PVOID pData = ctx_->arkR3.GetBufferData();
         DWORD dataSize = ctx_->arkR3.GetDataSize();
         
         if (processId != 0 && address != 0 && pData && dataSize > 0) {
-            //ctx_->arkR3.MemAttachWrite(processId, address, dataSize);
+            ctx_->arkR3.MemAttachWrite(processId, address, dataSize);
         } else {
             ctx_->arkR3.Log("processId != 0 && address != 0 && pData && dataSize > 0");
         }
@@ -244,7 +244,7 @@ void ProcessWnd::RenderMemWnd(DWORD pid)
     
     if (pData && dataSize > 0) {
         ImGui::Text(u8"内存编辑器:");
-        ULONG address = strtoul(ctx_->addressText_, NULL, 16);
+        ULONG_PTR address = strtoull(ctx_->addressText_, NULL, 16);
         mem_edit.DrawContents(pData, dataSize, address);
     } else {
         ImGui::Text(u8"请先读取内存数据");

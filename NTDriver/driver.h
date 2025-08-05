@@ -5,6 +5,8 @@ extern "C" {
 
     //void CheckDriverMJHooked(PDRIVER_OBJECT DriverObj);
 
+    void SetWndDisplayAffinityR0();
+
     void EnumDriverObject();
 
     NTSTATUS EnumDeviceStackAttach(PDEVICE_STACK_INFO StackBuffer, PULONG StackCount);//枚举过滤驱动

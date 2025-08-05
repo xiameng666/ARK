@@ -84,6 +84,8 @@ enum WindowsVersion
 #define CTL_UNLOCK_FILE             MY_CTL_CODE(100)            // 解锁文件
 #define CTL_FORCE_DELETE_FILE              MY_CTL_CODE(101)     // 粉碎文件
 
+#define CTL_SET_WINDOW_TRANSPARENCY        MY_CTL_CODE(110)     // 设置窗口透明度
+
 typedef struct PDB_PATH_REQUEST {
     wchar_t DownloadPath[MAX_PATH];    // PDB下载路径
 } * PPDB_PATH_REQUEST;

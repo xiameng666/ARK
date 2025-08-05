@@ -1,9 +1,9 @@
-#pragma once
+ï»¿#pragma once
 #include"mydef.h"
 
 extern "C" {
 
-    //Æ«ÒÆÁ¿
+    //åç§»é‡
     typedef struct ENUM_PROCESS_META {
         ULONG EThreadToProcess;     // ETHREAD -> EPROCESS
         ULONG ProcessId;           // UniqueProcessId 
@@ -13,10 +13,10 @@ extern "C" {
         ULONG DirectoryTableBase;  // CR3 
     }*PENUM_PROCESS_OFFSETS;
 
-    //³õÊ¼»¯Æ«ÒÆÁ¿
+    //åˆå§‹åŒ–åç§»é‡
     void InitProcessPdb();
 
-    //onlyGetCount ÅĞ¶Ï »ñÈ¡½ø³ÌÊıÁ¿»¹ÊÇ±éÀú½ø³ÌÊı¾İ
+    //onlyGetCount åˆ¤æ–­ è·å–è¿›ç¨‹æ•°é‡è¿˜æ˜¯éå†è¿›ç¨‹æ•°æ®
     NTSTATUS EnumProcessFromLinksEx(PPROCESS_INFO processBuffer, BOOLEAN onlyGetCount, PULONG processCount);
 
     //PsLookupProcessByProcessId
@@ -26,7 +26,23 @@ extern "C" {
     
     NTSTATUS TerminateProcessByApi(HANDLE ProcessId);   //PspTerminateProcess
 
-    NTSTATUS TerminateProcessByThread(HANDLE ProcessId);//Çå¿Õ½ø³ÌµÄÏß³Ì
+    NTSTATUS TerminateProcessByThread(HANDLE ProcessId);//æ¸…ç©ºè¿›ç¨‹çš„çº¿ç¨‹
 
+    NTSTATUS AttachReadVirtualMem(HANDLE ProcessId, PVOID BaseAddress, PVOID Buffer, unsigned ReadBytes);
 
+    NTSTATUS AttachWriteVirtualMem(HANDLE ProcessId, PVOID BaseAddress, PVOID Buffer, unsigned WriteBytes);
+
+    NTSTATUS MemApiRead(HANDLE ProcessId, PVOID VirtualAddress, PVOID Buffer, SIZE_T Size);    //APIè¯»
+
+    NTSTATUS MemApiWrite(HANDLE ProcessId, PVOID VirtualAddress, PVOID Buffer, SIZE_T Size);   //APIå†™
 }
+
+EXTERN_C NTSTATUS MmCopyVirtualMemory(
+    IN PEPROCESS FromProcess,
+    IN CONST VOID* FromAddress,
+    IN PEPROCESS ToProcess,
+    OUT PVOID ToAddress,
+    IN SIZE_T BufferSize,
+    IN KPROCESSOR_MODE PreviousMode,
+    OUT PSIZE_T NumberOfBytesCopied
+);

@@ -95,7 +95,7 @@ struct Context {
 
     //进程窗口状态
     char processIdText_[16] = "1234";   // 进程ID输入框
-    char addressText_[16] = "00400000"; // 地址输入框
+    char addressText_[64] = "00007FF7EA150000"; // 地址输入框
     char sizeText_[16] = "256";         // 大小输入框
     DWORD targetPid_ = 0;
 

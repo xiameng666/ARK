@@ -387,9 +387,11 @@ std::vector<PROCESS_INFO> ArkR3::ProcessGetVec(DWORD processCount)
             PROCESS_INFO pInfo = pEntryInfo[i];
             ProcVec_.emplace_back(pInfo);
 
+            /*
             Log("ProcessGetVec 进程[%d]: PID=%d, 父PID=%d, 名称=%s, EPROCESS=%p\n",
                 i, pInfo.ProcessId, pInfo.ParentProcessId,
                 pInfo.ImageFileName, pInfo.EprocessAddr);
+                */
         }
     }
 
@@ -429,103 +431,103 @@ std::vector<PROCESS_INFO> ArkR3::ProcessGetVec(DWORD processCount)
 //    return ProcVec_;
 //}
 
-//读取
+//取
 //R3 : [PROCESS_MEM_REQ] → R0 → R0 : [读取数据] → R3
 //发送12字节请求          接收Size字节
-//BOOL ArkR3::MemAttachRead(DWORD ProcessId, ULONG VirtualAddress, DWORD Size)
-//{
-//    // 参数验证
-//    if (ProcessId == 0 || Size == 0) {
-//        LogErr("AttachReadMem: Invalid args");
-//        return FALSE;
-//    }
-//
-//    // 确保内部缓冲区足够大
-//    if (!MemEnsureBufferSize(Size)) {
-//        LogErr("AttachReadMem: Failed to ensure buffer size");
-//        return FALSE;
-//    }
-//
-//    // 构造请求结构体（栈上分配即可）
-//    PROCESS_MEM_REQ req;
-//    req.ProcessId = (HANDLE)ProcessId;
-//    req.VirtualAddress = (PVOID)VirtualAddress;
-//    req.Size = Size;
-//
-//    DWORD dwRetBytes = 0;
-//    BOOL bResult = DeviceIoControl(m_hDriver, CTL_ATTACH_MEM_READ,
-//        &req, sizeof(PROCESS_MEM_REQ),           // 输入：请求结构体
-//        memBuffer_, Size,                        // 输出：直接写入内部缓冲区
-//        &dwRetBytes, NULL);
-//
-//    if (bResult) {
-//        memDataSize_ = Size;  // 无需额外拷贝！
-//
-//        Log("AttachReadMem: PID=%d, Addr=0x%08X, Size=%d - Success",
-//            ProcessId, VirtualAddress, Size);
-//
-//        return TRUE;
-//    }
-//    else {
-//        Log("AttachReadMem: DeviceIoControl failed, PID=%d, Addr=0x%08X, Size=%d",
-//            ProcessId, VirtualAddress, Size);
-//        return FALSE;
-//    }
-//}
+BOOL ArkR3::MemAttachRead(DWORD ProcessId, ULONG_PTR VirtualAddress, DWORD Size)
+{
+    // 参数验证
+    if (ProcessId == 0 || Size == 0) {
+        LogErr("AttachReadMem: Invalid args\n");
+        return FALSE;
+    }
+
+    // 确保内部缓冲区足够大
+    if (!MemEnsureBufferSize(Size)) {
+        LogErr("AttachReadMem: Failed to ensure buffer size\n");
+        return FALSE;
+    }
+
+    // 构造请求结构体（栈上分配即可）
+    PROCESS_MEM_REQ req;
+    req.ProcessId = (HANDLE)ProcessId;
+    req.VirtualAddress = (PVOID)VirtualAddress;
+    req.Size = Size;
+
+    DWORD dwRetBytes = 0;
+    BOOL bResult = DeviceIoControl(m_hDriver, CTL_ATTACH_MEM_READ,
+        &req, sizeof(PROCESS_MEM_REQ),           // 输入：请求结构体
+        memBuffer_, Size,                        // 输出：直接写入内部缓冲区
+        &dwRetBytes, NULL);
+
+    if (bResult) {
+        memDataSize_ = Size;  // 无需额外拷贝！
+
+        Log("AttachReadMem: PID=%d, Addr=0x%016llX, Size=%d - Success\n",
+            ProcessId, VirtualAddress, Size);
+
+        return TRUE;
+    }
+    else {
+        Log("AttachReadMem: DeviceIoControl failed, PID=%d, Addr=0x%016llX, Size=%d\n",
+            ProcessId, VirtualAddress, Size);
+        return FALSE;
+    }
+}
 
 //写入：
 //R3 : [PROCESS_MEM_REQ] [写入数据] → R0 → 处理完成
 //发送12 + Size字节              不需要返回数据
-//BOOL ArkR3::MemAttachWrite(DWORD ProcessId, ULONG VirtualAddress, DWORD Size)
-//{
-//    // 参数验证
-//    if (ProcessId == 0 || VirtualAddress == 0 || Size == 0) {
-//        Log("AttachWriteMem: Invalid parameters");
-//        return FALSE;
-//    }
-//
-//    // 检查内部缓冲区是否有足够的数据
-//    if (memDataSize_ < Size) {
-//        Log("AttachWriteMem: Not enough data in buffer, available: %d, required: %d",
-//            memDataSize_, Size);
-//        return FALSE;
-//    }
-//
-//    DWORD totalSize = sizeof(PROCESS_MEM_REQ) + Size;
-//    PVOID pBuffer = malloc(totalSize);
-//
-//    if (!pBuffer) {
-//        Log("AttachWriteMem: Failed to allocate buffer, size: %d", totalSize);
-//        return FALSE;
-//    }
-//
-//    // 构造请求头
-//    PPROCESS_MEM_REQ req = (PPROCESS_MEM_REQ)pBuffer;
-//    req->ProcessId = (HANDLE)ProcessId;
-//    req->VirtualAddress = (PVOID)VirtualAddress;
-//    req->Size = Size;
-//
-//    // 从内部缓冲区复制数据到请求缓冲区
-//    memcpy((PUCHAR)pBuffer + sizeof(PROCESS_MEM_REQ), memBuffer_, Size);
-//
-//    DWORD dwRetBytes = 0;
-//    BOOL bResult = DeviceIoControl(m_hDriver, CTL_ATTACH_MEM_WRITE,
-//        pBuffer, totalSize,
-//        NULL, 0,
-//        &dwRetBytes, NULL);
-//
-//    if (bResult) {
-//        Log("AttachWriteMem: PID=%d, Addr=0x%08X, Size=%d - Success",
-//            ProcessId, VirtualAddress, Size);
-//    }
-//    else {
-//        Log("AttachWriteMem: PID=%d, Addr=0x%08X, Size=%d (dwRetBytes=%d)",
-//            ProcessId, VirtualAddress, Size, dwRetBytes);
-//    }
-//
-//    free(pBuffer);
-//    return bResult;
-//}
+BOOL ArkR3::MemAttachWrite(DWORD ProcessId, ULONG_PTR VirtualAddress, DWORD Size)
+{
+    // 参数验证
+    if (ProcessId == 0 || VirtualAddress == 0 || Size == 0) {
+        Log("AttachWriteMem: Invalid parameters\n");
+        return FALSE;
+    }
+
+    // 检查内部缓冲区是否有足够的数据
+    if (memDataSize_ < Size) {
+        Log("AttachWriteMem: Not enough data in buffer, available: %d, required: %d\n",
+            memDataSize_, Size);
+        return FALSE;
+    }
+
+    DWORD totalSize = sizeof(PROCESS_MEM_REQ) + Size;
+    PVOID pBuffer = malloc(totalSize);
+
+    if (!pBuffer) {
+        Log("AttachWriteMem: Failed to allocate buffer, size: %d\n", totalSize);
+        return FALSE;
+    }
+
+    // 构造请求头
+    PPROCESS_MEM_REQ req = (PPROCESS_MEM_REQ)pBuffer;
+    req->ProcessId = (HANDLE)ProcessId;
+    req->VirtualAddress = (PVOID)VirtualAddress;
+    req->Size = Size;
+
+    // 从内部缓冲区复制数据到请求缓冲区
+    memcpy((PUCHAR)pBuffer + sizeof(PROCESS_MEM_REQ), memBuffer_, Size);
+
+    DWORD dwRetBytes = 0;
+    BOOL bResult = DeviceIoControl(m_hDriver, CTL_ATTACH_MEM_WRITE,
+        pBuffer, totalSize,
+        NULL, 0,
+        &dwRetBytes, NULL);
+
+    if (bResult) {
+        Log("AttachWriteMem: PID=%d, Addr=0x%016llX, Size=%d - Success\n",
+            ProcessId, VirtualAddress, Size);
+    }
+    else {
+        Log("AttachWriteMem: PID=%d, Addr=0x%016llX, Size=%d (dwRetBytes=%d)\n",
+            ProcessId, VirtualAddress, Size, dwRetBytes);
+    }
+
+    free(pBuffer);
+    return bResult;
+}
 
 // 获取内核模块数量
 DWORD ArkR3::ModuleGetCount()

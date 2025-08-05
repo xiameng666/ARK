@@ -2,7 +2,7 @@
 
 
 extern "C" void _sgdt(void*);
-BOOLEAN g_LogOn = FALSE;
+BOOLEAN g_LogOn = TRUE;
 ULONG_PTR g_VA = 0;
 PDRIVER_OBJECT g_DriverObject = NULL;  // 保存当前驱动对象
 
@@ -363,6 +363,55 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
             __except (EXCEPTION_EXECUTE_HANDLER) {
                 status = STATUS_UNSUCCESSFUL;
                 Log("[XM] CTL_FORCE_DELETE_FILE exception");
+            }
+            break;
+        }
+
+        case CTL_ATTACH_MEM_READ:
+        {
+            PPROCESS_MEM_REQ memReq = (PPROCESS_MEM_REQ)Irp->AssociatedIrp.SystemBuffer;
+            __try {
+                KdPrint(("[XM] CTL_ATTACH_MEM_READ ProcessId:%p Address:%p Size:%d\n",
+                    memReq->ProcessId, memReq->VirtualAddress, memReq->Size));
+                HANDLE processId = memReq->ProcessId;
+                PVOID VirtualAddress = memReq->VirtualAddress;
+                unsigned Size = memReq->Size;
+
+                status = MemApiRead(processId, VirtualAddress,
+                    Irp->AssociatedIrp.SystemBuffer, Size);
+
+                if (NT_SUCCESS(status)) {
+                    info = Size;
+                    KdPrint(("[XM] CTL_ATTACH_MEM_READ Success\n"));
+                }
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER) {
+                status = STATUS_UNSUCCESSFUL;
+                KdPrint(("[XM] CTL_ATTACH_MEM_READ exception\n"));
+            }
+            break;
+        }
+
+        case CTL_ATTACH_MEM_WRITE:
+        {
+            PPROCESS_MEM_REQ memReq = (PPROCESS_MEM_REQ)Irp->AssociatedIrp.SystemBuffer;
+            __try {
+                KdPrint(("[XM] CTL_ATTACH_MEM_WRITE ProcessId:%p Address:%p Size:%d\n",
+                    memReq->ProcessId, memReq->VirtualAddress, memReq->Size));
+
+                //要写的数据在请求头后
+                PVOID writeData = (PUCHAR)Irp->AssociatedIrp.SystemBuffer + sizeof(PROCESS_MEM_REQ);
+                status = MemApiWrite(memReq->ProcessId, memReq->VirtualAddress,
+                    writeData, memReq->Size);
+
+                if (NT_SUCCESS(status)) {
+                    info = sizeof(PROCESS_MEM_REQ);
+                    KdPrint(("[XM] CTL_ATTACH_MEM_WRITE Success\n"));
+                }
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER) {
+                status = STATUS_UNSUCCESSFUL;
+                KdPrint(("[XM] CTL_ATTACH_MEM_WRITE exception\n"));
             }
             break;
         }

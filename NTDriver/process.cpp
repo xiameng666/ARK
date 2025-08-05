@@ -194,3 +194,195 @@ NTSTATUS EnumProcessByApiEx(PPROCESS_INFO ProcessInfos, BOOLEAN bCountOnly, PULO
 
     return status;
 }
+
+NTSTATUS AttachReadVirtualMem(HANDLE ProcessId, PVOID BaseAddress, PVOID Buffer, unsigned ReadBytes)
+{
+    PEPROCESS Process = NULL;
+    NTSTATUS Status = STATUS_UNSUCCESSFUL;
+    KAPC_STATE ApcState = { 0 };
+    PHYSICAL_ADDRESS PhysicalAddress = { 0 };
+    KIRQL  OldIrql = 0;
+
+    Status = PsLookupProcessByProcessId(ProcessId, &Process);
+    if (!NT_SUCCESS(Status)) {
+        KdPrint(("[XM] AttachReadVirtualMem PsLookupProcessByProcessId Status:%08X\n", Status));
+        return Status;
+    }
+    KdPrint(("[XM] AttachReadVirtualMem PEPROCESS:%p\n", Process));
+
+    KeRaiseIrql(DISPATCH_LEVEL, &OldIrql);
+    KeStackAttachProcess(Process, &ApcState);//切换CR3
+
+    PhysicalAddress = MmGetPhysicalAddress(BaseAddress);
+    KdPrint(("[XM] AttachReadVirtualMem PhysicalAddress: 0x%08X\n", PhysicalAddress.LowPart));
+
+    PVOID lpMapBase = MmMapIoSpace(PhysicalAddress, ReadBytes, MmNonCached);
+    if (lpMapBase != NULL) {
+        KdPrint(("[XM] AttachReadVirtualMem MmMapIoSpace lpMapBase: %p\n", lpMapBase));
+        RtlCopyMemory(Buffer, lpMapBase, ReadBytes);
+        MmUnmapIoSpace(lpMapBase, ReadBytes);
+        Status = STATUS_SUCCESS;
+    }
+    else {
+        KdPrint(("[XM] AttachReadVirtualMem MmMapIoSpace Failed\n"));
+        MmUnmapIoSpace(lpMapBase, ReadBytes);
+        return Status;
+    }
+
+    KeUnstackDetachProcess(&ApcState);
+    KeLowerIrql(OldIrql);
+
+    if (Process) {
+        ObDereferenceObject(Process);
+    }
+
+    return Status;
+}
+
+
+NTSTATUS AttachWriteVirtualMem(HANDLE ProcessId, PVOID BaseAddress, PVOID Buffer, unsigned WriteBytes)
+{
+    PEPROCESS Process = NULL;
+    NTSTATUS Status = STATUS_UNSUCCESSFUL;
+    KAPC_STATE ApcState = { 0 };
+    PHYSICAL_ADDRESS PhysicalAddress = { 0 };
+    KIRQL  OldIrql = 0;
+
+    Status = PsLookupProcessByProcessId(ProcessId, &Process);
+    if (!NT_SUCCESS(Status)) {
+        KdPrint(("[XM] AttachWriteVirtualMem PsLookupProcessByProcessId Status:%08X\n", Status));
+        return Status;
+    }
+    KdPrint(("[XM] AttachWriteVirtualMem Process:%p\n", Process));
+
+    KeRaiseIrql(DISPATCH_LEVEL, &OldIrql);
+
+    KeStackAttachProcess(Process, &ApcState);//切换CR3
+
+    PhysicalAddress = MmGetPhysicalAddress(BaseAddress);
+
+    //虚拟地址没有被映射为物理地址 不读了 
+    if (PhysicalAddress.QuadPart == 0) {
+        KdPrint(("[XM] AttachReadVirtualMem VA: %p (maps to physical 0x0)\n", BaseAddress));
+        KeUnstackDetachProcess(&ApcState);
+        KeLowerIrql(OldIrql);
+        ObDereferenceObject(Process);
+        return STATUS_INVALID_ADDRESS;
+    }
+
+    KdPrint(("[XM] AttachWriteVirtualMem PhysicalAddress: 0x%08X\n", PhysicalAddress.LowPart));
+
+    PVOID lpMapBase = MmMapIoSpace(PhysicalAddress, WriteBytes, MmCached);
+    if (lpMapBase != NULL) {
+        RtlCopyMemory(lpMapBase, Buffer, WriteBytes);
+        MmUnmapIoSpace(lpMapBase, WriteBytes);
+        Status = STATUS_SUCCESS;
+        KdPrint(("[XM] AttachWriteVirtualMem MmMapIoSpace Success: %p\n", lpMapBase));
+    }
+    else {
+        KdPrint(("[XM] AttachWriteVirtualMem MmMapIoSpace Failed\n"));
+        MmUnmapIoSpace(lpMapBase, WriteBytes);
+        return Status;
+    }
+
+    KeUnstackDetachProcess(&ApcState);
+    KeLowerIrql(OldIrql);
+
+    if (Process) {
+        ObDereferenceObject(Process);
+    }
+
+    return Status;
+}
+
+// 使用MmCopyVirtualMemory的API方式读取内存
+NTSTATUS MemApiRead(HANDLE ProcessId, PVOID VirtualAddress, PVOID Buffer, SIZE_T Size)
+{
+    Log("[XM] MemApiRead: PID=%p, Addr=0x%p, Size=%zu", ProcessId, VirtualAddress, Size);
+    
+    PEPROCESS SourceProcess = NULL;
+    NTSTATUS Status = STATUS_UNSUCCESSFUL;
+    
+    // 查找源进程对象
+    Status = PsLookupProcessByProcessId(ProcessId, &SourceProcess);
+    if (!NT_SUCCESS(Status)) {
+        Log("[XM] MemApiRead: PsLookupProcessByProcessId failed: 0x%X", Status);
+        return Status;
+    }
+    
+   // ULONG ProcessIdValue = HandleToUlong(ProcessId);
+    PEPROCESS TargetProcess = PsGetCurrentProcess();
+    SIZE_T BytesRead = 0;
+    
+    __try {
+        // 使用MmCopyVirtualMemory进行安全的跨进程内存复制
+        Status = MmCopyVirtualMemory(
+            SourceProcess,              // 源进程
+            VirtualAddress,             // 源地址
+            TargetProcess,              // 当前进程(驱动)
+            Buffer,                     // 目标缓冲区
+            Size,                       // 大小
+            KernelMode,                 // 内核模式
+            &BytesRead                  // 实际读取大小
+        );
+        
+        if (NT_SUCCESS(Status)) {
+            Log("[XM] MemApiRead: 成功读取 %zu 字节", BytesRead);
+        } else {
+            Log("[XM] MemApiRead: MmCopyVirtualMemory失败(0x%X)", Status);
+        }
+        
+    } __except(EXCEPTION_EXECUTE_HANDLER) {
+        Status = STATUS_ACCESS_VIOLATION;
+        Log("[XM] MemApiRead: 访问异常");
+    }
+    
+    ObDereferenceObject(SourceProcess);
+    return Status;
+}
+
+// 使用MmCopyVirtualMemory的API方式写入内存
+NTSTATUS MemApiWrite(HANDLE ProcessId, PVOID VirtualAddress, PVOID Buffer, SIZE_T Size)
+{
+    Log("[XM] MemApiWrite: PID=%p, Addr=0x%p, Size=%zu", ProcessId, VirtualAddress, Size);
+    
+    PEPROCESS TargetProcess = NULL;
+    NTSTATUS Status = STATUS_UNSUCCESSFUL;
+    
+    // 查找目标进程对象
+    Status = PsLookupProcessByProcessId(ProcessId, &TargetProcess);
+    if (!NT_SUCCESS(Status)) {
+        Log("[XM] MemApiWrite: PsLookupProcessByProcessId failed: 0x%X", Status);
+        return Status;
+    }
+    
+    //ULONG ProcessIdValue = HandleToUlong(ProcessId);
+    PEPROCESS SourceProcess = PsGetCurrentProcess();
+    SIZE_T BytesWritten = 0;
+    
+    __try {
+        // 使用MmCopyVirtualMemory进行安全的跨进程内存复制
+        Status = MmCopyVirtualMemory(
+            SourceProcess,              // 源进程(当前驱动)
+            Buffer,                     // 源缓冲区
+            TargetProcess,              // 目标进程
+            VirtualAddress,             // 目标地址
+            Size,                       // 大小
+            KernelMode,                 // 内核模式
+            &BytesWritten               // 实际写入大小
+        );
+        
+        if (NT_SUCCESS(Status)) {
+            Log("[XM] MemApiWrite: 成功写入 %zu 字节", BytesWritten);
+        } else {
+            Log("[XM] MemApiWrite: MmCopyVirtualMemory失败 Status(0x%X)", Status);
+        }
+        
+    } __except(EXCEPTION_EXECUTE_HANDLER) {
+        Status = STATUS_ACCESS_VIOLATION;
+        Log("[XM] MemApiWrite: 访问异常");
+    }
+    
+    ObDereferenceObject(TargetProcess);
+    return Status;
+}
