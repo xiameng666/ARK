@@ -1,4 +1,4 @@
-#include "ssdt.h"
+ï»¿#include "ssdt.h"
 
 ULONG_PTR SSDT_GetPfnAddr(ULONG dwIndex, PULONG lpBase)//https://bbs.kanxue.com/thread-248117.htm
 {
@@ -6,7 +6,7 @@ ULONG_PTR SSDT_GetPfnAddr(ULONG dwIndex, PULONG lpBase)//https://bbs.kanxue.com/
 
     ULONG dwOffset = lpBase[dwIndex];
 
-    //°´16Î»¶ÔÆëÊ¡¿Õ¼ä£¬ËùÒÔ>>4;¸ºÆ«ÒÆÓÐ+-ÎÊÌâ£¬ËùÒÔ|0xF00..
+    //æŒ‰16ä½å¯¹é½çœç©ºé—´ï¼Œæ‰€ä»¥>>4;è´Ÿåç§»æœ‰+-é—®é¢˜ï¼Œæ‰€ä»¥|0xF00..
     if (dwOffset & 0x80000000)
         dwOffset = (dwOffset >> 4) | 0xF0000000;
     else
@@ -17,7 +17,7 @@ ULONG_PTR SSDT_GetPfnAddr(ULONG dwIndex, PULONG lpBase)//https://bbs.kanxue.com/
     return lpAddr;
 }
 
-NTSTATUS EnumSSDT(PSSDT_INFO SsdtBuffer, PULONG SsdtCount)//X64µÄSSDTÊÇrva
+NTSTATUS EnumSSDT(PSSDT_INFO SsdtBuffer, PULONG SsdtCount)//X64çš„SSDTæ˜¯rva
 {
     INIT_PDB;
     PSYSTEM_SERVICE_DESCRIPTOR_TABLE KeServiceDescriptorTable = (PSYSTEM_SERVICE_DESCRIPTOR_TABLE)ntos.GetPointer("KeServiceDescriptorTable");
@@ -44,9 +44,50 @@ NTSTATUS EnumSSDT(PSSDT_INFO SsdtBuffer, PULONG SsdtCount)//X64µÄSSDTÊÇrva
             strcpy_s(SsdtBuffer[i].FunctionName, sizeof(SsdtBuffer[i].FunctionName), functionName);
         }
         else {
-            // Èç¹ûÃ»ÕÒµ½£¬Ê¹ÓÃË÷ÒýºÅ
+            // å¦‚æžœæ²¡æ‰¾åˆ°ï¼Œä½¿ç”¨ç´¢å¼•å·
             sprintf_s(SsdtBuffer[i].FunctionName, sizeof(SsdtBuffer[i].FunctionName), "Nt#%d", i);
         }
+    }
+
+    return STATUS_SUCCESS;
+}
+
+NTSTATUS EnumShadowSSDT(PSSDT_INFO SsdtBuffer, PULONG SsdtCount)
+{
+    INIT_PDB;
+    PSYSTEM_SERVICE_DESCRIPTOR_TABLE ShadowTable =
+        (PSYSTEM_SERVICE_DESCRIPTOR_TABLE)ntos.GetPointer("KeServiceDescriptorTableShadow");
+
+    Log("[XM] KeServiceDescriptorTableShadow ï¼š %p", ShadowTable);
+
+    if (!ShadowTable) {
+        Log("[XM] KeServiceDescriptorTableShadow == null");
+        return STATUS_UNSUCCESSFUL;
+    }
+
+    if (!ShadowTable->Base || ShadowTable->NumberOfServices == 0) {
+        Log("[XM] ShadowSSDT not available");
+        *SsdtCount = 0;
+        return STATUS_SUCCESS; 
+    }
+
+    ULONG nums = ShadowTable->NumberOfServices;
+    PULONG shadowSsdt = ShadowTable->Base;
+    *SsdtCount = nums;
+
+    Log("[XM] ShadowSSDT found: %d services", nums);
+
+    for (ULONG i = 0; i < nums; i++) {
+        SsdtBuffer[i].Index = i + 0x1000;  // ShadowSSDTçš„è°ƒç”¨å·ä»Ž0x1000å¼€å§‹
+
+        // ShadowSSDTå­˜å‚¨çš„æ˜¯ç›¸å¯¹äºŽwin32k.sysçš„RVAï¼Œä¸éœ€è¦è§£ç 
+        ULONG rva = shadowSsdt[i];
+        SsdtBuffer[i].FunctionAddress = (PVOID)(ULONG_PTR)rva;  // ä¼ é€’RVAåˆ°R3
+
+        //å‡½æ•°ååœ¨R3è§£æžï¼ˆR3ä¼šç”¨win32k_base + RVAè®¡ç®—çœŸå®žåœ°å€ï¼‰
+        sprintf_s(SsdtBuffer[i].FunctionName, sizeof(SsdtBuffer[i].FunctionName), "Win32k#%d", i);
+
+        Log("[XM] ShadowSSDT[%d]: RVA=0x%X", i, rva);
     }
 
     return STATUS_SUCCESS;

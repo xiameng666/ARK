@@ -36,7 +36,7 @@ include/proto.h    # 驱动与应用通信协议
 - 设备名称: `\\Device\\ADriver1`
 - 符号链接: `\\DosDevices\\ADriver1`
 - 通信方式: DeviceIoControl + 自定义IOCTL码
-- 主要数据结构: PROCESS_INFO, MODULE_INFO, CALLBACK_INFO, SSDT_INFO
+- 主要数据结构: PROCESS_INFO, MODULE_INFO, CALLBACK_INFO, SSDT_INFO, IDT_INFO
 
 # 代码风格
 - 遵循用户的编程风格
@@ -57,6 +57,9 @@ include/proto.h    # 驱动与应用通信协议
 | 附加进程写 | `CTL_ATTACH_MEM_WRITE` | - | - | ✗ |
 | **GDT表** |
 | 获取GDT数据 | `CTL_GET_GDT_DATA` | `DriverBase.cpp:110` | - | ✓ |
+| **IDT表** |
+| IDT表项数量 | `CTL_ENUM_IDT_COUNT` | - | - | ✗ |
+| IDT表数据 | `CTL_ENUM_IDT` | - | `ArkR3::IdtGetVec()` | ✓ |
 | **进程管理** |
 | 进程数量 | `CTL_ENUM_PROCESS_COUNT` | `DriverBase.cpp:138` | - | ✓ |
 | 进程枚举 | `CTL_ENUM_PROCESS` | `DriverBase.cpp:157` | - | ✓ |
@@ -119,7 +122,7 @@ include/proto.h    # 驱动与应用通信协议
 **3.** **系统回调**
 
 1) 遍历（进程、线程、模块、对象）- `CTL_ENUM_CALLBACK` (进程、线程、模块已完成，对象TODO)
-2) 恢复() - 需新增通讯码
+2) 恢复() - 完成
 
 **4.** **SSDT**
 
@@ -140,7 +143,11 @@ include/proto.h    # 驱动与应用通信协议
 
 1) 遍历 （已完成）- `CTL_GET_GDT_DATA`
 
-**8.** **读写进程内存**
+**8.** **IDT**表
+
+1) 遍历 （已完成）- `CTL_ENUM_IDT`
+
+**9.** **读写进程内存**
 
 1) 读取指定进程内存 - `CTL_READ_MEM` + `CTL_ATTACH_MEM_READ` (待实现)
 2) 写入指定进程内存 - `CTL_WRITE_MEM` + `CTL_ATTACH_MEM_WRITE` (待实现)
@@ -176,18 +183,20 @@ include/proto.h    # 驱动与应用通信协议
 | IDT恢复 | 恢复被HOOK的中断 | **待新增** | **待实现** | **待实现** | **待设计** | ✗ |
 | **7. GDT全局描述符** |
 | GDT枚举 | 枚举全局描述符表 | `CTL_GET_GDT_DATA` | `GetGDTData()`<br>`DriverBase.cpp:110` | `ArkR3::GetGDTData()` | `GDT_DATA_REQ`<br>`SegmentDescriptor` | ✓ |
-| **8. 内存操作** |
+| **8. IDT中断描述符** |
+| IDT枚举 | 枚举中断描述符表 | `CTL_ENUM_IDT` | **待实现** | `ArkR3::IdtGetVec()` | `IDT_INFO` | ✓ |
+| **9. 内存操作** |
 | 直接内存读 | 读取内核/进程内存 | `CTL_READ_MEM` | **待实现** | **待实现** | `KERNEL_RW_REQ` | ✗ |
 | 直接内存写 | 写入内核/进程内存 | `CTL_WRITE_MEM` | **待实现** | **待实现** | `KERNEL_RW_REQ` | ✗ |
 | 附加进程读 | 附加到进程读内存 | `CTL_ATTACH_MEM_READ` | **待实现** | **待实现** | `PROCESS_MEM_REQ` | ✗ |
 | 附加进程写 | 附加到进程写内存 | `CTL_ATTACH_MEM_WRITE` | **待实现** | **待实现** | `PROCESS_MEM_REQ` | ✗ |
-| **9. 驱动分析** |
+| **10. 驱动分析** |
 | 驱动枚举 | 枚举系统驱动对象 | `CTL_ENUM_DRIVER_COUNT`<br>`CTL_ENUM_DRIVER` | **待实现** | **待实现** | **待设计** | ✗ |
 | 派遣函数Hook | 检测IRP派遣Hook | `CTL_ENUM_DISPATCH_HOOK` | `EnumDrvMJHooked()`<br>`driver.cpp:246` | **待实现** | `DISPATCH_HOOK_INFO` | ✓ |
 | 设备栈分析 | 分析过滤驱动栈 | `CTL_ENUM_DEVICE_STACK` | `EnumDeviceStackAttach()`<br>`driver.cpp:9` | **待实现** | `DEVICE_STACK_INFO` | ✓ |
-| **10. 网络监控** |
+| **11. 网络监控** |
 | 网络端口 | 枚举网络连接 | `CTL_ENUM_NETWORK_PORT` | `EnumNetworkPort()`<br>`network.cpp:4` | **R3实现** | `NETWORK_PORT_INFO` | ✓ |
-| **11. 文件操作** |
+| **12. 文件操作** |
 | 文件解锁 | 解锁占用文件 | `CTL_UNLOCK_FILE` | `UnlockFile()`<br>`file.cpp` | **待实现** | `FILE_REQ` | ✓ |
 | 文件强删 | 强制删除文件 | `CTL_FORCE_DELETE_FILE` | `ForceDeleteFile()`<br>`file.cpp` | **待实现** | `FILE_REQ` | ✓ |
 

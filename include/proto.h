@@ -46,11 +46,14 @@ enum WindowsVersion
 #define CTL_READ_MEM                MY_CTL_CODE(0)
 #define CTL_WRITE_MEM               MY_CTL_CODE(1)
 
-#define CTL_ATTACH_MEM_READ         MY_CTL_CODE(2)      //附加进程读
+#define CTL_ATTACH_MEM_READ         MY_CTL_CODE(2)      //附加进程读       后续换成API读写了
 #define CTL_ATTACH_MEM_WRITE        MY_CTL_CODE(3)      //写
 
 
 #define CTL_GET_GDT_DATA            MY_CTL_CODE(10)     //获取GDT表数据
+
+#define CTL_ENUM_IDT_COUNT          MY_CTL_CODE(11)     //获取IDT表项数量
+#define CTL_ENUM_IDT                MY_CTL_CODE(12)     //获取IDT表数据
 
 #define CTL_ENUM_PROCESS_COUNT      MY_CTL_CODE(20)     // 枚举进程 返回数量
 #define CTL_ENUM_PROCESS            MY_CTL_CODE(21)     // 返回数据
@@ -64,6 +67,7 @@ enum WindowsVersion
 #define CTL_ENUM_PROCESS_MODULE       MY_CTL_CODE(33)   // 枚举进程模块 返回数据
 
 #define CTL_ENUM_SSDT               MY_CTL_CODE(35)     // 枚举SSDT 返回数据  假定max 500条记录 不要返回数量了
+#define CTL_ENUM_ShadowSSDT         MY_CTL_CODE(36)     // 枚举SSDT 返回数据  假定max 3000条记录 不要返回数量了
 
 #define CTL_START_SSDTHOOK          MY_CTL_CODE(40)     //开始监控 R3发ssdt的index  R0返回映射到R3的内存地址
 #define CTL_END_SSDTHOOK            MY_CTL_CODE(41)     //结束监控 R3发ssdt的index  
@@ -86,6 +90,8 @@ enum WindowsVersion
 
 #define CTL_SET_WINDOW_TRANSPARENCY        MY_CTL_CODE(110)     // 设置窗口透明度
 
+
+
 typedef struct PDB_PATH_REQUEST {
     wchar_t DownloadPath[MAX_PATH];    // PDB下载路径
 } * PPDB_PATH_REQUEST;
@@ -103,6 +109,7 @@ typedef struct PROCESS_MEM_REQ {
     unsigned Size;                      // 数据大小  
 }*PPROCESS_MEM_REQ;
 
+//GDT
 #pragma pack(push, 1)
 typedef struct GDTR {
   unsigned short Limit;
@@ -114,6 +121,68 @@ typedef struct GDT_DATA_REQ {
     unsigned CpuIndex;
     GDTR Gdtr;
 }*PGDT_DATA_REQ;
+
+typedef struct SegmentDescriptor {
+    unsigned Limit1 : 16;        // 界限低16位
+    unsigned Base1 : 16;         // 基址低16位  
+    unsigned Base2 : 8;          // 基址中8位
+    unsigned type : 4;           // 段类型
+    unsigned s : 1;              // 系统段标志
+    unsigned dpl : 2;            // 特权级
+    unsigned p : 1;              // 存在位
+    unsigned Limit2 : 4;         // 界限高4位
+    unsigned avl : 1;            // 软件可用位
+    unsigned l : 1;              // 64位代码段标志
+    unsigned db : 1;             // 操作数大小
+    unsigned g : 1;              // 粒度位
+    unsigned Base3 : 8;          // 基址高8位
+} * PSEGDESC;
+
+// 64位系统段描述符（16字节）
+typedef struct SystemDescriptor64 {
+    SegmentDescriptor low;   // 低8字节
+    unsigned Base4 : 32;     // 基址最高32位
+    unsigned reserved : 32;  // 保留字段
+} SystemDescriptor64;
+
+//IDT
+#pragma pack(push, 1)
+typedef struct IDTR {
+    unsigned short Limit;
+    ULONG_PTR Base;
+}* PIDTR;
+#pragma pack(pop)
+
+// 中断描述符结构 (x64)
+typedef struct InterruptDescriptor {
+    USHORT OffsetLow;               // 处理程序地址低16位
+    USHORT Selector;                // 段选择子
+    USHORT IstIndex : 3;            // IST索引
+    USHORT Reserved0 : 5;           // 保留
+    USHORT Type : 4;                // 门类型
+    USHORT Reserved1 : 1;           // 保留
+    USHORT Dpl : 2;                 // 描述符特权级
+    USHORT Present : 1;             // 存在位
+    USHORT OffsetMiddle;            // 处理程序地址中16位
+    ULONG OffsetHigh;               // 处理程序地址高32位
+    ULONG Reserved2;                // 保留
+} *PINTDESC;
+
+typedef struct IDT_DATA_REQ {
+    ULONG CpuIndex;           // CPU索引
+    ULONG Reserved;           
+} * PIDT_DATA_REQ;
+
+typedef struct _IDT_INFO {
+    ULONG CpuId;                        // CPU索引
+    ULONG id;                           // 数组下标
+    CHAR funcName[128];                 // 函数名
+    USHORT Selector;                    // 段选择子   好像全是0x10
+    USHORT Dpl;                         // 描述符特权级
+    ULONG_PTR Address;                  // 处理程序地址
+    CHAR Path[256];                     // 模块路径
+    ULONG Type;
+} IDT_INFO, * PIDT_INFO;
 
 typedef struct PROCESS_INFO {
     ULONG ProcessId;                    // 进程ID
@@ -140,34 +209,12 @@ typedef struct PROCESS_MODULE_REQ {
     ULONG ModuleCount;                  // 模块数量（输出参数）
 }*PPROCESS_MODULE_REQ;
 
-typedef struct SegmentDescriptor {
-    unsigned Limit1 : 16;        // 界限低16位
-    unsigned Base1 : 16;         // 基址低16位  
-    unsigned Base2 : 8;          // 基址中8位
-    unsigned type : 4;           // 段类型
-    unsigned s : 1;              // 系统段标志
-    unsigned dpl : 2;            // 特权级
-    unsigned p : 1;              // 存在位
-    unsigned Limit2 : 4;         // 界限高4位
-    unsigned avl : 1;            // 软件可用位
-    unsigned l : 1;              // 64位代码段标志
-    unsigned db : 1;             // 操作数大小
-    unsigned g : 1;              // 粒度位
-    unsigned Base3 : 8;          // 基址高8位
-} SegmentDescriptor, *PSEGDESC;  
-
-// 64位系统段描述符（16字节）
-typedef struct SystemDescriptor64 {
-    SegmentDescriptor low;   // 低8字节
-    unsigned Base4 : 32;     // 基址最高32位
-    unsigned reserved : 32;  // 保留字段
-} SystemDescriptor64;
-
+//SSDT
 typedef struct SSDT_INFO {
     ULONG Index;
     PVOID FunctionAddress;
     CHAR FunctionName[64];
-}*PSSDT_INFO;
+}*PSSDT_INFO,ShadowSSDT_INFO,*PShadowSSDT_INFO;
 
 typedef struct _SYSTEM_SERVICE_DESCRIPTOR_TABLE {
     PULONG Base;                  // 系统服务函数指针数组

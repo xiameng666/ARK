@@ -46,6 +46,11 @@ private:
     std::string ntos_path_;             // ntoskrnl.exe路径
     std::unique_ptr<ez::pdb> ntos_pdb_; // PDB对象
 
+    //win32k符号
+    ULONG_PTR win32k_base_= 0;
+    std::string win32k_path_;
+    std::unique_ptr<ez::pdb> win32k_pdb_;
+
 public:
     ArkR3();
     ~ArkR3();
@@ -60,12 +65,19 @@ public:
     ULONG_PTR GetKernelSymbolVA(const char* symbolName);
     ULONG GetKernelSymbolOffset(const char* structName, const wchar_t* fieldName);
     //ntbase_+rva
-    BOOL SendVA(ULONG_PTR va);                      //WriteFile发送VA到R0的g_VA
+    BOOL SendVA(ULONG_PTR va);                          //WriteFile发送VA到R0的g_VA
 
-    PSEGDESC GDTGetSingle(UINT cpuIndex, PGDTR pGdtr, DWORD* pRetBytes);
-    //获得单核GDT表数据指针
-    std::vector<GDT_INFO> GDTGetVec();                                     //返回所有核心GDT数组_gdtVec
+    //修复模块中名称中systemroot等信息
+    std::wstring FixModulePath(const std::wstring& path);
+    std::string FixModulePath(const std::string& path);
+
+    PSEGDESC GDTGetSingle(UINT cpuIndex, PGDTR pGdtr, DWORD* pRetBytes); //获得单核GDT表数据指针
+    std::vector<GDT_INFO> GDTGetVec();                                   //返回所有核心GDT数组_gdtVec
     std::vector<GDT_INFO> GDTVec_;
+
+    DWORD IdtGetCount();
+    std::vector<IDT_INFO> IdtGetVec();
+    std::vector<IDT_INFO> IDTVec_;
 
     BOOL MemAttachRead(DWORD ProcessId, ULONG_PTR VirtualAddress, DWORD Size); //附加读
     BOOL MemAttachWrite(DWORD ProcessId, ULONG_PTR VirtualAddress, DWORD Size);
@@ -95,11 +107,15 @@ public:
 
     //SSDT
     std::vector<SSDT_INFO> SSDTGetVec();
+    std::string GetWin32kFunctionName(ULONG_PTR address);
     std::vector<SSDT_INFO> SSDTVec_;
+
+    //ShadowSSDT
+    std::vector<ShadowSSDT_INFO> ShadowSSDTGetVec();
+    std::vector<ShadowSSDT_INFO> ShadowSSDTVec_;
 
     // 回调相关
     std::vector<CALLBACK_INFO> CallbackGetVec(CALLBACK_TYPE type);      // 获取指定类型的回调列表
-    std::wstring FixModulePath(const WCHAR* path);
     BOOL CallbackDelete(CALLBACK_TYPE type, ULONG index, PVOID CallbackFuncAddr);
     std::vector<CALLBACK_INFO> CallbackVec_;                            // 回调数据缓存
 

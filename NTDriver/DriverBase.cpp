@@ -134,7 +134,137 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
             }
             break;
         }
-        
+
+        case CTL_ENUM_IDT_COUNT:
+        {
+            __try {
+                ULONG totalIdtCount = 0;
+
+                // 获取CPU数量
+                ULONG cpuCount = KeQueryActiveProcessorCountEx(ALL_PROCESSOR_GROUPS);
+
+                // 统计所有条目
+                for (ULONG cpu = 0; cpu < cpuCount; cpu++) {
+                    KAFFINITY oldAffinity = KeSetSystemAffinityThreadEx(1ULL << cpu);
+
+                    IDTR idtr = { 0 };
+                    __sidt(&idtr);
+
+                    ULONG idtEntries = (idtr.Limit + 1) / sizeof(InterruptDescriptor);
+                    totalIdtCount += idtEntries;
+
+                    Log("cpuindex:%d base:%p size%d ", cpu, idtr.Base, idtEntries);
+
+                    KeRevertToUserAffinityThreadEx(oldAffinity);
+                }
+
+                *(PULONG)Irp->AssociatedIrp.SystemBuffer = totalIdtCount;
+                info = sizeof(ULONG);
+                status = STATUS_SUCCESS;
+
+                Log("[XM] CTL_ENUM_IDT_COUNT: %d", totalIdtCount);
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER) {
+                status = STATUS_UNSUCCESSFUL;
+                Log("[XM] CTL_ENUM_IDT_COUNT exception");
+            }
+            break;
+        }
+
+        case CTL_ENUM_IDT:
+        {
+            __try {
+                EnumModule();
+
+                PIDT_INFO pIdtInfo = (PIDT_INFO)Irp->AssociatedIrp.SystemBuffer;
+                ULONG currentIndex = 0;
+
+                ULONG cpuCount = KeQueryActiveProcessorCountEx(ALL_PROCESSOR_GROUPS);
+
+                INIT_PDB;
+
+                for (ULONG cpu = 0; cpu < cpuCount; cpu++) {
+                    KAFFINITY oldAffinity = KeSetSystemAffinityThreadEx(1ULL << cpu);
+
+                    IDTR idtr = { 0 };
+                    __sidt(&idtr);
+
+                    ULONG idtEntries = (idtr.Limit + 1) / sizeof(InterruptDescriptor);
+                    PINTDESC pIdtBase = (PINTDESC)idtr.Base;
+
+                    // 枚举所有IDT条目
+                    for (ULONG i = 0; i < idtEntries; i++) {
+                        PIDT_INFO pInfo = &pIdtInfo[currentIndex];
+                        RtlZeroMemory(pInfo, sizeof(IDT_INFO));
+
+                        // 基本信息
+                        pInfo->CpuId = cpu;
+                        pInfo->id = i;  
+                        pInfo->Selector = pIdtBase[i].Selector;
+                        pInfo->Dpl = pIdtBase[i].Dpl;
+                        pInfo->Type = pIdtBase[i].Type;
+
+                        // 地址重组
+                        pInfo->Address = ((ULONG_PTR)pIdtBase[i].OffsetHigh << 32) |
+                            ((ULONG_PTR)pIdtBase[i].OffsetMiddle << 16) |
+                            pIdtBase[i].OffsetLow;
+
+                    
+                        // 查找地址所在模块
+                        if (pIdtBase[i].Present && pInfo->Address != 0) {
+                            CHAR modulePath[256] = { 0 };
+                            NTSTATUS findStatus = FindModuleByAddress(
+                                (PVOID)pInfo->Address,
+                                modulePath,
+                                NULL,
+                                NULL
+                            );
+
+                            if (NT_SUCCESS(findStatus)) {
+                                RtlStringCchCopyA(pInfo->Path, sizeof(pInfo->Path), modulePath);
+                            }
+                            else {
+                                RtlStringCchCopyA(pInfo->Path, sizeof(pInfo->Path), "Unknown");
+                            }
+                            /*
+                            //在内核模块中 获取函数名
+                            __try {
+                                auto name = ntos.GetNameByVA(pInfo->Address);
+                                if (name != nullptr) {
+                                    RtlStringCchCopyA(pInfo->funcName, sizeof(pInfo->funcName),
+                                        name);
+                                }
+                               
+                            }
+                            __except (EXCEPTION_EXECUTE_HANDLER) {
+                                Log("字符串替换有问题");
+                            }
+                            */
+                            
+                        }
+                        else {
+                            // Present=0 或地址为0的条目
+                            RtlStringCchCopyA(pInfo->Path, sizeof(pInfo->Path), "Not Present");
+                        }
+
+                        currentIndex++;
+                    }
+
+                    KeRevertToUserAffinityThreadEx(oldAffinity);
+                }
+
+                info = currentIndex * sizeof(IDT_INFO);
+                status = STATUS_SUCCESS;
+
+                Log("[XM] CTL_ENUM_IDT: 返回 %d 个IDT条目", currentIndex);
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER) {
+                status = STATUS_UNSUCCESSFUL;
+                Log("[XM] CTL_ENUM_IDT exception");
+            }
+            break;
+        }
+
         case CTL_ENUM_PROCESS_COUNT:
         {
             __try {
@@ -219,6 +349,23 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
             __except (EXCEPTION_EXECUTE_HANDLER) {
                 status = STATUS_UNSUCCESSFUL;
                 Log("[XM] CTL_ENUM_SSDT exception");
+            }
+            break;
+        }
+
+        case CTL_ENUM_ShadowSSDT:
+        {
+            __try {
+                ULONG ssdtCount = 0;
+                status = EnumShadowSSDT((PSSDT_INFO)Irp->AssociatedIrp.SystemBuffer, &ssdtCount);
+                if (NT_SUCCESS(status)) {
+                    info = ssdtCount * sizeof(SSDT_INFO);
+                    Log("[XM] CTL_ENUM_ShadowSSDT: 获取 %d 个ShadowSSDT条目", ssdtCount);
+                }
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER) {
+                status = STATUS_UNSUCCESSFUL;
+                Log("[XM] CTL_ENUM_ShadowSSDT exception");
             }
             break;
         }
@@ -415,6 +562,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
             }
             break;
         }
+
 
         default:
             Log("[XM] DispatchDeviceControl: 无效控制码 0x%08X", controlCode);

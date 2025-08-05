@@ -7,6 +7,7 @@ KernelWnd::KernelWnd(Context* ctx)
     viewRenderers_[GDT] = [this]() { RenderGDTTable(); };
     viewRenderers_[IDT] = [this]() { RenderIDTTable(); };
     viewRenderers_[SSDT] = [this]() { RenderSSDTTable(); };
+    viewRenderers_[SHADOWSSDT] = [this]() { RenderShadowSSDTTable(); };
 }
 
 void KernelWnd::Render(bool* p_open)
@@ -33,6 +34,127 @@ void KernelWnd::Render(bool* p_open)
     }
 
     ImGui::End();
+}
+
+const char* KernelWnd::GetInterruptPurpose(ULONG index) {
+    switch (index) {
+    case 0x00: return "Divide Error";
+    case 0x01: return "Debug Exception";
+    case 0x02: return "NMI";
+    case 0x03: return "Breakpoint";
+    case 0x04: return "Overflow";
+    case 0x0D: return "General Protection";
+    case 0x0E: return "Page Fault";
+    case 0x2E: return "System Call (INT 2Eh)";
+    default:
+        if (index >= 0x30 && index <= 0xFF) {
+            return "Hardware/Software Interrupt";
+        }
+        return "Exception/Reserved";
+    }
+}
+
+const char* KernelWnd::GetIDTDescriptorType(USHORT type, USHORT dpl) {
+    switch (type & 0xF) {
+    case 0x5:
+        return "Task Gate (32bit)";
+
+    case 0xC:
+        return "Call Gate";
+
+    case 0xE:
+        return "Interrupt Gate";
+
+    case 0xF:
+        return "Trap Gate";
+
+    default:
+        return "Invalid";
+    }
+}
+
+void KernelWnd::RenderIDTTable()
+{
+    // 刷新按钮
+    if (ImGui::Button(u8"刷新")) {
+        ctx_->idtUiVec = ctx_->arkR3.IdtGetVec();
+    }
+
+    if (ImGui::BeginTable("IDT", 7,
+        ImGuiTableFlags_RowBg | ImGuiTableFlags_NoBordersInBody |
+        ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable |
+        ImGuiTableFlags_Sortable)) {
+
+        // 表头
+        ImGui::TableSetupColumn(u8"CPU", ImGuiTableColumnFlags_WidthStretch, 50);
+        ImGui::TableSetupColumn(u8"ID", ImGuiTableColumnFlags_WidthStretch, 60);
+        ImGui::TableSetupColumn(u8"函数名", ImGuiTableColumnFlags_WidthStretch, 200);
+        ImGui::TableSetupColumn(u8"SEL", ImGuiTableColumnFlags_WidthStretch, 60);
+        ImGui::TableSetupColumn(u8"DPL", ImGuiTableColumnFlags_WidthStretch, 60);
+        ImGui::TableSetupColumn(u8"地址", ImGuiTableColumnFlags_WidthStretch, 120);
+        ImGui::TableSetupColumn(u8"模块路径", ImGuiTableColumnFlags_WidthStretch);
+        //ImGui::TableSetupColumn(u8"类型", ImGuiTableColumnFlags_WidthStretch, 120);
+
+        ImGui::TableHeadersRow();
+
+        for (const auto& idt : ctx_->idtUiVec) {
+            ImGui::TableNextRow();
+
+            // CPU索引
+            ImGui::TableNextColumn();
+            ImGui::Text("%d", idt.CpuId);
+
+            // 中断索引(ID)
+            ImGui::TableNextColumn();
+            ImGui::Text("0x%02X", idt.id);
+
+            // 函数名
+            ImGui::TableNextColumn();
+            if (strlen(idt.funcName) > 0) {
+                ImGui::Text("%s", idt.funcName);
+            }
+            else {
+                ImGui::TextColored(COLOR_LIGHT_GRAY, u8"未知");
+            }
+
+            // 段选择子(SEL)
+            ImGui::TableNextColumn();
+            ImGui::Text("0x%04X", idt.Selector);
+
+            // 特权级(DPL)
+            ImGui::TableNextColumn();
+            ImVec4 dplColor;
+            switch (idt.Dpl) {
+            case 0: dplColor = COLOR_RED; break;    // 内核级
+            case 3: dplColor = COLOR_GREEN; break;  // 用户级
+            }
+            ImGui::TextColored(dplColor, "%d", idt.Dpl);
+
+            // 处理程序地址
+            ImGui::TableNextColumn();
+            ImGui::Text("0x%p", (void*)idt.Address);
+
+            // 模块路径
+            ImGui::TableNextColumn();
+            if (strlen(idt.Path) > 0) {
+                ImGui::Text("%s", idt.Path);
+            }
+            else {
+                ImGui::TextColored(COLOR_LIGHT_GRAY, u8"N/A");
+            }
+
+            /*
+            ImGui::TableNextColumn();
+            const char* typeStr = GetIDTDescriptorType(idt.Type, idt.Dpl);
+            ImGui::Text("%s", typeStr);
+            */
+        }
+
+        ImGui::EndTable();
+
+        // 显示统计信息
+        ImGui::Text(u8"显示全部 %d 个IDT表项", (int)ctx_->idtUiVec.size());
+    }
 }
 
 void KernelWnd::RenderSSDTTable()
@@ -78,11 +200,10 @@ void KernelWnd::RenderSSDTTable()
 
 void KernelWnd::RenderGDTTable()
 {
-    static std::vector<GDT_INFO> gdtUiVec;
     static bool filterInvalidSegments = false;  // 默认过滤无效段
   
     if (ImGui::Button(u8"刷新")) {
-        gdtUiVec = ctx_->arkR3.GDTGetVec();
+        ctx_->gdtUiVec = ctx_->arkR3.GDTGetVec();
     }
     
     ImGui::SameLine();
@@ -114,7 +235,7 @@ void KernelWnd::RenderGDTTable()
         int validCount = 0;
         int totalCount = 0;
         
-        for (const auto& gdt : gdtUiVec) {
+        for (const auto& gdt : ctx_->gdtUiVec) {
             totalCount++;
             
             if (filterInvalidSegments) {
@@ -200,8 +321,53 @@ void KernelWnd::RenderGDTTable()
     }
 }
 
-void KernelWnd::RenderIDTTable()
+void KernelWnd::RenderShadowSSDTTable()
 {
+    // 刷新按钮
+    if (ImGui::Button(u8"刷新")) {
+        ctx_->shadowSsdtUiVec = ctx_->arkR3.ShadowSSDTGetVec();
+    }
+
+    if (ImGui::BeginTable("ShadowSSDT", 3,
+        ImGuiTableFlags_RowBg | ImGuiTableFlags_NoBordersInBody |
+        ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable)) {
+
+        // 表头
+        ImGui::TableSetupColumn(u8"索引", ImGuiTableColumnFlags_WidthFixed, 80);
+        ImGui::TableSetupColumn(u8"函数地址", ImGuiTableColumnFlags_WidthFixed, 120);
+        ImGui::TableSetupColumn(u8"函数名", ImGuiTableColumnFlags_WidthStretch);
+
+        ImGui::TableHeadersRow();
+
+        for (const auto& shadowSsdt : ctx_->shadowSsdtUiVec) {
+            ImGui::TableNextRow();
+
+            // 索引 (显示为0x1000+)
+            ImGui::TableNextColumn();
+            ImGui::Text("0x%04X", shadowSsdt.Index);
+
+            // 函数地址
+            ImGui::TableNextColumn();
+            ImGui::Text("0x%p", shadowSsdt.FunctionAddress);
+
+            // 函数名 (区分NtUser*和NtGdi*)
+            ImGui::TableNextColumn();
+            if (strstr(shadowSsdt.FunctionName, "NtUser") != nullptr) {
+                ImGui::TextColored(COLOR_CYAN, "%s", shadowSsdt.FunctionName);  // 用户界面函数
+            }
+            else if (strstr(shadowSsdt.FunctionName, "NtGdi") != nullptr) {
+                ImGui::TextColored(COLOR_GREEN, "%s", shadowSsdt.FunctionName); // 图形设备函数
+            }
+            else {
+                ImGui::Text("%s", shadowSsdt.FunctionName);
+            }
+        }
+
+        ImGui::EndTable();
+
+        // 显示统计信息
+        ImGui::Text(u8"显示全部 %d 个ShadowSSDT表项", (int)ctx_->shadowSsdtUiVec.size());
+    }
 }
 
 void KernelWnd::RenderLeftBar()
@@ -212,8 +378,9 @@ void KernelWnd::RenderLeftBar()
     
     NAV_SECTION(u8"内存管理",
         VIEW_ITEM(u8"GDT", GDT);
-        //VIEW_ITEM(u8"IDT", IDT);
+        VIEW_ITEM(u8"IDT", IDT);
         VIEW_ITEM(u8"SSDT", SSDT);
+        VIEW_ITEM(u8"ShadowSSDT", SHADOWSSDT);
     );
 }
 

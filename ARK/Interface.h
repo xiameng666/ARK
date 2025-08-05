@@ -53,6 +53,7 @@ enum SubView {
     IDT,
     SSDT,
     SSDTHOOK,
+    SHADOWSSDT,
     PROCESS,
     MEM,
     MODULE,
@@ -80,13 +81,18 @@ struct Context {
 
 
     // UI数据存储
-    std::vector<PROCESS_INFO> processUiVec;           // 进程列表数据
-    std::vector<MODULE_INFO> globalModuleUiVec;       // 全局模块数据
-    std::vector<MODULE_INFO> processModuleUiVec;      // 进程模块数据
-    std::vector<SSDT_INFO> ssdtUiVec_;                // SSDT数据
-    std::vector<CALLBACK_INFO> callbackUiVec;         // 回调数据
-    std::vector<DISPATCH_HOOK_INFO> dispatchHookUiVec;// 派遣函数被hook数据
-    std::vector<DEVICE_STACK_INFO> deviceStackUiVec;  // 设备栈被attach数据
+    std::vector<PROCESS_INFO> processUiVec;           // 进程列表
+    std::vector<MODULE_INFO> globalModuleUiVec;       // 全局模块
+    std::vector<MODULE_INFO> processModuleUiVec;      // 进程模块
+
+    std::vector<CALLBACK_INFO> callbackUiVec;         // 回调
+    std::vector<DISPATCH_HOOK_INFO> dispatchHookUiVec;// 派遣函数被hook
+    std::vector<DEVICE_STACK_INFO> deviceStackUiVec;  // 设备栈被attach
+
+    std::vector<IDT_INFO> idtUiVec;                   // IDT
+    std::vector<GDT_INFO> gdtUiVec;                   // GDT
+    std::vector<SSDT_INFO> ssdtUiVec_;                // SSDT
+    std::vector<ShadowSSDT_INFO> shadowSsdtUiVec;     // ShadowSSDT
 
     // 进程模块窗口状态
     bool showProcessModuleWnd = false;
