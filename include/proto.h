@@ -259,6 +259,7 @@ typedef struct CALLBACK_INFO {
         struct {
             CHAR ObjectTypeName[32];
             PVOID ObjTypeAddr;                //存储对象类型地址
+            PVOID CallbackRegistration;       //就是callbackNode 调用ObUnRegisterCallbacks删除回调需要的参数
         }ObjectExtra;
         
     } Extra;

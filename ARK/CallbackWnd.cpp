@@ -107,16 +107,20 @@ void CallbackWnd::RenderCallbackWnd() {
                             // 数组：传递函数地址，通过索引删除
                             deleteData = callback.CallbackEntry;
                             break;
-                            
-                        case TypeRegistry:
-                        case TypeObject:
+
                         case TypeBugCheck:
                         case TypeBugCheckReason:
                         case TypeShutdown:
+                        case TypeRegistry:
                             // 链表：传递Extra数据（Cookie/整个对象...）
                             deleteData = callback.Extra.CallbackExtra;
                             break;
-                            
+
+                        case TypeObject:
+                            //传递ObjectNode结构体
+                            deleteData = callback.Extra.ObjectExtra.CallbackRegistration;
+                            break;
+
                         default:
                             deleteData = callback.CallbackEntry;
                             break;

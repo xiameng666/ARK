@@ -143,7 +143,7 @@ NTSTATUS EnumCallbacks(PCALLBACK_INFO callbackBuffer, CALLBACK_TYPE type, PULONG
                     }
                     
                     CALLBACK_BODY* cb = CONTAINING_RECORD(entry, CALLBACK_BODY, ListEntry);
-                    
+
                     // 添加PreOp回调
                     if (cb->PreCallbackRoutine) {
                         PCALLBACK_INFO info = &callbackBuffer[count];
@@ -154,7 +154,8 @@ NTSTATUS EnumCallbacks(PCALLBACK_INFO callbackBuffer, CALLBACK_TYPE type, PULONG
                         info->CallbackEntry = cb->PreCallbackRoutine;
                         info->IsValid = TRUE;
                         info->Extra.ObjectExtra.ObjTypeAddr = (PVOID)objTypeAddr; // 存储对象类型地址
-                        
+                        info->Extra.ObjectExtra.CallbackRegistration = cb->CallbackNode; //删除回调需要的参数
+
                         // 复制对象类型名称到结构体
                         NTSTATUS status = RtlStringCbPrintfA(info->Extra.ObjectExtra.ObjectTypeName,
                             sizeof(info->Extra.ObjectExtra.ObjectTypeName),
@@ -180,7 +181,8 @@ NTSTATUS EnumCallbacks(PCALLBACK_INFO callbackBuffer, CALLBACK_TYPE type, PULONG
                         info->CallbackEntry = cb->PostCallbackRoutine;
                         info->IsValid = TRUE;
                         info->Extra.ObjectExtra.ObjTypeAddr = (PVOID)objTypeAddr; // 存储对象类型地址
-                        
+                        info->Extra.ObjectExtra.CallbackRegistration = cb->CallbackNode; //删除回调需要的参数、
+
                         // 复制对象类型名称到结构体
                         NTSTATUS status = RtlStringCbPrintfA(info->Extra.ObjectExtra.ObjectTypeName,
                             sizeof(info->Extra.ObjectExtra.ObjectTypeName),
@@ -504,8 +506,12 @@ NTSTATUS DeleteCallback(CALLBACK_TYPE type, ULONG index, PVOID deleteKey) {
         }
             
         case TypeObject:
-            Log("[XM] TypeObject");
-            break;
+        {
+            PVOID callbackRegistration = deleteKey;
+            ObUnRegisterCallbacks(callbackRegistration);
+            Log("[XM] 删除对象回调，CallbackRegistration=%p", callbackRegistration);
+            return STATUS_SUCCESS;//不知道是否成功
+        }        
             
         case TypeBugCheck:
         {
