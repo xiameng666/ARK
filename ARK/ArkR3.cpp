@@ -550,20 +550,20 @@ BOOL ArkR3::MemAttachRead(DWORD ProcessId, ULONG_PTR VirtualAddress, DWORD Size)
         return FALSE;
     }
 
-    // 构造请求结构体（栈上分配即可）
+    // 构造请求结构体
     PROCESS_MEM_REQ req;
-    req.ProcessId = (HANDLE)ProcessId;
+    req.ProcessId = (HANDLE)ProcessId;// UlongToHandle(ProcessId);
     req.VirtualAddress = (PVOID)VirtualAddress;
     req.Size = Size;
 
     DWORD dwRetBytes = 0;
     BOOL bResult = DeviceIoControl(m_hDriver, CTL_ATTACH_MEM_READ,
         &req, sizeof(PROCESS_MEM_REQ),           // 输入：请求结构体
-        memBuffer_, Size,                        // 输出：直接写入内部缓冲区
+        memBuffer_, Size,                        // 输出：写入memBuffer_
         &dwRetBytes, NULL);
 
     if (bResult) {
-        memDataSize_ = Size;  // 无需额外拷贝！
+        memDataSize_ = Size;  
 
         Log("AttachReadMem: PID=%d, Addr=0x%016llX, Size=%d - Success\n",
             ProcessId, VirtualAddress, Size);

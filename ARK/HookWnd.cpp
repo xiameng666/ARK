@@ -84,6 +84,7 @@ void HookWnd::RenderMJHookWnd()
 void HookWnd::RenderDeviceStackWnd()
 {
     if (ImGui::Button(u8"Ë¢ÐÂ")) {
+        ctx_->deviceStackUiVec.clear();
         ctx_->deviceStackUiVec = ctx_->arkR3.DeviceStackGetVec();
     }
 

@@ -184,6 +184,7 @@ typedef struct _IDT_INFO {
     ULONG Type;
 } IDT_INFO, * PIDT_INFO;
 
+//进程
 typedef struct PROCESS_INFO {
     ULONG ProcessId;                    // 进程ID
     ULONG ParentProcessId;              // 父进程ID
@@ -193,6 +194,7 @@ typedef struct PROCESS_INFO {
 
 }*PPROCESS_INFO;
 
+//模块
 typedef struct MODULE_INFO {
     CHAR Name[64];                      // 模块名称（短名）
     CHAR FullPath[256];                 // 模块完整路径
@@ -253,7 +255,12 @@ typedef struct CALLBACK_INFO {
 
     union {
         PVOID CallbackExtra;              // 
-        UCHAR Reserved[32];               // 
+        UCHAR Reserved[32];               //
+        struct {
+            CHAR ObjectTypeName[32];
+            PVOID ObjTypeAddr;                //存储对象类型地址
+        }ObjectExtra;
+        
     } Extra;
 
 } *PCALLBACK_INFO;
@@ -277,6 +284,23 @@ typedef struct CALLBACK_DELETE_REQ {
     };
 
 }  *PCALLBACK_DELETE_REQ;
+
+//Object钩子
+typedef struct _OBJECT_CALLBACK_INFO {
+    CHAR FunctionName[128];                     // 函数名 (查PDB
+    PVOID CurrentAddress;                       // 当前函数地址
+    BOOLEAN IsHooked;                           // 是否被Hook
+    PVOID OrigAddress;                          // 原始函数地址 (函数名反查pdb)
+
+    CHAR ObjectTypeName[128];                   // 对象类型名 
+    PVOID ObjectTypeAddress;                    // 对象类型地址
+
+    CHAR ModulePath[256];                       // 当前函数所在模块路径
+
+    //OBJECT_CALLBACK_FUNCTION_TYPE FunctionType; // 回调函数类型
+    ULONG Index;                               // 在该对象类型中的索引
+
+} OBJECT_CALLBACK_INFO, * POBJECT_CALLBACK_INFO;
 
 // 派遣函数Hook
 typedef struct _DISPATCH_HOOK_INFO {

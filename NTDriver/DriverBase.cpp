@@ -98,7 +98,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
                 //KdBreakPoint();
                 InitProcessPdb();
                 
-                //ForTest();
+                ForTest();
             }
             __except (EXCEPTION_EXECUTE_HANDLER) {
                 status = STATUS_UNSUCCESSFUL;

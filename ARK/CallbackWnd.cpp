@@ -150,7 +150,12 @@ void CallbackWnd::RenderCallbackWnd() {
 
             // Extra
             ImGui::TableSetColumnIndex(4);
-            //ImGui::Text("%p", callback.Extra.CallbackExtra);
+            if (callback.Type == TypeObject) {
+                ImGui::Text(u8"%s | ObjTypeAddr: %p",
+                    callback.Extra.ObjectExtra.ObjectTypeName,
+                    callback.Extra.ObjectExtra.ObjTypeAddr );
+            }
+           
 
             row++;
         }
