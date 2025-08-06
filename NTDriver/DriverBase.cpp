@@ -340,7 +340,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
         {
             __try {
                 ULONG ssdtCount = 0;
-                status = EnumSSDT((PSSDT_INFO)Irp->AssociatedIrp.SystemBuffer,&ssdtCount);
+                status = EnumSSDTFromFile((PSSDT_INFO)Irp->AssociatedIrp.SystemBuffer,&ssdtCount);
                 if (NT_SUCCESS(status)) {
                     info = ssdtCount * sizeof(SSDT_INFO);
                     Log("[XM] CTL_ENUM_SSDT: 获取 %d 个SSDT条目", ssdtCount);

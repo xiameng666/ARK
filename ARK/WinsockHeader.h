@@ -1,7 +1,7 @@
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 // Need to link with Iphlpapi.lib and Ws2_32.lib
 
-#include <winsock2.h>
+
 #include <ws2tcpip.h>
 #include <iphlpapi.h>
 #include <stdio.h>
@@ -11,3 +11,4 @@
 #pragma comment(lib, "ws2_32.lib")
 
 #pragma comment(lib, "psapi.lib")
+

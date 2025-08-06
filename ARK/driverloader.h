@@ -1,5 +1,7 @@
 #pragma once
-#include<Windows.h>
+#ifndef _WINDOWS_
+#include<windows.h>
+#endif
 #include <winsvc.h>
 
 #define DEVICE_NAME_   "\\Device\\ADriver1"

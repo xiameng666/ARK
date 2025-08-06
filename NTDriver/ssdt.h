@@ -3,7 +3,9 @@
 
 extern "C" {
 
-    NTSTATUS EnumSSDT(PSSDT_INFO SsdtBuffer, PULONG SsdtCount);
+    NTSTATUS EnumSSDTFormMem(PSSDT_INFO SsdtBuffer, PULONG SsdtCount);
+
+    NTSTATUS EnumSSDTFromFile(PSSDT_INFO SsdtBuffer, PULONG SsdtCount);
 
     NTSTATUS EnumShadowSSDT(PSSDT_INFO SsdtBuffer, PULONG SsdtCount);
 

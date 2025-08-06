@@ -17,7 +17,7 @@ namespace oxygenPdb {
        
 		ULONG_PTR GetPointer(const char* name);
 		size_t GetOffset(const char* structName, const char* propertyName);
-
+        ULONG_PTR GetModuleBase();
 	private:
 		char padding[2000];//can not revise this!!! else it will ocurrs stack overflow!!
 	};

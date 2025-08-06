@@ -1,6 +1,9 @@
 // FileManager.h
 #pragma once
-#include <windows.h>
+
+#ifndef _WINDOWS_
+#include<windows.h>
+#endif
 #include <vector>
 #include <string>
 #include <map>

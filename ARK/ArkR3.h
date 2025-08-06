@@ -1,4 +1,5 @@
 ﻿#pragma once
+
 #include "driverloader.h"
 #include"../include/proto.h"
 #include "ezpdb.hpp"
@@ -13,6 +14,7 @@
 #include <Shlobj.h>
 #include <PathCch.h>
 #include <set>
+#include"pestruct.h"
 
 #ifdef _WIN64
 extern "C" void _sgdt(void*);
@@ -36,6 +38,7 @@ typedef struct GDT_INFO {
 class ArkR3 :public DriverLoader
 {
 private:
+
     //附加进程读写相关
     PVOID memBuffer_;
     DWORD memBufferSize_;
@@ -61,6 +64,7 @@ public:
     bool SetPdbPathFromEzpdb();
     
     bool InitSymbolState();                             //初始化符号信息到成员变量
+    void GetFileSSDT();
     ULONG_PTR GetModuleBase(const char* moduleName);    //NtApi获取模块基址
     ULONG_PTR GetKernelSymbolVA(const char* symbolName);
     ULONG GetKernelSymbolOffset(const char* structName, const wchar_t* fieldName);

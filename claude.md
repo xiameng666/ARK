@@ -96,12 +96,11 @@ include/proto.h    # 驱动与应用通信协议
 
 # TodoList
 
-1. 对象回调与恢复
-2. 进程检测隐藏
-3. 驱动检测隐藏
-4. 中断表恢复  
-5. SSDT恢复  
-6. ShadowSSDT恢复  
+1. 进程检测隐藏
+2. 驱动检测隐藏
+3. 中断表恢复  
+4. SSDT恢复  
+5. ShadowSSDT恢复  
 
 
 
@@ -275,3 +274,100 @@ R3用户层:
 - ShadowSSDT Hook检测：对比原始地址vs当前地址
 - Win32k模块完整性验证：通过PDB符号验证函数地址
 - 双表监控：SSDT + ShadowSSDT 全覆盖系统调用
+
+# 对象回调 (Object Callback) 实现技术说明
+
+## 完成状态：✅ 已实现
+
+### 核心技术难点解决
+
+**1. 对象回调枚举原理**
+```cpp
+// 数据流动链路：
+ObTypeIndexTable[] → _OBJECT_TYPE → CallbackList → CALLBACK_BODY → Pre/PostCallbackRoutine
+```
+
+**2. 关键数据结构理解**
+```cpp
+typedef struct _CALLBACK_NODE {
+    USHORT Version;                 // 版本号，目前是0x100
+    USHORT CallbackBodyCount;       // 本节点上CallbackBody的数量
+    PVOID Context;                  // 注册回调时设定的RegistrationContext
+    UNICODE_STRING Altitude;        // 指向Altitude字符串
+    char CallbackBody[1];           // CALLBACK_BODY数组，元素个数为CallbackBodyCount  
+} CALLBACK_NODE, *PCALLBACK_NODE;
+
+typedef struct _OB_CALLBACK_REGISTRATION {
+    USHORT Version;                 // 用户注册时的输入结构
+    USHORT OperationRegistrationCount;
+    UNICODE_STRING Altitude;
+    PVOID RegistrationContext;
+    OB_OPERATION_REGISTRATION* OperationRegistration;
+} OB_CALLBACK_REGISTRATION, *POB_CALLBACK_REGISTRATION;
+```
+
+**3. 枚举与删除的数据转换**
+- **注册阶段**: `OB_CALLBACK_REGISTRATION` (用户输入) → `CALLBACK_NODE` (内核存储)
+- **枚举阶段**: `CALLBACK_BODY.CallbackNode` → `CALLBACK_INFO.CallbackRegistration`
+- **删除阶段**: `ObUnRegisterCallbacks(CallbackNode)` → 从CallbackList移除整个注册
+
+### 实现细节
+
+**枚举实现 (callback.cpp:106-202)**
+```cpp
+// 1. 遍历ObTypeIndexTable获取所有对象类型
+for (int i = 0; i < 100; i++) {
+    ULONG_PTR objTypeAddr = *(ULONG_PTR*)(ObTypeIndexTable + i * sizeof(ULONG_PTR));
+    
+    // 2. 获取_OBJECT_TYPE->CallbackList链表头
+    size_t CallbackListOffset = ntos.GetOffset("_OBJECT_TYPE", "CallbackList");
+    LIST_ENTRY* head = (LIST_ENTRY*)(objTypeAddr + CallbackListOffset);
+    
+    // 3. 遍历链表，每个节点按CALLBACK_BODY解析
+    CALLBACK_BODY* cb = CONTAINING_RECORD(entry, CALLBACK_BODY, ListEntry);
+    
+    // 4. 分别处理PreOp和PostOp回调
+    if (cb->PreCallbackRoutine) {
+        info->Extra.ObjectExtra.CallbackRegistration = cb->CallbackNode; // 关键：保存删除句柄
+        // 名称格式：PreOb_Process, PreOb_Thread...
+    }
+    if (cb->PostCallbackRoutine) {
+        info->Extra.ObjectExtra.CallbackRegistration = cb->CallbackNode;
+        // 名称格式：PostOb_Process, PostOb_Thread...
+    }
+}
+```
+
+**删除实现 (callback.cpp:506-512)**
+```cpp
+case TypeObject:
+{
+    PVOID callbackRegistration = deleteKey; // 实际是CallbackNode
+    ObUnRegisterCallbacks(callbackRegistration);
+    Log("[XM] 删除对象回调，CallbackRegistration=%p", callbackRegistration);
+    return STATUS_SUCCESS;
+}
+```
+
+### 数据结构设计
+
+**CALLBACK_INFO扩展 (proto.h:256-267)**
+```cpp
+struct {
+    CHAR ObjectTypeName[32];        // "PreOb_Process" / "PostOb_Thread"
+    PVOID ObjTypeAddr;              // 对象类型地址
+    PVOID CallbackRegistration;     // CallbackNode，删除时传递给ObUnRegisterCallbacks
+}ObjectExtra;
+```
+
+### 学习要点
+
+**Windows内核架构**:
+- 对象回调是Windows对象管理子系统的核心安全机制
+- 每种对象类型(Process、Thread、Desktop等)都可以注册回调
+- 回调分为PreOperation和PostOperation两个阶段
+
+**反Rootkit技术**:
+- 对象回调Hook检测：枚举所有对象类型的回调函数
+- 恶意回调识别：通过模块路径和签名验证回调合法性
+- 回调删除/恢复：通过ObUnRegisterCallbacks删除恶意回调注册

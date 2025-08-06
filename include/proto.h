@@ -90,7 +90,20 @@ enum WindowsVersion
 
 #define CTL_SET_WINDOW_TRANSPARENCY        MY_CTL_CODE(110)     // 设置窗口透明度
 
+#define CTL_RESTORE_SSDT            MY_CTL_CODE(120)     // 恢复SSDT
+#define CTL_RESTORE_SHADOW_SSDT     MY_CTL_CODE(121)     // 恢复ShadowSSDT
+#define CTL_RESTORE_IDT             MY_CTL_CODE(122)     // 恢复IDT
 
+#define TypeSSDT = 0
+#define TypeShadowSSDT = 1
+#define TypeIDT = 2
+
+typedef struct _RESTORE_TABLE_REQ {
+    ULONG TableType;        // 0=SSDT, 1=ShadowSSDT, 2=IDT
+    ULONG RestoreAll;       // 1=恢复整表, 0=只检测Hook
+    ULONG StartIndex;       // 开始索引（可选）
+    ULONG EndIndex;         // 结束索引（可选）
+} RESTORE_TABLE_REQ, * PRESTORE_TABLE_REQ;
 
 typedef struct PDB_PATH_REQUEST {
     wchar_t DownloadPath[MAX_PATH];    // PDB下载路径
@@ -348,3 +361,5 @@ typedef struct NETWORK_PORT_INFO {
 typedef struct FILE_REQ {
     WCHAR FilePath[MAX_PATH];           // 文件路径  解锁/粉碎                     
 } *PFILE_REQ;
+
+

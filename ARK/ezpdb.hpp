@@ -1,7 +1,10 @@
 #pragma once
 #define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
+#pragma warning(disable: 4996)
 #include <stdio.h>
-#include <Windows.h>
+#ifndef _WINDOWS_
+#include<windows.h>
+#endif
 #include <DbgHelp.h>
 #include <iostream>
 #include <string>

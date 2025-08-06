@@ -186,8 +186,10 @@ NTSTATUS FindModuleByAddress(PVOID Address, PCHAR ModulePath, PVOID* ImageBase, 
                     *ImageSize = ModuleInfo->ImageSize;
                 }
 
+                /*
                 Log("[XM] FindModuleByAddress: Found module %s for address %p (Base=%p, Size=0x%X)",
                     ModuleInfo->FullPathName, Address, ModuleInfo->ImageBase, ModuleInfo->ImageSize);
+                */
 
                 return STATUS_SUCCESS;
             }

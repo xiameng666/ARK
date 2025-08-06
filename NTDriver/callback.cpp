@@ -554,15 +554,6 @@ NTSTATUS DeleteCallback(CALLBACK_TYPE type, ULONG index, PVOID deleteKey) {
     
     return STATUS_SUCCESS;
 }
-NTSTATUS EnumObjectCallbacks(POBJECT_CALLBACK_INFO pBuffer, PULONG pCount, ULONG maxCount)
-{
-    UNREFERENCED_PARAMETER(pBuffer);
-    UNREFERENCED_PARAMETER(pCount);
-    UNREFERENCED_PARAMETER(maxCount);
-
-    return NTSTATUS();
-}
-
 
 
 /*宏之前的 

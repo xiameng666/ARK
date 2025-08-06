@@ -1,7 +1,9 @@
+
 #include "WinsockHeader.h"
+
 #include "ArkR3.h"
 
-
+PEparser* pe_ = nullptr;
 
 // extern SSDT_INFO g_SSDT_XP_SP3_Table[];
 
@@ -9,6 +11,7 @@
 ArkR3::ArkR3() : memBuffer_(nullptr), memBufferSize_(0), memDataSize_(0)
 {
     MemEnsureBufferSize(4096); // 初始4KB
+
 }
 
 ArkR3::~ArkR3()
@@ -19,6 +22,8 @@ ArkR3::~ArkR3()
     }
     memBufferSize_ = 0;
     memDataSize_ = 0;
+
+    if (pe_!=nullptr) free (pe_);
 }
 
 // 从ezpdb获取PDB路径并发给驱动
@@ -34,6 +39,8 @@ bool ArkR3::SetPdbPathFromEzpdb() {
         Log("无法从ezpdb获取PDB路径\n");
         return false;
     }
+
+
 
     // 转换为Unicode（路径是全英文）
     wchar_t pdbPathW[MAX_PATH] = { 0 };
@@ -65,6 +72,8 @@ bool ArkR3::SetPdbPathFromEzpdb() {
         Log("SetPdbPathFromEzpdb err\n");
         return false;
     }
+
+
 }
 
 bool ArkR3::InitSymbolState()
@@ -75,7 +84,7 @@ bool ArkR3::InitSymbolState()
     if (_dupenv_s(&sysroot, &len, "systemroot") != 0 || !sysroot) return false;
     ntos_path_ = std::string(sysroot) + "\\System32\\ntoskrnl.exe";
     //free(sysroot);
-    
+
     // 获取ntoskrnl.exe基址
     ntbase_ = GetModuleBase("ntoskrnl.exe");
     if (!ntbase_) return false;
@@ -108,7 +117,31 @@ bool ArkR3::InitSymbolState()
         Log("Win32k PDB init success\n");
     }
 
+    /* 在R3解析PE 暂时不用
+    pe_ = new PEparser(ntos_path_.c_str());
+    pe_->Parse();
+    GetFileSSDT();
+    */
     return true;
+}
+
+void ArkR3::GetFileSSDT() {
+    HMODULE hMod = LoadLibrary("ntoskrnl.exe");
+    DWORD dwVA = (DWORD)GetProcAddress(hMod, "KiServiceTable");
+    DWORD dwRVA = dwVA - ntbase_;
+    //DWORD ssdtRVA = ntos_pdb_->get_rva("KeServiceDescriptorTable");
+    DWORD ssdtFOA = pe_->RVAToFOA(dwRVA);
+    Log("ssdtRVA:%p  ssdtFOA %p\n", dwRVA, ssdtFOA);
+
+    PVOID fileBase = pe_->m_pFileBase;
+    PSYSTEM_SERVICE_DESCRIPTOR_TABLE pFileSSDT =
+        (PSYSTEM_SERVICE_DESCRIPTOR_TABLE)((ULONG_PTR)fileBase + ssdtFOA);
+
+    Log("文件中的SSDT结构:\n");
+    Log("  Base: %p", pFileSSDT->Base);
+    Log("  NumberOfServices: %d\n", pFileSSDT->NumberOfServices);
+    Log("  ServiceCounterTable: %p\n", pFileSSDT->ServiceCounterTable);
+    Log("  ParamTableBase: %p\n", pFileSSDT->ParamTableBase);
 }
 
 BOOL ArkR3::SendVA(ULONG_PTR va)
@@ -816,8 +849,10 @@ std::vector<ShadowSSDT_INFO> ArkR3::ShadowSSDTGetVec() {
                 strcpy_s(pShadowSsdtInfo[i].FunctionName,
                     sizeof(pShadowSsdtInfo[i].FunctionName),
                     win32kName.c_str());
-                Log("ShadowSSDT[%03d]: 符号解析成功: %s -> 0x%p\n",
+                Log("\"%s\"\n", win32kName.c_str());
+                /*Log("ShadowSSDT[%03d]: 符号解析成功: %s -> 0x%p\n",
                     i, win32kName.c_str(), pShadowSsdtInfo[i].FunctionAddress);
+                */
             }
 
             ShadowSSDTVec_.emplace_back(pShadowSsdtInfo[i]);
