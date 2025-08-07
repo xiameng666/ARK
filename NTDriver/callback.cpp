@@ -49,7 +49,7 @@ NTSTATUS EnumCallbacks(PCALLBACK_INFO callbackBuffer, CALLBACK_TYPE type, PULONG
     ULONG count = 0;
 
     EnumModule();
-    INIT_PDB;
+    INIT_NTOS;
 
     switch (type) {
         case TypeProcess: 
@@ -323,7 +323,7 @@ NTSTATUS EnumCallbacks(PCALLBACK_INFO callbackBuffer, CALLBACK_TYPE type, PULONG
 }
 
 void ForTest() {
-    INIT_PDB;
+    INIT_NTOS;
     /*
     // 首先获取对象回调相关的符号信息
     Log("[XM] ========== 开始获取对象回调相关符号信息 ==========");
@@ -469,7 +469,7 @@ void ForTest() {
 NTSTATUS DeleteCallback(CALLBACK_TYPE type, ULONG index, PVOID deleteKey) {
     Log("[XM] DeleteCallback: 回调删除功能，类型=%d，索引=%d 地址=%p\n", type, index, deleteKey);
 
-    INIT_PDB;
+    INIT_NTOS;
 
     switch (type) {
         case TypeProcess:
@@ -559,7 +559,7 @@ NTSTATUS DeleteCallback(CALLBACK_TYPE type, ULONG index, PVOID deleteKey) {
 /*宏之前的 
         case TypeProcess:
         {
-            INIT_PDB;
+            INIT_NTOS;
             ULONG_PTR arrayBase = ntos.GetPointer("PspCreateProcessNotifyRoutine");
             PEX_CALLBACK callbackArray = (PEX_CALLBACK)arrayBase;
             EX_FAST_REF* fastRef = &callbackArray[index].RoutineBlock;

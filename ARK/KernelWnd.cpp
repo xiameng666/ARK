@@ -332,6 +332,10 @@ void KernelWnd::RenderShadowSSDTTable()
     if (ImGui::Button(u8"Ë¢ÐÂ")) {
         ctx_->shadowSsdtUiVec = ctx_->arkR3.ShadowSSDTGetVec();
     }
+    ImGui::SameLine();
+    if (ImGui::Button(u8"»Ö¸´È«²¿")) {
+        ctx_->arkR3.RestoreShadowSSdt();
+    }
 
     if (ImGui::BeginTable("ShadowSSDT", 3,
         ImGuiTableFlags_RowBg | ImGuiTableFlags_NoBordersInBody |

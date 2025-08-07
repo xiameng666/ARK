@@ -18,6 +18,7 @@
 #include <PathCch.h>
 #include <WinInet.h>
 #include <winhttp.h>
+#include <functional>
 
 #pragma comment(lib, "DbgHelp.lib")
 #pragma comment(lib, "Urlmon.lib")
@@ -380,6 +381,8 @@ namespace ez
 		HANDLE _hPdbFile;
 		HANDLE _hProcess;
 		std::string _symbol_server;
+
+        
 
 		std::string download(std::string pe_path, bool bRedownload = false)
 		{
@@ -1008,6 +1011,46 @@ namespace ez
 		{
 			return _current_pdb_path;
 		}
+
+        // 获取进程句柄（用于枚举）
+        HANDLE get_process_handle() const { return _hProcess; }
+
+        struct SymbolInfo {
+            std::string name;
+            DWORD rva;
+            DWORD size;
+            DWORD type_index;
+            DWORD flags;
+        };
+
+        static BOOL CALLBACK EnumSymbolsCallback(PSYMBOL_INFO pSymInfo, ULONG SymbolSize, PVOID UserContext) {
+            UNREFERENCED_PARAMETER(SymbolSize);
+            auto symbols_vec = reinterpret_cast<std::vector<SymbolInfo>*>(UserContext);
+
+            SymbolInfo info;
+            info.name = std::string(pSymInfo->Name);
+            info.rva = (DWORD)(pSymInfo->Address - EZ_PDB_BASE_OF_DLL);
+            info.size = pSymInfo->Size;
+            info.type_index = pSymInfo->TypeIndex;
+            info.flags = pSymInfo->Flags;
+
+            symbols_vec->push_back(info);
+            return TRUE; // 继续枚举
+        }
+
+
+        std::vector<SymbolInfo> enum_symbols_by_pattern(const std::string& pattern = "*") {
+            std::vector<SymbolInfo> symbols;
+            if (!pdb_loaded) return symbols;
+
+            SymEnumSymbols(_hProcess, EZ_PDB_BASE_OF_DLL, pattern.c_str(), EnumSymbolsCallback, &symbols);
+            return symbols;
+        }
+
+        // 原来的方法保持不变
+        std::vector<SymbolInfo> enum_all_symbols() {
+            return enum_symbols_by_pattern("*");
+        }
 
 	};
 }

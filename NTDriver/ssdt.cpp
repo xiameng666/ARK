@@ -4268,7 +4268,7 @@ ULONG SSDT_EncodePfnAddr(ULONG_PTR FunctionAddress, PULONG SsdtBase)
 
 NTSTATUS EnumSSDTFromMem(PSSDT_INFO SsdtBuffer, PULONG SsdtCount)//X64的SSDT是rva
 {
-    INIT_PDB;
+    INIT_NTOS;
     PSYSTEM_SERVICE_DESCRIPTOR_TABLE KeServiceDescriptorTable = (PSYSTEM_SERVICE_DESCRIPTOR_TABLE)ntos.GetPointer("KeServiceDescriptorTable");
     
     if (!KeServiceDescriptorTable) {
@@ -4303,7 +4303,7 @@ NTSTATUS EnumSSDTFromMem(PSSDT_INFO SsdtBuffer, PULONG SsdtCount)//X64的SSDT是
 
 NTSTATUS EnumShadowSSDT(PSSDT_INFO SsdtBuffer, PULONG SsdtCount)
 {
-    INIT_PDB;
+    INIT_NTOS;
                           
     PSYSTEM_SERVICE_DESCRIPTOR_TABLE ShadowTableArray =
     (PSYSTEM_SERVICE_DESCRIPTOR_TABLE)ntos.GetPointer("KeServiceDescriptorTableShadow");
@@ -4353,7 +4353,7 @@ NTSTATUS RecoverSSDT() {
     PVOID fileBuffer = NULL;
     ULONG fileSize = 0;
 
-    INIT_PDB;
+    INIT_NTOS;
 
     do {
         // 打开ntdll.dll
@@ -4550,14 +4550,13 @@ NTSTATUS RecoverSSDT() {
                 //pdb获取函数RVA
                 ULONG_PTR originalRVA = ntos.GetPointerRVA(ntName);
 
-                //得到函数VA
+                //RVA+BASE 得到函数VA   
                 ULONG_PTR pdb_ssdtItemVA = ntos.GetModuleBase() + originalRVA;
 
-                // 内存SSDT表项中的函数地址                                    
+                // 内存SSDT表项中的函数地址  这个是通过表在内存中的数据得到的VA     
                 ULONG_PTR mem_ssdtItemVA = SSDT_GetPfnAddr(syscallNumber, pSSDT->Base);
 
-                
-
+                //如果表项被修改过
                 if (pdb_ssdtItemVA != mem_ssdtItemVA) {
                     Log("不相等 mem_ssdtItemVA:%p pdb_ssdtItemVA:%p", mem_ssdtItemVA, pdb_ssdtItemVA);
 
@@ -4600,6 +4599,256 @@ NTSTATUS RecoverSSDT() {
     return status;
 }
 
+NTSTATUS RecoverShadowSSDT() {
+    NTSTATUS status;
+    HANDLE win32uHandle = NULL;
+    PVOID fileBuffer = NULL;
+    ULONG fileSize = 0;
+
+    INIT_NTOS;
+    INIT_WIN32K;
+
+    do {
+        UNICODE_STRING fileName;
+        RtlInitUnicodeString(&fileName, L"\\SystemRoot\\system32\\win32u.dll");
+        OBJECT_ATTRIBUTES objAttr;
+        InitializeObjectAttributes(&objAttr, &fileName,
+            OBJ_KERNEL_HANDLE | OBJ_CASE_INSENSITIVE, NULL, NULL);
+
+        IO_STATUS_BLOCK ioStatus;
+        status = IoCreateFile(&win32uHandle,
+            FILE_READ_ATTRIBUTES | SYNCHRONIZE,
+            &objAttr, &ioStatus, 0,
+            FILE_READ_ATTRIBUTES, FILE_SHARE_READ,
+            FILE_OPEN, FILE_SYNCHRONOUS_IO_NONALERT,
+            NULL, 0, CreateFileTypeNone, NULL,
+            IO_NO_PARAMETER_CHECKING);
+
+        if (!NT_SUCCESS(status)) {
+            Log("[XM] 打开win32u.dll失败: 0x%x", status);
+            break;
+        }
+
+        // 获取文件大小
+        FILE_STANDARD_INFORMATION fileInfo;
+        status = ZwQueryInformationFile(win32uHandle, &ioStatus, &fileInfo,
+            sizeof(FILE_STANDARD_INFORMATION),
+            FileStandardInformation);
+        if (!NT_SUCCESS(status) || fileInfo.EndOfFile.HighPart != 0) {
+            Log("[XM] 获取文件信息失败或文件过大");
+            break;
+        }
+
+        fileSize = fileInfo.EndOfFile.LowPart;
+
+        // 分配内存并读取文件
+        fileBuffer = ExAllocatePoolWithTag(PagedPool, fileSize + 0x100, 'SsDt');
+        if (!fileBuffer) {
+            Log("[XM] 内存分配失败");
+            status = STATUS_INSUFFICIENT_RESOURCES;
+            break;
+        }
+
+        LARGE_INTEGER byteOffset = { 0 };
+        status = ZwReadFile(win32uHandle, NULL, NULL, NULL, &ioStatus,
+            fileBuffer, fileSize, &byteOffset, NULL);
+        if (!NT_SUCCESS(status)) {
+            Log("[XM] 读取文件失败: 0x%x", status);
+            break;
+        }
+
+        // 解析PE结构
+        PIMAGE_DOS_HEADER dosHeader = (PIMAGE_DOS_HEADER)fileBuffer;
+        PIMAGE_NT_HEADERS ntHeaders = (PIMAGE_NT_HEADERS)((ULONG_PTR)fileBuffer + dosHeader->e_lfanew);
+        PIMAGE_SECTION_HEADER sectionHeaders = (PIMAGE_SECTION_HEADER)((ULONG_PTR)ntHeaders +
+            sizeof(IMAGE_NT_HEADERS));
+
+        // 定位导出表
+        ULONG exportRva = ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress;
+        ULONG_PTR exportFOA = 0;
+
+        // RVA转文件偏移
+        for (UINT16 i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++) {
+            PIMAGE_SECTION_HEADER section = &sectionHeaders[i];
+            if (exportRva >= section->VirtualAddress &&
+                exportRva < section->VirtualAddress + section->SizeOfRawData) {
+                exportFOA = exportRva - section->VirtualAddress + section->PointerToRawData;
+                break;
+            }
+        }
+
+        if (!exportFOA) {
+            Log("[XM] 导出表RVA转换失败");
+            status = STATUS_INVALID_IMAGE_FORMAT;
+            break;
+        }
+
+        PIMAGE_EXPORT_DIRECTORY exportDir = (PIMAGE_EXPORT_DIRECTORY)((ULONG_PTR)fileBuffer + exportFOA);
+
+        ULONG_PTR funcAddrFOA = 0, funcNameFOA = 0, ordinalFOA = 0;
+
+        // AddressOfFunctions RVA转文件偏移
+        for (UINT16 i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++) {
+            PIMAGE_SECTION_HEADER section = &sectionHeaders[i];
+            if (exportDir->AddressOfFunctions >= section->VirtualAddress &&
+                exportDir->AddressOfFunctions < section->VirtualAddress + section->SizeOfRawData) {
+                funcAddrFOA = exportDir->AddressOfFunctions - section->VirtualAddress + section->PointerToRawData;
+                break;
+            }
+        }
+
+        // AddressOfNames RVA转文件偏移
+        for (UINT16 i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++) {
+            PIMAGE_SECTION_HEADER section = &sectionHeaders[i];
+            if (exportDir->AddressOfNames >= section->VirtualAddress &&
+                exportDir->AddressOfNames < section->VirtualAddress + section->SizeOfRawData) {
+                funcNameFOA = exportDir->AddressOfNames - section->VirtualAddress + section->PointerToRawData;
+                break;
+            }
+        }
+
+        // AddressOfNameOrdinals RVA转文件偏移
+        for (UINT16 i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++) {
+            PIMAGE_SECTION_HEADER section = &sectionHeaders[i];
+            if (exportDir->AddressOfNameOrdinals >= section->VirtualAddress &&
+                exportDir->AddressOfNameOrdinals < section->VirtualAddress + section->SizeOfRawData) {
+                ordinalFOA = exportDir->AddressOfNameOrdinals - section->VirtualAddress +
+                    section->PointerToRawData;
+                break;
+            }
+        }
+
+        if (!funcAddrFOA || !funcNameFOA || !ordinalFOA) {
+            Log("[XM] 导出表数组RVA转换失败");
+            status = STATUS_INVALID_IMAGE_FORMAT;
+            break;
+        }
+
+        PULONG addressOfFunctions = (PULONG)((ULONG_PTR)fileBuffer + funcAddrFOA);
+        PULONG addressOfNames = (PULONG)((ULONG_PTR)fileBuffer + funcNameFOA);
+        PUSHORT addressOfNameOrdinals = (PUSHORT)((ULONG_PTR)fileBuffer + ordinalFOA);
+
+        // 遍历导出函数，查找Nt*函数
+        ULONG ssdtIndex = 0;
+        Log("[XM] 开始枚举win32u.dll导出的Nt函数，总计%d个", exportDir->NumberOfNames);
+
+        for (ULONG i = 0; i < exportDir->NumberOfNames; i++) {
+            // 获取函数名
+            ULONG nameRva = addressOfNames[i];
+            ULONG_PTR nameFOA = 0;
+
+            // 函数名RVA转文件偏移
+            for (UINT16 j = 0; j < ntHeaders->FileHeader.NumberOfSections; j++) {
+                PIMAGE_SECTION_HEADER section = &sectionHeaders[j];
+                if (nameRva >= section->VirtualAddress &&
+                    nameRva < section->VirtualAddress + section->SizeOfRawData) {
+                    nameFOA = nameRva - section->VirtualAddress + section->PointerToRawData;
+                    break;
+                }
+            }
+
+            if (!nameFOA) continue;
+
+            PCHAR functionName = (PCHAR)((ULONG_PTR)fileBuffer + nameFOA);
+
+            // 只处理Nt开头的函数
+            if (functionName[0] != 'N' || functionName[1] != 't') {
+                continue;
+            }
+
+            // 获取函数地址
+            USHORT ordinal = addressOfNameOrdinals[i];
+            ULONG funcRva = addressOfFunctions[ordinal];
+            ULONG_PTR funcFOA = 0;
+
+            // 函数地址RVA转文件偏移
+            for (UINT16 j = 0; j < ntHeaders->FileHeader.NumberOfSections; j++) {
+                PIMAGE_SECTION_HEADER section = &sectionHeaders[j];
+                if (funcRva >= section->VirtualAddress &&
+                    funcRva < section->VirtualAddress + section->SizeOfRawData) {
+                    funcFOA = funcRva - section->VirtualAddress + section->PointerToRawData;
+                    break;
+                }
+            }
+
+            if (!funcFOA) continue;
+
+            PUCHAR funcBytes = (PUCHAR)((ULONG_PTR)fileBuffer + funcFOA);
+
+            // 从函数字节码中提取系统调用号
+            /*
+             * Zw函数的标准格式：
+             * 4C 8B D1          mov r10, rcx
+             * B8 XX XX XX XX    mov eax, syscall_number
+             * 0F 05             syscall
+             */
+
+             // 验证函数头部特征
+            if (funcBytes[0] == 0x4C && funcBytes[1] == 0x8B && funcBytes[2] == 0xD1 &&
+                funcBytes[3] == 0xB8) {
+
+                PSYSTEM_SERVICE_DESCRIPTOR_TABLE ShadowTableArray =
+                    (PSYSTEM_SERVICE_DESCRIPTOR_TABLE)ntos.GetPointer("KeServiceDescriptorTableShadow");
+                PSYSTEM_SERVICE_DESCRIPTOR_TABLE pShadowSSDT = &ShadowTableArray[1];
+
+                // 提取系统调用号 
+                ULONG syscallNumber = *(PULONG)(funcBytes + 4);
+                ULONG shadowIndex = syscallNumber - 0x1000;
+                if (shadowIndex >= pShadowSSDT->NumberOfServices) {
+                    Log("[XM] shadowIndex: %d, NumberOfServices: %d", shadowIndex, pShadowSSDT->NumberOfServices);
+                    continue;
+                }
+
+                //pdb获取函数RVA
+                ULONG_PTR originalRVA = win32k.GetPointerRVA(functionName);
+
+                //RVA+BASE 得到函数VA   
+                ULONG_PTR pdb_ssdtItemVA = win32k.GetModuleBase() + originalRVA;
+
+                // 内存SSDT表项中的函数地址  这个是通过表在内存中的数据得到的VA     
+                ULONG_PTR mem_ssdtItemVA = SSDT_GetPfnAddr(shadowIndex, pShadowSSDT->Base);
+
+                if (pdb_ssdtItemVA != mem_ssdtItemVA) {
+                    Log("不相等 mem_ssdtItemVA:%p pdb_ssdtItemVA:%p", mem_ssdtItemVA, pdb_ssdtItemVA);
+
+                    //拿正确的VA反向得出偏移
+                    ULONG ssdtItem = SSDT_EncodePfnAddr(pdb_ssdtItemVA, pShadowSSDT->Base);
+
+                    //写回SSDT
+                    ClearWP();
+                    pShadowSSDT->Base[shadowIndex] = ssdtItem;
+                    SetWP();
+
+
+                }
+                else {
+                    Log("相等  mem_shadowItemVA:%p pdb_shadowItemVA:%p", mem_ssdtItemVA, pdb_ssdtItemVA);
+                }
+
+
+                ssdtIndex++;
+            }
+        }
+
+        status = STATUS_SUCCESS;
+
+        Log("[XM] RecoverSSDT完成，共找到%d个SSDT函数", ssdtIndex);
+
+    } while (0);
+
+
+    Log("[XM] RecoverSSDT CLEAN_UP");
+
+    if (fileBuffer) {
+        ExFreePoolWithTag(fileBuffer, 'SsDt');
+    }
+
+    if (win32uHandle) {
+        ZwClose(win32uHandle);
+    }
+
+    return status;
+}
 /*
 NTSTATUS GetSSDTFromFile(PSSDT_INFO SsdtBuffer, PULONG SsdtCount) {
     UNREFERENCED_PARAMETER(SsdtBuffer);
@@ -4653,7 +4902,7 @@ NTSTATUS GetSSDTFromFile(PSSDT_INFO SsdtBuffer, PULONG SsdtCount) {
         }
 
         // 2. 通过PDB获取KeServiceDescriptorTable的RVA
-        INIT_PDB;
+        INIT_NTOS;
         ULONG_PTR ssdtStructRVA = ntos.GetPointerRVA("KeServiceDescriptorTable");
         ULONG_PTR ntosBase = ntos.GetModuleBase();
         Log("[XM] KeServiceDescriptorTable RVA: 0x%x  ntosBase:%p", ssdtStructRVA, ntosBase);

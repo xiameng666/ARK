@@ -7,6 +7,8 @@ extern "C" {
 
     NTSTATUS RecoverSSDT();
 
+    NTSTATUS RecoverShadowSSDT();
+
     NTSTATUS EnumShadowSSDT(PSSDT_INFO SsdtBuffer, PULONG SsdtCount);
 
     ULONG_PTR SSDT_GetPfnAddr(ULONG dwIndex, PULONG lpBase);

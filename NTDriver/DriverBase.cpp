@@ -9,7 +9,8 @@ BOOLEAN g_LogOn = TRUE;
 ULONG_PTR g_VA = 0;
 PDRIVER_OBJECT g_DriverObject = NULL;  // 保存当前驱动对象
 
-wchar_t g_PdbDownloadPath[512] = L"C:\\Symbols";
+wchar_t g_ntosPdbPath[512] = L"C:\\Symbols";
+wchar_t g_win32kPdbPath[512] = L"C:\\Symbols";
 
 void ClearWP() {
     ULONG_PTR cr0 = __readcr0();
@@ -22,16 +23,21 @@ void SetWP() {
     __writecr0(cr0);
 }
 
-NTSTATUS SetPdbPath(PWCHAR InputPath)
+NTSTATUS SetPdbPath(PWCHAR NtosPath,PWCHAR Win32kPath)
 {
-    if (!InputPath) {
+    if (!NtosPath || !Win32kPath) {
         return STATUS_INVALID_PARAMETER;
     }
 
-    SIZE_T pathLength = wcslen(InputPath);
+    // 设置ntoskrnl PDB路径
+    RtlZeroMemory(g_ntosPdbPath, sizeof(g_ntosPdbPath));
+    RtlCopyMemory(g_ntosPdbPath, NtosPath, wcslen(NtosPath) * sizeof(WCHAR));
 
-    RtlZeroMemory(g_PdbDownloadPath, sizeof(g_PdbDownloadPath));
-    RtlCopyMemory(g_PdbDownloadPath, InputPath, pathLength * sizeof(WCHAR));
+    // 设置win32k PDB路径
+    RtlZeroMemory(g_win32kPdbPath, sizeof(g_win32kPdbPath));
+    RtlCopyMemory(g_win32kPdbPath, Win32kPath, wcslen(Win32kPath) * sizeof(WCHAR));
+
+    Log("[XM] SetPdbPaths - Ntos: %ws, Win32k: %ws", g_ntosPdbPath, g_win32kPdbPath);
 
     return STATUS_SUCCESS;
 }
@@ -106,9 +112,9 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
         {
             __try {
                 PPDB_PATH_REQUEST pdbPathReq = (PPDB_PATH_REQUEST)Irp->AssociatedIrp.SystemBuffer;
-                SetPdbPath(pdbPathReq->DownloadPath);
+                SetPdbPath(pdbPathReq->NtosPath, pdbPathReq->Win32kPath);
                 status = STATUS_SUCCESS;
-                Log("[XM] CTL_SET_PDB_PATH: %ws", g_PdbDownloadPath);
+                Log("[XM] CTL_SET_PDB_PATH: %ws   %ws ", g_ntosPdbPath,g_win32kPdbPath);
                 //KdBreakPoint();
                 InitProcessPdb();
                 //ForTest();
@@ -141,7 +147,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
             __try {
                 Log("[XM] CTL_SEND_SSDTBASE: 开始处理");
 
-                INIT_PDB;
+                INIT_NTOS;
 
                 ULONG_PTR kiServiceTableRVA = ntos.GetPointerRVA("KeServiceDescriptorTable");
                 Log("[XM] KiServiceTable RVA查询结果: 0x%x", kiServiceTableRVA);
@@ -236,7 +242,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
 
                 ULONG cpuCount = KeQueryActiveProcessorCountEx(ALL_PROCESSOR_GROUPS);
 
-                INIT_PDB;
+                INIT_NTOS;
 
                 for (ULONG cpu = 0; cpu < cpuCount; cpu++) {
                     KAFFINITY oldAffinity = KeSetSystemAffinityThreadEx(1ULL << cpu);
@@ -420,6 +426,23 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
             __except (EXCEPTION_EXECUTE_HANDLER) {
                 status = STATUS_UNSUCCESSFUL;
                 Log("[XM] CTL_RESTORE_SSDT exception");
+            }
+            break;
+        }
+
+        case CTL_RESTORE_SHADOW_SSDT:
+        {
+            __try {
+                status = RecoverShadowSSDT();
+                if (NT_SUCCESS(status)) {
+                    Log("[XM] CTL_RESTORE_SHADOW_SSDT: Shadow恢复成功");
+                }
+
+                info = 0;
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER) {
+                status = STATUS_UNSUCCESSFUL;
+                Log("[XM] CTL_RESTORE_SHADOW_SSDT exception");
             }
             break;
         }

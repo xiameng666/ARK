@@ -5,7 +5,7 @@
 ENUM_PROCESS_META procMeta = { 0 };
 
 void InitProcessPdb() {
-    INIT_PDB;
+    INIT_NTOS;
 
     OFFSET(procMeta.EThreadToProcess, "_ETHREAD", "ThreadsProcess");
     OFFSET(procMeta.ProcessId, "_EPROCESS", "UniqueProcessId");
@@ -78,7 +78,7 @@ NTSTATUS EnumProcessFromLinksEx(PPROCESS_INFO processBuffer, BOOLEAN onlyGetCoun
 typedef NTSTATUS(*PspTerminateProcess)(PEPROCESS, NTSTATUS);
 
 NTSTATUS TerminateProcessByApi(HANDLE ProcessId) {
-    INIT_PDB;
+    INIT_NTOS;
     UNREFERENCED_PARAMETER(ProcessId);
     PspTerminateProcess pfn = (PspTerminateProcess)ntos.GetPointer("PspTerminateProcess");
     Log("[XM] PspTerminateProcess address: %p", pfn);
@@ -113,7 +113,7 @@ NTSTATUS TerminateProcessByThread(HANDLE ProcessId)
 {
     Log("[XM] TerminateProcessByThread: ProcessId = %p", ProcessId);
 
-    INIT_PDB;
+    INIT_NTOS;
     PspTerminateThreadByPointer pfn = (PspTerminateThreadByPointer)ntos.GetPointer("PspTerminateThreadByPointer");
 
     if (!pfn) {
@@ -399,7 +399,7 @@ NTSTATUS EnumProcessBySearchMem(PPROCESS_INFO ProcessInfos, PULONG pCount)
     Log("startAddr:%p endAddr:%p", startAddr, endAddr);
     ObDereferenceObject(systemProcess);
 
-    INIT_PDB;
+    INIT_NTOS;
     size_t pcb_offset = ntos.GetOffset("_EPROCESS", "Pcb");
     size_t pid_offset = ntos.GetOffset("_EPROCESS", "UniqueProcessId");
     size_t imagename_offset = ntos.GetOffset("_EPROCESS", "ImageFileName");

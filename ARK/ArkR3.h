@@ -66,14 +66,15 @@ public:
     ArkR3();
     ~ArkR3();
 
-    void SendPdbInfo();
-
     // 从ezpdb获取PDB路径并设置给驱动
-    bool SetPdbPathFromEzpdb();
+    bool SendPdbPath2R0();
+
+    bool SendWin32kPath2R0();
     
     bool InitSymbolState();                             //初始化符号信息到成员变量
     ULONG_PTR GetSSDTBaseRVA();
     void GetFileSSDT();
+    bool RestoreShadowSSdt();
     bool RestoreSSdt();
     ULONG_PTR GetModuleBase(const char* moduleName);    //NtApi获取模块基址
     ULONG_PTR GetKernelSymbolVA(const char* symbolName);
@@ -148,6 +149,7 @@ public:
     std::vector<DRIVER_OBJECT_INFO> DriverObjectGetVec();               //获取驱动对象
     std::vector<DRIVER_OBJECT_INFO> DriverObjectVec_;                    //驱动对象缓存
     std::vector<DRIVER_OBJECT_INFO> ArkR3::DriverHideDetect();
+    bool EnumAllSymbols();
     //网络
     void GetTcpStateString(DWORD dwState, char* stateStr, size_t stateSize);
     std::vector<NETWORK_PORT_INFO> NetworkPortGetVec();                 // 获取网络端口相关信息

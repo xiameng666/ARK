@@ -109,7 +109,8 @@ typedef struct _RESTORE_TABLE_REQ {
 } RESTORE_TABLE_REQ, * PRESTORE_TABLE_REQ;
 
 typedef struct PDB_PATH_REQUEST {
-    wchar_t DownloadPath[MAX_PATH];    // PDB下载路径
+    wchar_t NtosPath[MAX_PATH];    // ntoskrnl PDB路径
+    wchar_t Win32kPath[MAX_PATH];  // win32k PDB路径
 } * PPDB_PATH_REQUEST;
 
 typedef struct KERNEL_RW_REQ {

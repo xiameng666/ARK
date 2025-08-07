@@ -27,30 +27,38 @@ ArkR3::~ArkR3()
 }
 
 // 从ezpdb获取PDB路径并发给驱动
-bool ArkR3::SetPdbPathFromEzpdb() {
-    if (!ntos_pdb_) {
-        Log("ezpdb对象未初始化\n");
+bool ArkR3::SendPdbPath2R0() {
+    if (!ntos_pdb_ || !win32k_pdb_) {
+        Log("PDB对象未初始化\n");
         return false;
     }
 
-    // 从ezpdb获取当前PDB路径
-    std::string pdbPathA = ntos_pdb_->get_current_pdb_path();
-    if (pdbPathA.empty()) {
-        Log("无法从ezpdb获取PDB路径\n");
+    std::string ntosPathA = ntos_pdb_->get_current_pdb_path();
+    if (ntosPathA.empty()) {
+        Log("无法从ntoskrnl PDB获取路径\n");
         return false;
     }
 
-
-
-    // 转换为Unicode（路径是全英文）
-    wchar_t pdbPathW[MAX_PATH] = { 0 };
-    size_t len = strlen(pdbPathA.c_str());
-    for (size_t i = 0; i < len && i < MAX_PATH - 1; ++i) {
-        pdbPathW[i] = (wchar_t)pdbPathA[i];
+    // 获取win32k PDB路径
+    std::string win32kPathA = win32k_pdb_->get_current_pdb_path();
+    if (win32kPathA.empty()) {
+        Log("无法从win32k PDB获取路径\n");
+        return false;
     }
 
     PDB_PATH_REQUEST pdbPathReq = { 0 };
-    wcscpy_s(pdbPathReq.DownloadPath, pdbPathW);
+
+    // 转换ntoskrnl路径
+    size_t ntosLen = strlen(ntosPathA.c_str());
+    for (size_t i = 0; i < ntosLen && i < MAX_PATH - 1; ++i) {
+        pdbPathReq.NtosPath[i] = (wchar_t)ntosPathA[i];
+    }
+
+    // 转换win32k路径
+    size_t win32kLen = strlen(win32kPathA.c_str());
+    for (size_t i = 0; i < win32kLen && i < MAX_PATH - 1; ++i) {
+        pdbPathReq.Win32kPath[i] = (wchar_t)win32kPathA[i];
+    }
 
     DWORD bytesReturned = 0;
     BOOL result = DeviceIoControl(
@@ -64,16 +72,16 @@ bool ArkR3::SetPdbPathFromEzpdb() {
         NULL
     );
 
+    //SendVA()
+    //EnumAllSymbols();
     if (result) {
-        Log("SetPdbPathFromEzpdb: %s\n", pdbPathA.c_str());
+        Log("SendPdbPaths2R0 - Ntos: %s, Win32k: %s\n", ntosPathA.c_str(), win32kPathA.c_str());
         return true;
     }
     else {
-        Log("SetPdbPathFromEzpdb err\n");
+        Log("SendPdbPaths2R0 err\n");
         return false;
     }
-
-
 }
 
 bool ArkR3::InitSymbolState()
@@ -168,6 +176,33 @@ void ArkR3::GetFileSSDT() {
     Log("  ParamTableBase: %p\n", pFileSSDT->ParamTableBase);
 }
 */
+
+bool ArkR3::RestoreShadowSSdt()
+{
+    DWORD bytesReturned = 0;
+
+    // 调用驱动执行SSDT恢复
+    BOOL result = DeviceIoControl(
+        m_hDriver,
+        CTL_RESTORE_SHADOW_SSDT,
+        nullptr,
+        0,
+        nullptr,
+        0,
+        &bytesReturned,
+        nullptr
+    );
+
+    if (result) {
+        Log("SHADOW_SSDT恢复成功\n");
+        return true;
+    }
+    else {
+        LogErr("SHADOW_SSDT恢复失败\n");
+        return false;
+    }
+}
+
 bool ArkR3::RestoreSSdt()
 {
     DWORD bytesReturned = 0;
@@ -944,14 +979,6 @@ std::vector<ShadowSSDT_INFO> ArkR3::ShadowSSDTGetVec() {
     return ShadowSSDTVec_;
 }
 
-
-void ArkR3::SendPdbInfo() {
-    if (!ntos_pdb_) return;
-//SendVA(GetKernelSymbolVA("ZwCreateThread"));
-//SendVA(GetKernelSymbolVA("PsActiveProcessHead"));
-
-}
-
 // 回调相关
 std::vector<CALLBACK_INFO> ArkR3::CallbackGetVec(CALLBACK_TYPE type) {
     CallbackVec_.clear();
@@ -1249,6 +1276,27 @@ std::vector<DRIVER_OBJECT_INFO> ArkR3::DriverHideDetect()
     }
 
     return hideDrivers;
+}
+
+// 使用 SymEnumSymbols 枚举所有符号
+bool ArkR3::EnumAllSymbols() {
+    if (!win32k_pdb_) {
+        return false;
+    }
+
+    pe_ = new PEparser(win32k_path_.c_str());
+    pe_->Parse();
+
+    auto nt_functions = win32k_pdb_->enum_symbols_by_pattern("Nt*");
+    for (const auto& sym : nt_functions) {
+        auto FOA = pe_->RVAToFOA(sym.rva);
+        //读文件FOA 特征服务号 服务号就是下标 然后呢？
+        printf("FOA :0x%X NT Function: %s, RVA: 0x%X\n", FOA,sym.name.c_str(), sym.rva);
+    }
+
+
+
+    return true;
 }
 
 // 处理进程路径的辅助函数

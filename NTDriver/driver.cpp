@@ -154,7 +154,7 @@ NTSTATUS EnumDeviceStackAttach(PDEVICE_STACK_INFO StackBuffer, PULONG StackCount
 }
 
 void EnumDriverObject() {
-    INIT_PDB;
+    INIT_NTOS;
 
     // 清空之前的枚举结果
     RtlZeroMemory(g_DrvObjs, sizeof(g_DrvObjs));
