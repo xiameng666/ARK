@@ -94,6 +94,10 @@ struct Context {
     std::vector<GDT_INFO> gdtUiVec;                   // GDT
     std::vector<SSDT_INFO> ssdtUiVec_;                // SSDT
     std::vector<ShadowSSDT_INFO> shadowSsdtUiVec;     // ShadowSSDT
+    std::vector<DRIVER_OBJECT_INFO> driverObjectUiVec; // 驱动对象
+
+    //模块窗口状态
+    bool showOnlySysFiles_ = false;
 
     // 进程模块窗口状态
     bool showProcessModuleWnd = false;

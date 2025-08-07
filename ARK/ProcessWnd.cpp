@@ -124,7 +124,7 @@ void ProcessWnd::RenderProcessWnd() {
             bool is_selected = (selected_index == row);
 
             char selectableId[32];
-            sprintf_s(selectableId, "##%u", process.ProcessId);  //pid当id
+            sprintf_s(selectableId, "##%p", process.EprocessAddr);  //pid当id
 
             if (ImGui::Selectable(selectableId, is_selected, ImGuiSelectableFlags_SpanAllColumns)) {
                 selected_index = row;
@@ -281,7 +281,7 @@ void ProcessWnd::RenderProcessModuleWnd()
         // 直接调用静态函数
         char tableTitle[64];
         sprintf_s(tableTitle, u8"进程%d模块列表", ctx_->moduleTargetPid);
-        ModuleWnd::RenderModuleTable(ctx_->processModuleUiVec, tableTitle);
+        //ModuleWnd::RenderModuleTable(ctx_->processModuleUiVec, tableTitle);
     }
     
     ImGui::End();

@@ -9,6 +9,7 @@ extern PDRIVER_OBJECT g_DriverObject ;
 NTSTATUS EnumDeviceStackAttach(PDEVICE_STACK_INFO StackBuffer, PULONG StackCount) {
 
     EnumDriverObject();
+
     if (g_DrvObjCount == 0) {
         Log("[XM] CheckDeviceStack: No cached driver objects");
         return STATUS_UNSUCCESSFUL;
@@ -154,6 +155,11 @@ NTSTATUS EnumDeviceStackAttach(PDEVICE_STACK_INFO StackBuffer, PULONG StackCount
 
 void EnumDriverObject() {
     INIT_PDB;
+
+    // 清空之前的枚举结果
+    RtlZeroMemory(g_DrvObjs, sizeof(g_DrvObjs));
+    g_DrvObjCount = 0;
+
     //遍历驱动对象链表
     PUCHAR DriverObjectByte = (PUCHAR)g_DriverObject;
 
@@ -242,6 +248,7 @@ void EnumDriverObject() {
         Log("[XM] Exception in EnumDriverObject");
     }
 }
+
 
 NTSTATUS EnumDrvMJHooked(PDISPATCH_HOOK_INFO HookBuffer, PULONG HookCount) {
     EnumDriverObject();

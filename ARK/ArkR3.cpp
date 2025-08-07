@@ -120,6 +120,7 @@ bool ArkR3::InitSymbolState()
     return true;
 }
 
+
 ULONG_PTR ArkR3::GetSSDTBaseRVA() {
     ULONG_PTR ssdtRVA = 0;
     ULONG bytesReturned = 0;
@@ -319,7 +320,6 @@ void ArkR3::MemClearBuffer()
     }
     memDataSize_ = 0;
 }
-
 
 PSEGDESC ArkR3::GDTGetSingle(UINT cpuIndex, PGDTR pGdtr,DWORD* pRetBytes)
 {
@@ -1181,6 +1181,74 @@ std::vector<DEVICE_STACK_INFO> ArkR3::DeviceStackGetVec() {
 
     free(buffer);
     return DeviceStackVec_;
+}
+
+std::vector<DRIVER_OBJECT_INFO> ArkR3::DriverObjectGetVec()
+{
+    DriverObjectVec_.clear();
+
+    DWORD bufferSize = 500 * sizeof(DRIVER_OBJECT_INFO);
+    PDRIVER_OBJECT_INFO buffer = (PDRIVER_OBJECT_INFO)malloc(bufferSize);
+
+    if (!buffer) {
+        Log("DeviceStackGetVec: malloc error\n");
+        return DriverObjectVec_;
+    }
+
+    DWORD bytesRet = 0;
+    BOOL result = DeviceIoControl(
+        m_hDriver,
+        CTL_ENUM_DRIVER_OBJECT,
+        NULL,
+        0,
+        buffer,
+        bufferSize,
+        &bytesRet,
+        NULL
+    );
+
+    ULONG count = bytesRet / sizeof(DRIVER_OBJECT_INFO);
+
+    if (result) {
+        for (ULONG i = 0; i < count; i++) {
+            DriverObjectVec_.emplace_back(buffer[i]);
+        }
+        Log("DriverObjectGetVec: 收到 %d 个驱动对象\n", count);
+    }
+    else {
+        LogErr("DriverObjectGetVec: err\n");
+    }
+
+    return DriverObjectVec_;
+}
+
+std::vector<DRIVER_OBJECT_INFO> ArkR3::DriverHideDetect()
+{
+    std::vector<DRIVER_OBJECT_INFO> hideDrivers;
+
+    auto driverObjects = DriverObjectGetVec();
+
+    DWORD moduleCount = ModuleGetCount();
+    auto modules = ModuleGetVec(moduleCount);
+
+    for (const auto& drvObj : driverObjects) {
+        bool foundInModules = false;
+
+        // 在模块列表中查找匹配的基址
+        for (const auto& module : modules) {
+            if (drvObj.DriverStart == module.ImageBase) {
+                foundInModules = true;
+                break;
+            }
+        }
+
+        if (!foundInModules) {
+            hideDrivers.emplace_back(drvObj);  // 发现隐藏驱动
+            Log("发现隐藏驱动: %ws at 0x%p\n", drvObj.DriverName, drvObj.DriverStart);
+        }
+    }
+
+    return hideDrivers;
 }
 
 // 处理进程路径的辅助函数

@@ -35,6 +35,8 @@ typedef struct _LOG_BUFFER {
     PROCESS_EVENT Logs[1000];      // 日志数组
 } LOG_BUFFER, *PLOG_BUFFER;
 
+
+
 enum WindowsVersion
 {
     WinXP,
@@ -77,9 +79,8 @@ enum WindowsVersion
 
 #define CTL_ENUM_CALLBACK           MY_CTL_CODE(81)     // 枚举回调信息
 #define CTL_DELETE_CALLBACK         MY_CTL_CODE(82)     // 删除回调
-
-#define CTL_ENUM_DRIVER_COUNT       MY_CTL_CODE(90)     // 枚举驱动 返回数量  
-#define CTL_ENUM_DRIVER             MY_CTL_CODE(91)     // 枚举驱动 返回数据
+ 
+#define CTL_ENUM_DRIVER_OBJECT      MY_CTL_CODE(91)     // 枚举驱动对象 返回数据
 
 #define CTL_ENUM_DISPATCH_HOOK      MY_CTL_CODE(92)     // 枚举派遣函数Hook
 #define CTL_ENUM_DEVICE_STACK       MY_CTL_CODE(93)     // 枚举设备栈分析
@@ -363,5 +364,7 @@ typedef struct NETWORK_PORT_INFO {
 typedef struct FILE_REQ {
     WCHAR FilePath[MAX_PATH];           // 文件路径  解锁/粉碎                     
 } *PFILE_REQ;
+
+
 
 

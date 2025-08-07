@@ -14,6 +14,7 @@
 #include <tchar.h>
 #include "App.h"
 
+
 // Data
 static LPDIRECT3D9              g_pD3D = nullptr;
 static LPDIRECT3DDEVICE9        g_pd3dDevice = nullptr;

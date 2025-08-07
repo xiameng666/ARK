@@ -15,10 +15,18 @@
 #include <PathCch.h>
 #include <set>
 #include"pestruct.h"
+#define ARKR3
 
 #ifdef _WIN64
 extern "C" void _sgdt(void*);
 #endif
+
+typedef struct DRIVER_OBJECT_INFO {
+    PVOID DriverObject;
+    WCHAR DriverName[128];
+    PVOID DriverStart;
+    ULONG DriverSize;
+} *PDRIVER_OBJECT_INFO;
 
 typedef struct GDT_INFO {
     UINT    cpuIndex;       // CPU序号
@@ -91,6 +99,7 @@ public:
     //附加写
     BOOL MemEnsureBufferSize(DWORD requiredSize);                          //确保缓冲区大小
     void MemClearBuffer();                                                 //清空内存读写的缓冲区
+
     PVOID GetBufferData() const { return memBuffer_; }
     DWORD GetDataSize() const { return memDataSize_; }
     DWORD GetBufferSize() const { return memBufferSize_; }
@@ -135,6 +144,10 @@ public:
     std::vector<DEVICE_STACK_INFO> DeviceStackGetVec();                 // 获取设备栈分析信息
     std::vector<DEVICE_STACK_INFO> DeviceStackVec_;                     // 设备栈分析结果缓存
 
+    // 驱动对象
+    std::vector<DRIVER_OBJECT_INFO> DriverObjectGetVec();               //获取驱动对象
+    std::vector<DRIVER_OBJECT_INFO> DriverObjectVec_;                    //驱动对象缓存
+    std::vector<DRIVER_OBJECT_INFO> ArkR3::DriverHideDetect();
     //网络
     void GetTcpStateString(DWORD dwState, char* stateStr, size_t stateSize);
     std::vector<NETWORK_PORT_INFO> NetworkPortGetVec();                 // 获取网络端口相关信息

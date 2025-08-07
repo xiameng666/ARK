@@ -378,7 +378,7 @@ void KernelWnd::RenderShadowSSDTTable()
 void KernelWnd::RenderLeftBar()
 {
     ImGui::TableSetColumnIndex(0);
-    ImGui::Text(u8"内核模块");
+    ImGui::Text(u8" ");
     ImGui::Separator();
     
     NAV_SECTION(u8"内存管理",

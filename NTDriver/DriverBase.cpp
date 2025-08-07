@@ -1,5 +1,8 @@
 ﻿#include "DriverBase.h"
 
+#define MAX_OBJECT_STORE 500                     // 最多存储500个驱动对象
+extern DRIVER_OBJECT_INFO g_DrvObjs[MAX_OBJECT_STORE];
+extern ULONG g_DrvObjCount;                         // 枚举得到的驱动数量
 
 extern "C" void _sgdt(void*);
 BOOLEAN g_LogOn = TRUE;
@@ -108,13 +111,27 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
                 Log("[XM] CTL_SET_PDB_PATH: %ws", g_PdbDownloadPath);
                 //KdBreakPoint();
                 InitProcessPdb();
-                
                 //ForTest();
 
             }
             __except (EXCEPTION_EXECUTE_HANDLER) {
                 status = STATUS_UNSUCCESSFUL;
                 Log("[XM] CTL_SET_PDB_PATH exception");
+            }
+            break;
+        }
+
+        case CTL_ENUM_DRIVER_OBJECT: {
+            __try {
+                EnumDriverObject();  // 刷新g_DrvObjs[]数据                  
+                ULONG copySize = g_DrvObjCount * sizeof(DRIVER_OBJECT_INFO);
+                RtlCopyMemory(Irp->AssociatedIrp.SystemBuffer, g_DrvObjs, copySize);
+                info = copySize;
+                status = STATUS_SUCCESS;
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER) {
+                status = STATUS_UNSUCCESSFUL;
+                Log("[XM] CTL_ENUM_DRIVER_OBJECT exception");
             }
             break;
         }

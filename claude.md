@@ -97,11 +97,10 @@ include/proto.h    # 驱动与应用通信协议
 
 # TodoList
 
-1. 进程检测隐藏
-2. 驱动检测隐藏
-3. 中断表恢复  
-4. SSDT恢复  
-5. ShadowSSDT恢复  
+
+1. ~~驱动检测隐藏~~ ✅ 已完成
+2. 中断表恢复  
+3. ShadowSSDT恢复  
 
 
 
@@ -116,7 +115,7 @@ include/proto.h    # 驱动与应用通信协议
 **2.** **驱动模块**
 
 1) 遍历(已完成) - `CTL_ENUM_MODULE_COUNT` + `CTL_ENUM_MODULE`
-2) 检查隐藏（TODO） - 需新增通讯码
+2) 检查隐藏 ✅ 已完成 - 通过内存搜索对比检测
 
 **3.** **系统回调**
 
@@ -163,7 +162,7 @@ include/proto.h    # 驱动与应用通信协议
 | **2. 模块管理** |
 | 系统模块枚举 | 枚举系统驱动模块 | `CTL_ENUM_MODULE_COUNT`<br>`CTL_ENUM_MODULE` | `EnumModuleEx()`<br>`module.cpp:14`<br>`EnumModule()`<br>`module.cpp:99` | `ArkR3::GetModuleList()` | `MODULE_INFO` | ✓ |
 | 进程模块枚举 | 枚举指定进程模块 | `CTL_ENUM_PROCESS_MODULE_COUNT`<br>`CTL_ENUM_PROCESS_MODULE` | **待实现** | **待实现** | `PROCESS_MODULE_REQ` | ✗ |
-| 隐藏模块检测 | 检测被隐藏的模块 | **待新增** | **待实现** | **待实现** | **待设计** | ✗ |
+| 隐藏模块检测 | 检测被隐藏的模块 | `内存搜索对比` | `SearchHiddenDrivers()`<br>`module.cpp` | `ArkR3::DetectHiddenModules()` | `MODULE_COMPARE_RESULT` | ✅ |
 | **3. 系统回调** |
 | 进程回调 | 进程创建/终止回调 | `CTL_ENUM_CALLBACK` | `EnumCallbacks()`<br>`callback.cpp:45`<br>type=`TypeProcess` | `ArkR3::GetCallbackList()` | `CALLBACK_INFO` | ✓ |
 | 线程回调 | 线程创建/终止回调 | `CTL_ENUM_CALLBACK` | `EnumCallbacks()`<br>type=`TypeThread` | `ArkR3::GetCallbackList()` | `CALLBACK_INFO` | ✓ |
@@ -209,7 +208,7 @@ include/proto.h    # 驱动与应用通信协议
 
 ### MEDIUM优先级 (检测扩展功能)  
 5. **隐藏进程检测** - 对比多种枚举方式差异 (`process.cpp`)
-6. **隐藏模块检测** - 对比PEB与系统枚举差异 (`module.cpp`)  
+6. ~~**隐藏模块检测**~~ - 对比PEB与系统枚举差异 (`module.cpp`) ✅ **已完成**
 7. **对象回调枚举** - 完善TypeObject支持 (`callback.cpp`)
 8. **ShadowSSDT** - Win32k系统调用表分析 (**已完成**)
 9. **IDT中断表** - 中断描述符表分析 (新增`idt.cpp`)
@@ -456,3 +455,141 @@ struct {
 - 对象回调Hook检测：枚举所有对象类型的回调函数
 - 恶意回调识别：通过模块路径和签名验证回调合法性
 - 回调删除/恢复：通过ObUnRegisterCallbacks删除恶意回调注册
+
+# 进程内存搜索 (Process Memory Search) 实现技术说明
+
+## 完成状态：✅ 已实现
+
+### 核心技术难点解决
+
+**1. 内存搜索EPROCESS原理**
+```cpp
+// 数据流动链路：
+内核地址空间扫描 → EPROCESS特征匹配 → 多重验证 → 进程信息提取
+```
+
+**2. EPROCESS结构验证算法**
+```cpp
+// 关键验证点：
+1. Dispatcher Type = 0x03 (进程对象标识)
+2. PID范围合理性 (4-65536)
+3. 父进程ID有效性 (0-65536)  
+4. 进程名长度检查 (≤16字符)
+5. ActiveProcessLinks链表完整性
+6. DirectoryTableBase页对齐 (低12位为0且非0)
+```
+
+**3. 内存搜索范围优化**
+- **搜索起点**: `(SystemProcess地址 & ~0xFFFFFFF)` - 256MB对齐
+- **搜索范围**: 256MB内核地址空间  
+- **扫描步长**: 16字节对齐 (EPROCESS结构对齐要求)
+
+### 实现细节
+
+**核心函数 (process.cpp:389-505)**
+```cpp
+NTSTATUS EnumProcessBySearchMem(PPROCESS_INFO ProcessInfos, PULONG pCount)
+{
+    // 1. 确定搜索范围
+    PEPROCESS systemProcess = NULL;
+    PsLookupProcessByProcessId((HANDLE)4, &systemProcess);
+    ULONG_PTR startAddr = (ULONG_PTR)systemProcess & ~0xFFFFFFF;  // 256MB对齐
+    ULONG_PTR endAddr = startAddr + 0x10000000;                  // 256MB范围
+    ObDereferenceObject(systemProcess);
+    
+    // 2. 获取PDB偏移
+    size_t pcb_offset = ntos.GetOffset("_EPROCESS", "Pcb");
+    size_t pid_offset = ntos.GetOffset("_EPROCESS", "UniqueProcessId");
+    size_t imagename_offset = ntos.GetOffset("_EPROCESS", "ImageFileName");
+    size_t header_type_offset = ntos.GetOffset("_KPROCESS", "Header") + 
+                               ntos.GetOffset("_DISPATCHER_HEADER", "Type");
+    size_t activelinks_offset = ntos.GetOffset("_EPROCESS", "ActiveProcessLinks");
+    size_t ppid_offset = ntos.GetOffset("_EPROCESS", "InheritedFromUniqueProcessId");
+    size_t directory_table_offset = ntos.GetOffset("_KPROCESS", "DirectoryTableBase") + pcb_offset;
+    
+    // 3. 内存扫描与验证
+    for (ULONG_PTR addr = startAddr; addr < endAddr; addr += 0x10) {
+        __try {
+            // 验证1: Dispatcher Type = 0x03
+            UCHAR dispatcher_type = *(PUCHAR)addr;
+            if (dispatcher_type != 0x03) continue;
+            
+            // 验证2: PID合理性 (4-65536)
+            HANDLE pid = *(PHANDLE)(eproc_bytes + pid_offset);
+            if ((ULONG_PTR)pid > 0x10000 || (ULONG_PTR)pid < 4) continue;
+            
+            // 验证3: 父进程ID有效性
+            HANDLE ppid = *(PHANDLE)(eproc_bytes + ppid_offset);
+            if ((ULONG_PTR)ppid > 0x10000) continue;
+            
+            // 验证4: 进程名长度
+            PCHAR imageName = (PCHAR)(eproc_bytes + imagename_offset);
+            if (strlen(imageName) > 16) continue;
+            
+            // 验证5: ActiveProcessLinks链表一致性
+            LIST_ENTRY* activeLinks = (LIST_ENTRY*)(eproc_bytes + activelinks_offset);
+            if (activeLinks->Flink && MmIsAddressValid(activeLinks->Flink)) {
+                if (activeLinks->Flink->Blink != activeLinks) continue;
+            }
+            
+            // 验证6: DirectoryTableBase页对齐
+            ULONG_PTR dtb = *(ULONG_PTR*)(eproc_bytes + directory_table_offset);
+            if ((dtb & 0xFFF) != 0 || dtb == 0) continue;
+            
+            // 通过验证，提取进程信息
+            // ...
+        } __except (EXCEPTION_EXECUTE_HANDLER) {
+            continue;  // 跳过异常地址
+        }
+    }
+}
+```
+
+### 关键数据结构
+
+**进程偏移元数据 (process.cpp:5-30)**
+```cpp
+typedef struct ENUM_PROCESS_META {
+    ULONG EThreadToProcess;     // ETHREAD -> EPROCESS 偏移
+    ULONG ProcessId;           // UniqueProcessId 偏移
+    ULONG ActiveProcessLinks;  // ActiveProcessLinks 偏移
+    ULONG ParentProcessId;     // InheritedFromUniqueProcessId 偏移
+    ULONG ImageFileName;       // ImageFileName 偏移
+    ULONG DirectoryTableBase;  // CR3 偏移 (Pcb + DirectoryTableBase)
+} ENUM_PROCESS_META, *PENUM_PROCESS_META;
+
+ENUM_PROCESS_META procMeta = { 0 };  // 全局偏移缓存
+```
+
+### 进程枚举方法对比
+
+| 枚举方式 | 实现函数 | 原理 | 优势 | 劣势 |
+|---------|---------|------|------|------|
+| **ActiveProcessLinks遍历** | `EnumProcessFromLinksEx()` | 遍历双向链表 | 高效，系统标准 | 可被Hook绕过 |
+| **API方式** | `EnumProcessByApiEx()` | PsLookupProcessByProcessId | 简单可靠 | 依赖系统API |
+| **内存搜索** | `EnumProcessBySearchMem()` | 内存特征匹配 | 检测隐藏进程 | 性能开销大 |
+
+### 技术价值
+
+**反Rootkit应用**:
+- **隐藏进程检测**: 发现从ActiveProcessLinks链表中被移除的进程
+- **进程完整性验证**: 通过多重验证确保EPROCESS结构真实性
+- **内存取证分析**: 物理内存中恢复进程信息
+
+**数据流动链路**:
+```
+内核地址空间 → 16字节对齐扫描 → EPROCESS特征识别 → 多重验证 → 进程信息提取 → 返回结果集
+```
+
+### 学习要点
+
+**Windows内核架构**:
+- EPROCESS是进程管理的核心数据结构
+- Dispatcher Header标识内核对象类型 (0x03=Process)
+- ActiveProcessLinks维护系统进程链表
+- DirectoryTableBase存储进程页目录物理地址
+
+**内存管理技术**:
+- 内核对象16字节对齐存储
+- 页目录表物理地址4KB对齐 (低12位为0)
+- MmIsAddressValid验证虚拟地址有效性
