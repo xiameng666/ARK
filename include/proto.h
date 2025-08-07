@@ -93,6 +93,7 @@ enum WindowsVersion
 #define CTL_RESTORE_SSDT            MY_CTL_CODE(120)     // 恢复SSDT
 #define CTL_RESTORE_SHADOW_SSDT     MY_CTL_CODE(121)     // 恢复ShadowSSDT
 #define CTL_RESTORE_IDT             MY_CTL_CODE(122)     // 恢复IDT
+#define CTL_SEND_SSDTBASE             MY_CTL_CODE(150)  
 
 #define TypeSSDT = 0
 #define TypeShadowSSDT = 1

@@ -75,5 +75,8 @@
     <ClInclude Include="file.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="pe.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

@@ -1,5 +1,6 @@
 ﻿#include "ssdt.h"
 #include <ntimage.h>
+#include "pe.h"
 
 // Win7 SSDT 函数名数组
 const char* WIN7_SSDT_FUNCTIONS[] = {
@@ -4241,7 +4242,31 @@ ULONG_PTR SSDT_GetPfnAddr(ULONG dwIndex, PULONG lpBase)//https://bbs.kanxue.com/
     return lpAddr;
 }
 
-NTSTATUS EnumSSDTFormMem(PSSDT_INFO SsdtBuffer, PULONG SsdtCount)//X64的SSDT是rva
+//VA转成SSDT表项的值
+ULONG SSDT_EncodePfnAddr(ULONG_PTR FunctionAddress, PULONG SsdtBase)
+{
+    // 计算函数地址相对于SSDT基址的偏移                                          
+    LONG_PTR offset = (LONG_PTR)FunctionAddress - (LONG_PTR)SsdtBase;
+
+    // SSDT编码格式：(offset << 4) | sign_bit                                    
+    // 如果偏移为负数，需要设置符号位                                            
+    ULONG encodedValue;
+    if (offset < 0) {
+        // 负偏移：左移4位并设置最高位为1                                        
+        encodedValue = ((ULONG)(-offset) << 4) | 0x80000000;
+    }
+    else {
+        // 正偏移：直接左移4位                                                   
+        encodedValue = (ULONG)(offset << 4);
+    }
+
+    Log("[XM] SSDT编码: FuncAddr=%p, SsdtBase=%p, Offset=0x%x, Encoded=0x%08X",
+        FunctionAddress, SsdtBase, offset, encodedValue);
+
+    return encodedValue;
+}
+
+NTSTATUS EnumSSDTFromMem(PSSDT_INFO SsdtBuffer, PULONG SsdtCount)//X64的SSDT是rva
 {
     INIT_PDB;
     PSYSTEM_SERVICE_DESCRIPTOR_TABLE KeServiceDescriptorTable = (PSYSTEM_SERVICE_DESCRIPTOR_TABLE)ntos.GetPointer("KeServiceDescriptorTable");
@@ -4312,7 +4337,6 @@ NTSTATUS EnumShadowSSDT(PSSDT_INFO SsdtBuffer, PULONG SsdtCount)
     for (ULONG i = 0; i < nums; i++) {
         SsdtBuffer[i].Index = i + 0x1000;  // ShadowSSDT的调用号从0x1000开始
 
-        // ShadowSSDT存储的是相对于win32k.sys的RVA，不需要解码
         ULONG_PTR pfnAddr = SSDT_GetPfnAddr(i, shadowSsdt);
         SsdtBuffer[i].FunctionAddress = (PVOID)pfnAddr;
 
@@ -4322,68 +4346,13 @@ NTSTATUS EnumShadowSSDT(PSSDT_INFO SsdtBuffer, PULONG SsdtCount)
     return STATUS_SUCCESS;
 }
 
-ULONG_PTR RVA2FOA(PVOID fileBuffer, ULONG rva) {
-    // 1. 获取PE头
-    PIMAGE_DOS_HEADER dosHeader = (PIMAGE_DOS_HEADER)fileBuffer;
-    if (dosHeader->e_magic != IMAGE_DOS_SIGNATURE) {
-        Log("[XM] 无效的DOS头");
-        return 0;
-    }
-
-    PIMAGE_NT_HEADERS64 ntHeaders =
-        (PIMAGE_NT_HEADERS64)((ULONG_PTR)fileBuffer + dosHeader->e_lfanew);
-    if (ntHeaders->Signature != IMAGE_NT_SIGNATURE) {
-        Log("[XM] 无效的PE头");
-        return 0;
-    }
-
-    // 2. 获取节表
-    PIMAGE_SECTION_HEADER sections =
-        (PIMAGE_SECTION_HEADER)((ULONG_PTR)ntHeaders + sizeof(IMAGE_NT_HEADERS64));
-
-    // 3. 遍历所有节
-    for (USHORT i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++) {
-        PIMAGE_SECTION_HEADER section = &sections[i];
-
-        Log("[XM] 检查节[%d]: %s, VA=0x%x, VSize=0x%x, FOA=0x%x, FSize=0x%x",
-            i, section->Name, section->VirtualAddress, section->Misc.VirtualSize,
-            section->PointerToRawData, section->SizeOfRawData);
-
-        // 4. 检查RVA是否在当前节范围内
-        ULONG sectionStart = section->VirtualAddress;
-        ULONG sectionEnd = section->VirtualAddress + section->Misc.VirtualSize;
-
-        if (rva >= sectionStart && rva < sectionEnd) {
-            // 5. 计算节内偏移
-            ULONG offsetInSection = rva - sectionStart;
-
-            // 6. 检查偏移是否超出文件中节的大小
-            if (offsetInSection >= section->SizeOfRawData) {
-                Log("[XM] RVA 0x%x 超出节 %s 的文件大小", rva, section->Name);
-                return 0;
-            }
-
-            // 7. 计算文件偏移
-            ULONG fileOffset = section->PointerToRawData + offsetInSection;
-
-            Log("[XM] RVA转换成功: 0x%x -> 节%s -> FOA=0x%x",
-                rva, section->Name, fileOffset);
-
-            return fileOffset;
-        }
-    }
-
-    Log("[XM] RVA 0x%x 不在任何节范围内", rva);
-    return 0;
-}
-
-
-NTSTATUS EnumSSDTFromFile(PSSDT_INFO SsdtBuffer, PULONG SsdtCount) {
-    *SsdtCount = 0;
+NTSTATUS RecoverSSDT() {
     NTSTATUS status;
     HANDLE ntdllHandle = NULL;
     PVOID fileBuffer = NULL;
     ULONG fileSize = 0;
+
+    INIT_PDB;
 
     do {
         // 打开ntdll.dll
@@ -4437,60 +4406,40 @@ NTSTATUS EnumSSDTFromFile(PSSDT_INFO SsdtBuffer, PULONG SsdtCount) {
 
         // 解析PE结构
         PIMAGE_DOS_HEADER dosHeader = (PIMAGE_DOS_HEADER)fileBuffer;
-        if (dosHeader->e_magic != IMAGE_DOS_SIGNATURE) {
-            Log("[XM] 无效的DOS头");
-            status = STATUS_INVALID_IMAGE_FORMAT;
-            break;
-        }
-
         PIMAGE_NT_HEADERS ntHeaders = (PIMAGE_NT_HEADERS)((ULONG_PTR)fileBuffer + dosHeader->e_lfanew);
-        if (ntHeaders->Signature != IMAGE_NT_SIGNATURE) {
-            Log("[XM] 无效的NT头");
-            status = STATUS_INVALID_IMAGE_FORMAT;
-            break;
-        }
-
-        // 检查是否有导出表
-        if (ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress == 0) {
-            Log("[XM] 没有导出表");
-            status = STATUS_NOT_FOUND;
-            break;
-        }
-
-        // 获取节表
         PIMAGE_SECTION_HEADER sectionHeaders = (PIMAGE_SECTION_HEADER)((ULONG_PTR)ntHeaders +
             sizeof(IMAGE_NT_HEADERS));
 
         // 定位导出表
         ULONG exportRva = ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress;
-        ULONG_PTR exportFileOffset = 0;
+        ULONG_PTR exportFOA = 0;
 
         // RVA转文件偏移
         for (UINT16 i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++) {
             PIMAGE_SECTION_HEADER section = &sectionHeaders[i];
             if (exportRva >= section->VirtualAddress &&
                 exportRva < section->VirtualAddress + section->SizeOfRawData) {
-                exportFileOffset = exportRva - section->VirtualAddress + section->PointerToRawData;
+                exportFOA = exportRva - section->VirtualAddress + section->PointerToRawData;
                 break;
             }
         }
 
-        if (!exportFileOffset) {
+        if (!exportFOA) {
             Log("[XM] 导出表RVA转换失败");
             status = STATUS_INVALID_IMAGE_FORMAT;
             break;
         }
 
-        PIMAGE_EXPORT_DIRECTORY exportDir = (PIMAGE_EXPORT_DIRECTORY)((ULONG_PTR)fileBuffer + exportFileOffset);
+        PIMAGE_EXPORT_DIRECTORY exportDir = (PIMAGE_EXPORT_DIRECTORY)((ULONG_PTR)fileBuffer + exportFOA);
 
-        ULONG_PTR funcAddrOffset = 0, funcNameOffset = 0, ordinalOffset = 0;
+        ULONG_PTR funcAddrFOA = 0, funcNameFOA = 0, ordinalFOA = 0;
 
         // AddressOfFunctions RVA转文件偏移
         for (UINT16 i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++) {
             PIMAGE_SECTION_HEADER section = &sectionHeaders[i];
             if (exportDir->AddressOfFunctions >= section->VirtualAddress &&
                 exportDir->AddressOfFunctions < section->VirtualAddress + section->SizeOfRawData) {
-                funcAddrOffset = exportDir->AddressOfFunctions - section->VirtualAddress + section->PointerToRawData;
+                funcAddrFOA = exportDir->AddressOfFunctions - section->VirtualAddress + section->PointerToRawData;
                 break;
             }
         }
@@ -4500,7 +4449,7 @@ NTSTATUS EnumSSDTFromFile(PSSDT_INFO SsdtBuffer, PULONG SsdtCount) {
             PIMAGE_SECTION_HEADER section = &sectionHeaders[i];
             if (exportDir->AddressOfNames >= section->VirtualAddress &&
                 exportDir->AddressOfNames < section->VirtualAddress + section->SizeOfRawData) {
-                funcNameOffset = exportDir->AddressOfNames - section->VirtualAddress + section->PointerToRawData;
+                funcNameFOA = exportDir->AddressOfNames - section->VirtualAddress + section->PointerToRawData;
                 break;
             }
         }
@@ -4510,21 +4459,21 @@ NTSTATUS EnumSSDTFromFile(PSSDT_INFO SsdtBuffer, PULONG SsdtCount) {
             PIMAGE_SECTION_HEADER section = &sectionHeaders[i];
             if (exportDir->AddressOfNameOrdinals >= section->VirtualAddress &&
                 exportDir->AddressOfNameOrdinals < section->VirtualAddress + section->SizeOfRawData) {
-                ordinalOffset = exportDir->AddressOfNameOrdinals - section->VirtualAddress +
+                ordinalFOA = exportDir->AddressOfNameOrdinals - section->VirtualAddress +
                     section->PointerToRawData;
                 break;
             }
         }
 
-        if (!funcAddrOffset || !funcNameOffset || !ordinalOffset) {
+        if (!funcAddrFOA || !funcNameFOA || !ordinalFOA) {
             Log("[XM] 导出表数组RVA转换失败");
             status = STATUS_INVALID_IMAGE_FORMAT;
             break;
         }
 
-        PULONG addressOfFunctions = (PULONG)((ULONG_PTR)fileBuffer + funcAddrOffset);
-        PULONG addressOfNames = (PULONG)((ULONG_PTR)fileBuffer + funcNameOffset);
-        PUSHORT addressOfNameOrdinals = (PUSHORT)((ULONG_PTR)fileBuffer + ordinalOffset);
+        PULONG addressOfFunctions = (PULONG)((ULONG_PTR)fileBuffer + funcAddrFOA);
+        PULONG addressOfNames = (PULONG)((ULONG_PTR)fileBuffer + funcNameFOA);
+        PUSHORT addressOfNameOrdinals = (PUSHORT)((ULONG_PTR)fileBuffer + ordinalFOA);
 
         // 遍历导出函数，查找Zw*函数
         ULONG ssdtIndex = 0;
@@ -4533,21 +4482,21 @@ NTSTATUS EnumSSDTFromFile(PSSDT_INFO SsdtBuffer, PULONG SsdtCount) {
         for (ULONG i = 0; i < exportDir->NumberOfNames ; i++) {
             // 获取函数名
             ULONG nameRva = addressOfNames[i];
-            ULONG_PTR nameFileOffset = 0;
+            ULONG_PTR nameFOA = 0;
 
             // 函数名RVA转文件偏移
             for (UINT16 j = 0; j < ntHeaders->FileHeader.NumberOfSections; j++) {
                 PIMAGE_SECTION_HEADER section = &sectionHeaders[j];
                 if (nameRva >= section->VirtualAddress &&
                     nameRva < section->VirtualAddress + section->SizeOfRawData) {
-                    nameFileOffset = nameRva - section->VirtualAddress + section->PointerToRawData;
+                    nameFOA = nameRva - section->VirtualAddress + section->PointerToRawData;
                     break;
                 }
             }
 
-            if (!nameFileOffset) continue;
+            if (!nameFOA) continue;
 
-            PCHAR functionName = (PCHAR)((ULONG_PTR)fileBuffer + nameFileOffset);
+            PCHAR functionName = (PCHAR)((ULONG_PTR)fileBuffer + nameFOA);
 
             // 只处理Zw开头的函数
             if (functionName[0] != 'Z' || functionName[1] != 'w') {
@@ -4557,21 +4506,21 @@ NTSTATUS EnumSSDTFromFile(PSSDT_INFO SsdtBuffer, PULONG SsdtCount) {
             // 获取函数地址
             USHORT ordinal = addressOfNameOrdinals[i];
             ULONG funcRva = addressOfFunctions[ordinal];
-            ULONG_PTR funcFileOffset = 0;
+            ULONG_PTR funcFOA = 0;
 
             // 函数地址RVA转文件偏移
             for (UINT16 j = 0; j < ntHeaders->FileHeader.NumberOfSections; j++) {
                 PIMAGE_SECTION_HEADER section = &sectionHeaders[j];
                 if (funcRva >= section->VirtualAddress &&
                     funcRva < section->VirtualAddress + section->SizeOfRawData) {
-                    funcFileOffset = funcRva - section->VirtualAddress + section->PointerToRawData;
+                    funcFOA = funcRva - section->VirtualAddress + section->PointerToRawData;
                     break;
                 }
             }
 
-            if (!funcFileOffset) continue;
+            if (!funcFOA) continue;
 
-            PUCHAR funcBytes = (PUCHAR)((ULONG_PTR)fileBuffer + funcFileOffset);
+            PUCHAR funcBytes = (PUCHAR)((ULONG_PTR)fileBuffer + funcFOA);
 
             // 从函数字节码中提取系统调用号
             /*
@@ -4588,51 +4537,61 @@ NTSTATUS EnumSSDTFromFile(PSSDT_INFO SsdtBuffer, PULONG SsdtCount) {
                 // 提取系统调用号
                 ULONG syscallNumber = *(PULONG)(funcBytes + 4);
 
-                // 填充SSDT_INFO结构
-                PSSDT_INFO info = &SsdtBuffer[ssdtIndex];
-                RtlZeroMemory(info, sizeof(SSDT_INFO));
-
-                info->Index = syscallNumber;
-
                 // 将Zw改为Nt并复制函数名
                 CHAR ntName[64];
                 ntName[0] = 'N';
                 ntName[1] = 't';
                 RtlStringCbCopyA(&ntName[2], sizeof(ntName) - 2, &functionName[2]);
-                RtlStringCbCopyA(info->FunctionName, sizeof(info->FunctionName), ntName);
 
-                //获取SSDT内存中的基址
-                INIT_PDB;
                 PSYSTEM_SERVICE_DESCRIPTOR_TABLE pSSDT =
                     (PSYSTEM_SERVICE_DESCRIPTOR_TABLE)ntos.GetPointer("KeServiceDescriptorTable");
 
-                //将PE中拿到的表项RVA + 基址 ，转为VA
-                if (pSSDT && pSSDT->Base && syscallNumber < pSSDT->NumberOfServices) {
+                //pdb获取函数RVA
+                ULONG_PTR originalRVA = ntos.GetPointerRVA(ntName);
 
-                    //VA写入缓冲区发给R3
-                    info->FunctionAddress = (PVOID)SSDT_GetPfnAddr(syscallNumber, pSSDT->Base);
+                //得到函数VA
+                ULONG_PTR pdb_ssdtItemVA = ntos.GetModuleBase() + originalRVA;
 
-                    Log("[XM] SSDT[%d] %s -> %p",
-                        syscallNumber, info->FunctionName, info->FunctionAddress);
+                // 内存SSDT表项中的函数地址                                    
+                ULONG_PTR mem_ssdtItemVA = SSDT_GetPfnAddr(syscallNumber, pSSDT->Base);
+
+                
+
+                if (pdb_ssdtItemVA != mem_ssdtItemVA) {
+                    Log("不相等 mem_ssdtItemVA:%p pdb_ssdtItemVA:%p", mem_ssdtItemVA, pdb_ssdtItemVA);
+
+                    //拿正确的VA反向得出偏移
+                    ULONG ssdtItem = SSDT_EncodePfnAddr(pdb_ssdtItemVA, pSSDT->Base);
+
+                    //写回SSDT
+                    ULONG_PTR cr0 = __readcr0();
+                    cr0 &= ~0x10000; // 清除WP位
+                    __writecr0(cr0);
+
+                    pSSDT->Base[syscallNumber] = ssdtItem;
+
+                    cr0 = __readcr0();
+                    cr0 |= 0x10000;
+                    __writecr0(cr0);
+                
                 }
                 else {
-                    Log("[XM] SSDT访问失败");
+                    Log("相等  mem_ssdtItemVA:%p pdb_ssdtItemVA:%p", mem_ssdtItemVA, pdb_ssdtItemVA);
                 }
-
-
+                
+                
                 ssdtIndex++;
             }
         }
 
-        *SsdtCount = ssdtIndex;
         status = STATUS_SUCCESS;
 
-        Log("[XM] EnumSSDTFromFile完成，共找到%d个SSDT函数", ssdtIndex);
+        Log("[XM] RecoverSSDT完成，共找到%d个SSDT函数", ssdtIndex);
 
     } while (0);
 
 
-    Log("[XM] EnumSSDTFromFile CLEAN_UP");
+    Log("[XM] RecoverSSDT CLEAN_UP");
 
     if (fileBuffer) {
         ExFreePoolWithTag(fileBuffer, 'SsDt');
@@ -4645,103 +4604,113 @@ NTSTATUS EnumSSDTFromFile(PSSDT_INFO SsdtBuffer, PULONG SsdtCount) {
     return status;
 }
 
-NTSTATUS GetOriginalSSDTFromFilePDB(PSSDT_INFO SsdtBuffer, PULONG SsdtCount) {
+/*
+NTSTATUS GetSSDTFromFile(PSSDT_INFO SsdtBuffer, PULONG SsdtCount) {
+    UNREFERENCED_PARAMETER(SsdtBuffer);
     *SsdtCount = 0;
     NTSTATUS status;
     HANDLE fileHandle = NULL;
     PVOID fileBuffer = NULL;
+    ULONG fileSize = 0;
 
     do {
         // 1. 打开ntoskrnl.exe文件
+        UNICODE_STRING fileName;
+        RtlInitUnicodeString(&fileName, L"\\SystemRoot\\System32\\ntoskrnl.exe");
 
-        // 2. 解析PE头
-        PIMAGE_DOS_HEADER dosHeader = (PIMAGE_DOS_HEADER)fileBuffer;
-        PIMAGE_NT_HEADERS64 ntHeaders = (PIMAGE_NT_HEADERS64)((ULONG_PTR)fileBuffer + dosHeader->e_lfanew);
-        PIMAGE_SECTION_HEADER sections = (PIMAGE_SECTION_HEADER)((ULONG_PTR)ntHeaders + sizeof(IMAGE_NT_HEADERS64));
+        OBJECT_ATTRIBUTES objAttr;
+        InitializeObjectAttributes(&objAttr, &fileName, OBJ_CASE_INSENSITIVE, NULL, NULL);
 
-        // 3. 通过PDB获取KeServiceDescriptorTable的RVA
+        IO_STATUS_BLOCK ioStatus;
+        status = ZwOpenFile(&fileHandle, GENERIC_READ, &objAttr, &ioStatus,
+            FILE_SHARE_READ, FILE_SYNCHRONOUS_IO_NONALERT);
+        if (!NT_SUCCESS(status)) {
+            Log("[XM] 无法打开ntoskrnl.exe文件: 0x%x", status);
+            break;
+        }
+
+        // 获取文件大小
+        FILE_STANDARD_INFORMATION fileInfo;
+        status = ZwQueryInformationFile(fileHandle, &ioStatus, &fileInfo,
+            sizeof(fileInfo), FileStandardInformation);
+        if (!NT_SUCCESS(status)) {
+            Log("[XM] 获取文件大小失败: 0x%x", status);
+            break;
+        }
+        fileSize = (ULONG)fileInfo.EndOfFile.QuadPart;
+
+        // 分配文件缓冲区
+        fileBuffer = ExAllocatePoolWithTag(PagedPool, fileSize,'flbf');
+        if (!fileBuffer) {
+            Log("[XM] 分配文件缓冲区失败");
+            status = STATUS_INSUFFICIENT_RESOURCES;
+            break;
+        }
+
+        // 读取整个文件
+        LARGE_INTEGER byteOffset = { 0 };
+        status = ZwReadFile(fileHandle, NULL, NULL, NULL, &ioStatus,
+            fileBuffer, fileSize, &byteOffset, NULL);
+        if (!NT_SUCCESS(status)) {
+            Log("[XM] 读取文件失败: 0x%x", status);
+            break;
+        }
+
+        // 2. 通过PDB获取KeServiceDescriptorTable的RVA
         INIT_PDB;
-        ULONG_PTR ssdtVA = (ULONG_PTR)ntos.GetPointer("KeServiceDescriptorTable");
-        ULONG_PTR kernelBase = ntos.GetModuleBase();
+        ULONG_PTR ssdtStructRVA = ntos.GetPointerRVA("KeServiceDescriptorTable");
+        ULONG_PTR ntosBase = ntos.GetModuleBase();
+        Log("[XM] KeServiceDescriptorTable RVA: 0x%x  ntosBase:%p", ssdtStructRVA, ntosBase);
 
-        // 计算RVA：VA - KernelBase
-        ULONG ssdtRVA = (ULONG)(ssdtVA - kernelBase);
-        Log("[XM] KeServiceDescriptorTable RVA: 0x%x", ssdtRVA);
-
-        // 4. RVA转FOA
-        ULONG_PTR ssdtFOA = RVA2FOA(ntHeaders, sections, ssdtRVA);
-        if (!ssdtFOA) {
+        // 3. RVA转FOA，获取SSDT结构
+        ULONG_PTR ssdtStructFOA = RVA2FOA(fileBuffer, ssdtStructRVA);
+        if (!ssdtStructFOA) {
             Log("[XM] KeServiceDescriptorTable RVA转FOA失败");
             status = STATUS_UNSUCCESSFUL;
             break;
         }
+        Log("[XM] KeServiceDescriptorTable FOA: 0x%x", ssdtStructFOA);
 
-        Log("[XM] KeServiceDescriptorTable FOA: 0x%x", ssdtFOA);
-
-        // 5. 从文件中读取KeServiceDescriptorTable结构
-        PSYSTEM_SERVICE_DESCRIPTOR_TABLE fileSSDT =
-            (PSYSTEM_SERVICE_DESCRIPTOR_TABLE)((ULONG_PTR)fileBuffer + ssdtFOA);
+        // 4. 读取SSDT结构并验证
+        SYSTEM_SERVICE_DESCRIPTOR_TABLE* pSSDT = (SYSTEM_SERVICE_DESCRIPTOR_TABLE*)((PUCHAR)fileBuffer + ssdtStructFOA);
 
         Log("[XM] 文件中的SSDT结构:");
-        Log("[XM]   Base: %p", fileSSDT->Base);
-        Log("[XM]   NumberOfServices: %d", fileSSDT->NumberOfServices);
-        Log("[XM]   ServiceCounterTable: %p", fileSSDT->ServiceCounterTable);
-        Log("[XM]   ParamTableBase: %p", fileSSDT->ParamTableBase);
+        Log("[XM]   ServiceTableBase: 0x%x", pSSDT->Base);
+        Log("[XM]   NumberOfServices: %d", pSSDT->NumberOfServices);
+        Log("[XM]   ServiceCounterTable: 0x%x", pSSDT->ServiceCounterTable);
+        Log("[XM]   ParamTableBase: 0x%x", pSSDT->ParamTableBase);
 
-        // 6. 计算SSDT数组的文件位置
-        // 注意：fileSSDT->Base是基于文件ImageBase的地址
-        ULONG_PTR fileImageBase = ntHeaders->OptionalHeader.ImageBase;
-        ULONG ssdtArrayRVA = (ULONG)((ULONG_PTR)fileSSDT->Base - fileImageBase);
+        // 验证数据合理性
+        if (pSSDT->NumberOfServices == 0 || pSSDT->NumberOfServices > 1000) {
+            Log("[XM] SSDT服务数量异常: %d", pSSDT->NumberOfServices);
+            status = STATUS_DATA_ERROR;
+            break;
+        }
 
-        ULONG_PTR ssdtArrayFOA = RVA2FOA(ntHeaders, sections, ssdtArrayRVA);
-        if (!ssdtArrayFOA) {
-            Log("[XM] SSDT数组RVA转FOA失败");
+        // 5. 获取服务函数表
+        ULONG_PTR serviceTableRVA = (ULONG_PTR)pSSDT->Base;
+        ULONG_PTR serviceTableFOA = RVA2FOA(fileBuffer, serviceTableRVA);
+        if (!serviceTableFOA) {
+            Log("[XM] ServiceTable RVA转FOA失败");
             status = STATUS_UNSUCCESSFUL;
             break;
         }
 
-        // 7. 读取文件中的原始SSDT数组
-        PULONG originalSSDTArray = (PULONG)((ULONG_PTR)fileBuffer + ssdtArrayFOA);
+        Log("[XM] KiServiceTable RVA: 0x%x, FOA: 0x%x", serviceTableRVA, serviceTableFOA);
+        ULONG* pServiceTable = (ULONG*)((PUCHAR)fileBuffer + serviceTableFOA);
 
-        Log("[XM] SSDT数组文件偏移: 0x%x", ssdtArrayFOA);
-
-        // 8. 处理每个SSDT表项
-        for (ULONG i = 0; i < fileSSDT->NumberOfServices && i < 500; i++) {
-            PSSDT_INFO info = &SsdtBuffer[i];
-            info->Index = i;
-
-            // 从文件读取原始编码值
-            ULONG originalEncoded = originalSSDTArray[i];
-
-            // 解码RVA
-            ULONG originalRVA;
-            if (originalEncoded & 0x80000000) {
-                originalRVA = (originalEncoded >> 4) | 0xF0000000;
-            }
-            else {
-                originalRVA = originalEncoded >> 4;
-            }
-
-            // 重定位到当前内核基址
-            ULONG_PTR originalVA = kernelBase + originalRVA;
-            info->FunctionAddress = (PVOID)originalVA;
-
-            // 对比验证
-            PVOID currentAddr = (PVOID)SSDT_GetPfnAddr(i, KeServiceDescriptorTable->Base);
-            if (currentAddr != info->FunctionAddress) {
-                Log("[XM] SSDT[%d] 不匹配: 当前=%p, 文件=%p",
-                    i, currentAddr, info->FunctionAddress);
-            }
+        // 6. 验证前几个服务表项
+        Log("[XM] 文件中前5个SSDT表项(编码值):");
+        for (ULONG i = 0; i < 5 && i < pSSDT->NumberOfServices; i++) {
+            Log("[XM]   [%d] = 0x%08x", i, pServiceTable[i]);
         }
-
-        *SsdtCount = fileSSDT->NumberOfServices;
-        status = STATUS_SUCCESS;
 
     } while (0);
 
-    // 清理
+    // 清理资源
     if (fileBuffer) ExFreePool(fileBuffer);
     if (fileHandle) ZwClose(fileHandle);
 
     return status;
 }
+*/

@@ -106,7 +106,33 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
             }
             break;
         }
-        
+
+         case CTL_SEND_SSDTBASE:
+        {
+            __try {
+                Log("[XM] CTL_SEND_SSDTBASE: 开始处理");
+
+                INIT_PDB;
+
+                ULONG_PTR kiServiceTableRVA = ntos.GetPointerRVA("KeServiceDescriptorTable");
+                Log("[XM] KiServiceTable RVA查询结果: 0x%x", kiServiceTableRVA);
+
+             
+                // 写入SystemBuffer
+                *(PULONG_PTR)Irp->AssociatedIrp.SystemBuffer = kiServiceTableRVA;
+                info = sizeof(ULONG_PTR);
+                status = STATUS_SUCCESS;
+
+                Log("[XM] 成功返回RVA: 0x%x", kiServiceTableRVA);
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER) {
+                ULONG exceptionCode = GetExceptionCode();
+                status = STATUS_UNSUCCESSFUL;
+                Log("[XM] CTL_SEND_SSDTBASE exception: 0x%x", exceptionCode);
+            }
+            break;
+        }
+
         case CTL_GET_GDT_DATA:
         {
             __try {
@@ -336,11 +362,28 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
             break;
         }
 
+        case CTL_RESTORE_SSDT:
+        {
+            __try {
+                status = RecoverSSDT();
+                if (NT_SUCCESS(status)) {
+                    Log("[XM] CTL_RESTORE_SSDT: SSDT恢复成功");
+                }
+
+                info = 0;                                       
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER) {
+                status = STATUS_UNSUCCESSFUL;
+                Log("[XM] CTL_RESTORE_SSDT exception");
+            }
+            break;
+        }
+
         case CTL_ENUM_SSDT:
         {
             __try {
                 ULONG ssdtCount = 0;
-                status = EnumSSDTFromFile((PSSDT_INFO)Irp->AssociatedIrp.SystemBuffer,&ssdtCount);
+                status = EnumSSDTFromMem((PSSDT_INFO)Irp->AssociatedIrp.SystemBuffer,&ssdtCount);
                 if (NT_SUCCESS(status)) {
                     info = ssdtCount * sizeof(SSDT_INFO);
                     Log("[XM] CTL_ENUM_SSDT: 获取 %d 个SSDT条目", ssdtCount);

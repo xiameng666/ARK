@@ -181,6 +181,7 @@
     <ClInclude Include="mydef.h" />
     <ClInclude Include="network.h" />
     <ClInclude Include="oxygenPdb.h" />
+    <ClInclude Include="pe.h" />
     <ClInclude Include="process.h" />
     <ClInclude Include="ssdt.h" />
   </ItemGroup>

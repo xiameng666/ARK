@@ -64,7 +64,9 @@ public:
     bool SetPdbPathFromEzpdb();
     
     bool InitSymbolState();                             //初始化符号信息到成员变量
+    ULONG_PTR GetSSDTBaseRVA();
     void GetFileSSDT();
+    bool RestoreSSdt();
     ULONG_PTR GetModuleBase(const char* moduleName);    //NtApi获取模块基址
     ULONG_PTR GetKernelSymbolVA(const char* symbolName);
     ULONG GetKernelSymbolOffset(const char* structName, const wchar_t* fieldName);

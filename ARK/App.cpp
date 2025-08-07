@@ -30,8 +30,10 @@ App::App() :
     ctx_.arkR3.InitSymbolState();
     ctx_.arkR3.FastOpen();
     ctx_.arkR3.SetPdbPathFromEzpdb();  // 使用ezpdb的实际PDB路径
+    //ctx_.arkR3.GetFileSSDT();
     //ctx_.arkR3.SendPdbInfo();
     // InitializeCriticalSection(&g_ProcessEventCS);
+
 }
 App::~App()
 {

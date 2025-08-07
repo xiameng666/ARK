@@ -164,6 +164,11 @@ void KernelWnd::RenderSSDTTable()
         ctx_->ssdtUiVec_ = ctx_->arkR3.SSDTGetVec();
     }
 
+    ImGui::SameLine();
+    if (ImGui::Button(u8"»Ö¸´È«²¿")) {
+        ctx_->arkR3.RestoreSSdt();
+    }
+
     if (ImGui::BeginTable("SSDT", 3, 
         ImGuiTableFlags_RowBg | ImGuiTableFlags_NoBordersInBody |
         ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable)) {

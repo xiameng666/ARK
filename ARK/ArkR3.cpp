@@ -117,21 +117,45 @@ bool ArkR3::InitSymbolState()
         Log("Win32k PDB init success\n");
     }
 
-    /* 在R3解析PE 暂时不用
-    pe_ = new PEparser(ntos_path_.c_str());
-    pe_->Parse();
-    GetFileSSDT();
-    */
     return true;
 }
 
+ULONG_PTR ArkR3::GetSSDTBaseRVA() {
+    ULONG_PTR ssdtRVA = 0;
+    ULONG bytesReturned = 0;
+
+    BOOL result = DeviceIoControl(
+        m_hDriver,
+        CTL_SEND_SSDTBASE,
+        NULL, 0,
+        &ssdtRVA, sizeof(ULONG_PTR),
+        &bytesReturned,
+        NULL
+    );
+
+    if (result) {
+        Log("[R3] 成功获取KiServiceTable RVA: 0x%x\n", ssdtRVA);
+        return ssdtRVA;
+    }
+
+    Log("[R3] 获取KiServiceTable RVA失败 - result:%d, bytes:%d",
+        result, bytesReturned);
+    return 0;
+}
+
+
 void ArkR3::GetFileSSDT() {
-    HMODULE hMod = LoadLibrary("ntoskrnl.exe");
-    DWORD dwVA = (DWORD)GetProcAddress(hMod, "KiServiceTable");
-    DWORD dwRVA = dwVA - ntbase_;
-    //DWORD ssdtRVA = ntos_pdb_->get_rva("KeServiceDescriptorTable");
+    pe_ = new PEparser(ntos_path_.c_str());
+    pe_->Parse();
+
+
+    ULONG_PTR dwRVA = GetSSDTBaseRVA();
     DWORD ssdtFOA = pe_->RVAToFOA(dwRVA);
-    Log("ssdtRVA:%p  ssdtFOA %p\n", dwRVA, ssdtFOA);
+
+    HMODULE hMod = LoadLibrary("ntoskrnl.exe");
+    DWORD dwVA = (DWORD)GetProcAddress(hMod, "KeServiceDescriptorTable");
+    DWORD dwR3RVA = dwVA - ntbase_;
+    Log("R0获取的RVA:%p  转化为FOA %p  R3获取的RVA %p\n", dwRVA, ssdtFOA, dwR3RVA);
 
     PVOID fileBase = pe_->m_pFileBase;
     PSYSTEM_SERVICE_DESCRIPTOR_TABLE pFileSSDT =
@@ -144,10 +168,36 @@ void ArkR3::GetFileSSDT() {
     Log("  ParamTableBase: %p\n", pFileSSDT->ParamTableBase);
 }
 
+bool ArkR3::RestoreSSdt()
+{
+    DWORD bytesReturned = 0;
+
+    // 调用驱动执行SSDT恢复
+    BOOL result = DeviceIoControl(
+        m_hDriver,
+        CTL_RESTORE_SSDT,
+        nullptr,               
+        0,                     
+        nullptr,               
+        0,                     
+        &bytesReturned,
+        nullptr
+    );
+
+    if (result) {
+        printf("SSDT恢复成功\n");
+        return true;
+    }
+    else {
+        printf("SSDT恢复失败, 错误码: %d\n", GetLastError());
+        return false;
+    }
+}
+
 BOOL ArkR3::SendVA(ULONG_PTR va)
 {
     if (m_hDriver == INVALID_HANDLE_VALUE) {
-        Log("SendVA: err");
+        Log("SendVA: err\n");
         return FALSE;
     }
     DWORD written = 0;
