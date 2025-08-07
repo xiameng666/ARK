@@ -32,7 +32,7 @@ void ProcessWnd::Flush(ProcSearchType type) {
         ctx_->processUiVec = ctx_->arkR3.ProcessGetVec(count);
     }
     else if (type == Mem){
-
+        ctx_->processUiVec = ctx_->arkR3.ProcessSearchGetVec();
     }
     
 }
@@ -57,6 +57,13 @@ void ProcessWnd::RenderProcessWnd() {
         Flush(Links);
         lastFlushTime = std::chrono::steady_clock::now(); // 重置计时器
     }
+    ImGui::SameLine();
+
+    if (ImGui::Button(u8"内存搜索")) {
+        Flush(Mem);
+        lastFlushTime = std::chrono::steady_clock::now(); // 重置计时器
+    }
+
 
     ImGui::Separator();
 

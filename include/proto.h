@@ -59,6 +59,7 @@ enum WindowsVersion
 #define CTL_ENUM_PROCESS            MY_CTL_CODE(21)     // 返回数据
 #define CTL_KILL_PROCESS            MY_CTL_CODE(22)     // 终止进程
 #define CTL_FORCE_KILL_PROCESS      MY_CTL_CODE(24)     // 强制终止进程
+#define CTL_MEMSEARCH_PROCESS       MY_CTL_CODE(25)     // 内存特征EPROCESS
 
 #define CTL_ENUM_MODULE_COUNT       MY_CTL_CODE(30)     // 枚举模块 返回数量
 #define CTL_ENUM_MODULE             MY_CTL_CODE(31)     // 枚举模块 返回数据

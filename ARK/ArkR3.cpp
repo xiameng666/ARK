@@ -143,11 +143,10 @@ ULONG_PTR ArkR3::GetSSDTBaseRVA() {
     return 0;
 }
 
-
+/*
 void ArkR3::GetFileSSDT() {
     pe_ = new PEparser(ntos_path_.c_str());
     pe_->Parse();
-
 
     ULONG_PTR dwRVA = GetSSDTBaseRVA();
     DWORD ssdtFOA = pe_->RVAToFOA(dwRVA);
@@ -167,7 +166,7 @@ void ArkR3::GetFileSSDT() {
     Log("  ServiceCounterTable: %p\n", pFileSSDT->ServiceCounterTable);
     Log("  ParamTableBase: %p\n", pFileSSDT->ParamTableBase);
 }
-
+*/
 bool ArkR3::RestoreSSdt()
 {
     DWORD bytesReturned = 0;
@@ -185,11 +184,11 @@ bool ArkR3::RestoreSSdt()
     );
 
     if (result) {
-        printf("SSDT恢复成功\n");
+        Log("SSDT恢复成功\n");
         return true;
     }
     else {
-        printf("SSDT恢复失败, 错误码: %d\n", GetLastError());
+        LogErr("SSDT恢复失败\n");
         return false;
     }
 }
@@ -553,6 +552,35 @@ DWORD ArkR3::ProcessGetCount()
     return dwEntryNum;
 }
 
+std::vector<PROCESS_INFO> ArkR3::ProcessSearchGetVec()
+{
+    ProcSearchVec_.clear();
+
+    DWORD processCount = 1000;//假设最大1000项
+    DWORD dwRetBytes;
+    DWORD dwBufferSize = sizeof(PROCESS_INFO) * processCount;
+    PPROCESS_INFO pEntryInfo = (PPROCESS_INFO)malloc(dwBufferSize);
+    BOOL bResult = DeviceIoControl(m_hDriver, CTL_MEMSEARCH_PROCESS, NULL, NULL, pEntryInfo, dwBufferSize, &dwRetBytes, NULL);
+
+    DWORD Count = 0;
+    if (bResult) {
+        Count = dwRetBytes / sizeof(PROCESS_INFO);
+        for (DWORD i = 0; i < Count; i++) {
+            PROCESS_INFO pInfo = pEntryInfo[i];
+            ProcSearchVec_.emplace_back(pInfo);
+
+            
+            Log("ProcessSearchGetVec 进程[%d]: PID=%d, 父PID=%d, 名称=%s, EPROCESS=%p\n",
+                i, pInfo.ProcessId, pInfo.ParentProcessId,
+                pInfo.ImageFileName, pInfo.EprocessAddr);
+                
+        }
+    }
+
+    free(pEntryInfo);
+
+    return ProcSearchVec_;
+}
 
 std::vector<PROCESS_INFO> ArkR3::ProcessGetVec(DWORD processCount)
 {

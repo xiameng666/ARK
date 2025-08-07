@@ -8,6 +8,17 @@ PDRIVER_OBJECT g_DriverObject = NULL;  // 保存当前驱动对象
 
 wchar_t g_PdbDownloadPath[512] = L"C:\\Symbols";
 
+void ClearWP() {
+    ULONG_PTR cr0 = __readcr0();
+    cr0 &= ~0x10000; // 清除WP位
+    __writecr0(cr0);
+}
+void SetWP() {
+    ULONG_PTR cr0 = __readcr0();
+    cr0 |= 0x10000;
+    __writecr0(cr0);
+}
+
 NTSTATUS SetPdbPath(PWCHAR InputPath)
 {
     if (!InputPath) {
@@ -99,6 +110,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
                 InitProcessPdb();
                 
                 //ForTest();
+
             }
             __except (EXCEPTION_EXECUTE_HANDLER) {
                 status = STATUS_UNSUCCESSFUL;
@@ -309,7 +321,23 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
             }
             break;
         }
-        
+
+        case CTL_MEMSEARCH_PROCESS:
+        {
+            __try {
+                ULONG processCount = 0;
+                status = EnumProcessBySearchMem((PPROCESS_INFO)Irp->AssociatedIrp.SystemBuffer, &processCount);
+                if (NT_SUCCESS(status)) {
+                    info = processCount * sizeof(PROCESS_INFO);
+                    Log("[XM] CTL_ENUM_PROCESS: 获取 %d 个进程信息", processCount);
+                }
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER) {
+                status = STATUS_UNSUCCESSFUL;
+                Log("[XM] CTL_ENUM_PROCESS exception");
+            }
+            break;
+        }
         case CTL_ENUM_PROCESS:
         {
             __try {

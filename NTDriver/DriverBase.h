@@ -16,6 +16,9 @@
 
 extern "C" {
 
+    void ClearWP();
+    void SetWP();
+
     NTSTATUS SetPdbPath(PWCHAR InputPath);
 
     NTSTATUS MajorFunctionisHooked();

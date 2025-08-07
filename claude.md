@@ -71,8 +71,9 @@ include/proto.h    # 驱动与应用通信协议
 | 进程模块数量 | `CTL_ENUM_PROCESS_MODULE_COUNT` | - | - | ✗ |
 | 进程模块枚举 | `CTL_ENUM_PROCESS_MODULE` | - | - | ✗ |
 | **SSDT** |
-| SSDT枚举 | `CTL_ENUM_SSDT` | `DriverBase.cpp:209` | `ArkR3.cpp:730` | ✓ |
-| ShadowSSDT枚举 | `CTL_ENUM_ShadowSSDT` | `ssdt.cpp:55` | `ArkR3.cpp:785` | ✓ |
+| SSDT枚举 | `CTL_ENUM_SSDT` | `DriverBase.cpp:382` | `ArkR3.cpp:730` | ✓ |
+| ShadowSSDT枚举 | `CTL_ENUM_ShadowSSDT` | `DriverBase.cpp:399` | `ArkR3.cpp:785` | ✓ |
+| SSDT恢复 | `CTL_RESTORE_SSDT` | `DriverBase.cpp:365` | `ArkR3::RestoreSSdt()` | ✅ |
 | 开始监控 | `CTL_START_SSDTHOOK` | - | - | ✗ |
 | 结束监控 | `CTL_END_SSDTHOOK` | - | - | ✗ |
 | **系统回调** |
@@ -172,7 +173,7 @@ include/proto.h    # 驱动与应用通信协议
 | **4. SSDT系统调用** |
 | SSDT枚举 | 枚举系统调用表 | `CTL_ENUM_SSDT` | `EnumSSDT()`<br>`ssdt.cpp:20` | `ArkR3::GetSSDTList()` | `SSDT_INFO` | ✓ |
 | SSDT监控 | 开始/结束监控 | `CTL_START_SSDTHOOK`<br>`CTL_END_SSDTHOOK` | **待实现** | **待实现** | `HOOK_SSDT_Index` | ✗ |
-| SSDT恢复 | 恢复被HOOK的调用 | **待新增** | **待实现** | **待实现** | **待设计** | ✗ |
+| SSDT恢复 | 恢复被HOOK的调用 | `CTL_RESTORE_SSDT` | `RecoverSSDT()`<br>`ssdt.cpp:4325` | `ArkR3::RestoreSSdt()` | 无输入输出数据 | ✅ |
 | **5. ShadowSSDT** |
 | Win32k枚举 | 枚举Win32k调用表 | `CTL_ENUM_ShadowSSDT` | `EnumShadowSSDT()`<br>`ssdt.cpp:55` | `ArkR3::ShadowSSDTGetVec()`<br>`ArkR3.cpp:785` | `ShadowSSDT_INFO` | ✓ |
 | Win32k恢复 | 恢复Win32k HOOK | **待新增** | **待实现** | **待实现** | **待设计** | ✗ |
@@ -274,6 +275,90 @@ R3用户层:
 - ShadowSSDT Hook检测：对比原始地址vs当前地址
 - Win32k模块完整性验证：通过PDB符号验证函数地址
 - 双表监控：SSDT + ShadowSSDT 全覆盖系统调用
+
+# SSDT恢复 (SSDT Restoration) 实现技术说明
+
+## 完成状态：✅ 已实现
+
+### 核心技术难点解决
+
+**1. SSDT编码格式理解**
+```cpp
+// SSDT不存储直接的函数地址，而是存储编码后的偏移量
+// 编码格式: (offset << 4) | sign_bit
+ULONG SSDT_EncodePfnAddr(ULONG_PTR FunctionAddress, PULONG SsdtBase) {
+    LONG_PTR offset = (LONG_PTR)FunctionAddress - (LONG_PTR)SsdtBase;
+    
+    if (offset < 0) {
+        return ((ULONG)(-offset) << 4) | 0x80000000;  // 负偏移+符号位
+    } else {
+        return (ULONG)(offset << 4);                   // 正偏移
+    }
+}
+```
+
+**2. Hook检测算法**
+- **对比原理**: 当前SSDT地址 vs PDB获取的原始地址
+- **数据来源**: 
+  - `mem_ssdtItemVA`: 通过SSDT_GetPfnAddr解码当前SSDT表项
+  - `pdb_ssdtItemVA`: 通过PDB符号文件获取函数原始地址
+- **检测逻辑**: `if (pdb_ssdtItemVA != mem_ssdtItemVA)` → 检测到Hook
+
+**3. 恢复机制**
+```cpp
+// 绕过内存写保护 + 直接修复SSDT表项
+ULONG_PTR cr0 = __readcr0();
+cr0 &= ~0x10000;                                    // 清除WP位
+__writecr0(cr0);
+
+pSSDT->Base[syscallNumber] = ssdtItem;              // 写入正确的编码值
+
+cr0 |= 0x10000;                                     // 恢复WP位
+__writecr0(cr0);
+```
+
+### 数据流动链路
+
+```
+R0驱动层恢复流程:
+1. 解析ntdll.dll → 提取Zw*函数 → 获取系统调用号
+2. PDB符号解析 → 获取Nt*函数原始地址 → 计算应有VA
+3. SSDT当前解码 → 获取当前函数地址 → 检测Hook差异
+4. 地址重新编码 → 绕过写保护 → 直接修复SSDT表项
+
+R0→R3通信:
+DeviceIoControl(CTL_RESTORE_SSDT) → 无输入输出数据 → 返回执行状态
+
+R3用户层:
+ArkR3::RestoreSSdt() → 发送恢复请求 → 获取执行结果
+```
+
+### 实现文件
+
+| 层级 | 文件 | 核心函数 | 功能 |
+|------|------|----------|------|
+| R0 | `ssdt.cpp:4325` | `RecoverSSDT()` | 主恢复逻辑，解析ntdll + PDB获取原始地址 |
+| R0 | `ssdt.cpp:4246` | `SSDT_EncodePfnAddr()` | SSDT地址编码，处理正负偏移和符号位 |
+| R0 | `ssdt.cpp:4228` | `SSDT_GetPfnAddr()` | SSDT地址解码，从编码值恢复函数地址 |
+| R0 | `DriverBase.cpp:365` | `CTL_RESTORE_SSDT` | 控制码处理，调用RecoverSSDT函数 |
+| R3 | `ArkR3.cpp` | `RestoreSSdt()` | 用户态接口，发送恢复请求到驱动 |
+
+### 学习要点
+
+**Windows内核架构**:
+- SSDT是Windows系统调用分发的核心表结构
+- 编码存储节省空间：4字节存储相对偏移而非8字节绝对地址  
+- 内存写保护：需要清除CR0.WP位才能修改只读的系统表
+
+**反Rootkit技术**:
+- 双重验证机制：PE解析 + PDB符号解析确保地址准确性
+- 原子恢复操作：整个Hook检测和修复在内核态一次完成
+- 内存保护绕过：通过CR0寄存器操作绕过硬件写保护
+
+**技术细节**:
+- ntdll.dll解析：通过PE导出表获取Zw*函数和系统调用号映射
+- PDB符号解析：通过调试符号获取内核函数的准确内存地址  
+- 编码算法：理解SSDT的压缩存储格式和符号位处理
 
 # 对象回调 (Object Callback) 实现技术说明
 

@@ -22,7 +22,7 @@ extern "C" {
     //PsLookupProcessByProcessId
     NTSTATUS EnumProcessByApiEx(PPROCESS_INFO ProcessInfos, BOOLEAN bCountOnly, PULONG pCount);
 
-    //NTSTATUS EnumProcessBySearchMem
+    NTSTATUS EnumProcessBySearchMem(PPROCESS_INFO ProcessInfos, PULONG pCount);
     
     NTSTATUS TerminateProcessByApi(HANDLE ProcessId);   //PspTerminateProcess
 

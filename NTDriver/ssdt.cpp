@@ -4346,6 +4346,7 @@ NTSTATUS EnumShadowSSDT(PSSDT_INFO SsdtBuffer, PULONG SsdtCount)
     return STATUS_SUCCESS;
 }
 
+//解析PE导出表  特征Zw*函数的服务号 得到索引与函数名的映射关系 函数名查pdb获得rva 
 NTSTATUS RecoverSSDT() {
     NTSTATUS status;
     HANDLE ntdllHandle = NULL;
@@ -4564,15 +4565,10 @@ NTSTATUS RecoverSSDT() {
                     ULONG ssdtItem = SSDT_EncodePfnAddr(pdb_ssdtItemVA, pSSDT->Base);
 
                     //写回SSDT
-                    ULONG_PTR cr0 = __readcr0();
-                    cr0 &= ~0x10000; // 清除WP位
-                    __writecr0(cr0);
-
+                    ClearWP();
                     pSSDT->Base[syscallNumber] = ssdtItem;
-
-                    cr0 = __readcr0();
-                    cr0 |= 0x10000;
-                    __writecr0(cr0);
+                    SetWP();
+                    
                 
                 }
                 else {

@@ -99,6 +99,8 @@ public:
     BOOL ProcessForceKill(ULONG ProcessId);
     DWORD ProcessGetCount();                                                //获取进程数量
     std::vector<PROCESS_INFO> ProcessGetVec(DWORD processCount = 0);        //返回所有进程数据的数组ProcVec_
+    std::vector<PROCESS_INFO> ProcessSearchGetVec();
+    std::vector<PROCESS_INFO> ProcSearchVec_;
     std::vector<PROCESS_INFO> ProcVec_;
     //std::vector<PROCESSENTRY32> EnumProcesses32();                        //R3的枚举进程
 
