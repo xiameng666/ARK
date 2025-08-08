@@ -200,8 +200,8 @@ void EnumDriverObject() {
         ULONG_PTR HashBucketsOffset = ntos.GetOffset("_OBJECT_DIRECTORY", "HashBuckets");//=0
         ULONG_PTR ObjectOffset = ntos.GetOffset("_OBJECT_DIRECTORY_ENTRY", "Object");//=0x08
         ULONG_PTR ChainLinkOffset = ntos.GetOffset("_OBJECT_DIRECTORY_ENTRY", "ChainLink");//=0
-
-        // 遍历37个哈希桶
+        ULONG_PTR fullDllNameOffset = ntos.GetOffset("_LDR_DATA_TABLE_ENTRY", "FullDllName");
+        // 遍历37个哈希表
         PVOID* HashBuckets = (PVOID*)((PUCHAR)PDirectory + HashBucketsOffset);
 
         for (int i = 0; i < 37; i++) {
@@ -234,6 +234,22 @@ void EnumDriverObject() {
                         g_DrvObjs[g_DrvObjCount].DriverStart = TargetDrvObj->DriverStart;
                         g_DrvObjs[g_DrvObjCount].DriverSize = TargetDrvObj->DriverSize;
 
+                        PUCHAR ldrEntry = (PUCHAR)TargetDrvObj->DriverSection;
+                        PUNICODE_STRING fullDllName = (PUNICODE_STRING)(ldrEntry + fullDllNameOffset);
+                        if (fullDllName && fullDllName->Buffer) {
+                            SIZE_T pathCopyLength = min(fullDllName->Length / sizeof(WCHAR),
+                                sizeof(g_DrvObjs[g_DrvObjCount].DriverPath) /
+                                sizeof(WCHAR) - 1);
+                            wcsncpy(g_DrvObjs[g_DrvObjCount].DriverPath, fullDllName->Buffer,
+                                pathCopyLength);
+                            g_DrvObjs[g_DrvObjCount].DriverPath[pathCopyLength] = L'\0';
+
+                            Log("[XM] Driver path: %ws", g_DrvObjs[g_DrvObjCount].DriverPath);
+                        }
+                        else {
+                            g_DrvObjs[g_DrvObjCount].DriverPath[0] = L'\0';
+                            Log("[XM] Failed to get FullDllName offset from PDB");
+                        }
                         g_DrvObjCount++;
                     }                   
                 }

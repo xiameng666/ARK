@@ -145,6 +145,9 @@ NTSTATUS TerminateProcessByThread(HANDLE ProcessId)
     return Count > 0 ? STATUS_SUCCESS : STATUS_NOT_FOUND;
 }
 
+extern "C" NTSTATUS SeLocateProcessImageName(PEPROCESS Process, PUNICODE_STRING * ImagePath);
+
+
 NTSTATUS EnumProcessByApiEx(PPROCESS_INFO ProcessInfos, BOOLEAN bCountOnly, PULONG pCount) {
     Log("[XM] EnumProcessByApiEx 开始枚举进程，CountOnly=%d", bCountOnly);
 
@@ -153,7 +156,7 @@ NTSTATUS EnumProcessByApiEx(PPROCESS_INFO ProcessInfos, BOOLEAN bCountOnly, PULO
 
     for (ULONG pid = 0; pid < 65536; pid += 4) {
         PEPROCESS process = NULL;
-
+        
         NTSTATUS lookupStatus = PsLookupProcessByProcessId((HANDLE)(ULONG_PTR)pid, &process);
 
         if (NT_SUCCESS(lookupStatus) && process) {
@@ -172,6 +175,24 @@ NTSTATUS EnumProcessByApiEx(PPROCESS_INFO ProcessInfos, BOOLEAN bCountOnly, PULO
                     info->ParentProcessId = *(ULONG*)((PUCHAR)process + procMeta.ParentProcessId);
                     info->EprocessAddr = process;
                     info->DirectoryTableBase = *(ULONG*)((PUCHAR)process + procMeta.DirectoryTableBase);
+
+                    //拿进程路径
+                    PUNICODE_STRING fullPathName = NULL;
+                    NTSTATUS pathStatus = SeLocateProcessImageName(process, &fullPathName);
+                    if (NT_SUCCESS(pathStatus)) {
+                        SIZE_T copyLength = min(fullPathName->Length / sizeof(WCHAR), 
+                                              sizeof(info->FullPathName) / sizeof(WCHAR) - 1);
+                        wcsncpy(info->FullPathName, fullPathName->Buffer, copyLength);
+                        info->FullPathName[copyLength] = L'\0';
+                        
+                        Log("[XM] Process path: %ws", info->FullPathName);
+                        ExFreePool(fullPathName);
+                    }
+                    else {
+                        info->FullPathName[0] = L'\0'; 
+                    }
+                
+                
 
                     // 名称
                     RtlCopyMemory(info->ImageFileName, (PUCHAR)process + procMeta.ImageFileName, 15);
@@ -487,6 +508,24 @@ NTSTATUS EnumProcessBySearchMem(PPROCESS_INFO ProcessInfos, PULONG pCount)
             pInfo->ParentProcessId = (ULONG)(ULONG_PTR)ppid;
 
             pInfo->DirectoryTableBase = (ULONG)dtb;
+
+            pInfo->FullPathName[0] = L'\0';
+            
+            // 通过PID查找有效的PEPROCESS来获取路径
+            PEPROCESS validProcess = NULL;
+            if (NT_SUCCESS(PsLookupProcessByProcessId((HANDLE)pid, &validProcess))) {
+                PUNICODE_STRING fullPathName = NULL;
+                NTSTATUS pathStatus = SeLocateProcessImageName(validProcess, &fullPathName);
+                if (NT_SUCCESS(pathStatus) && fullPathName) {
+                    SIZE_T copyLength = min(fullPathName->Length / sizeof(WCHAR),
+                        sizeof(pInfo->FullPathName) / sizeof(WCHAR) - 1);
+                    wcsncpy(pInfo->FullPathName, fullPathName->Buffer, copyLength);
+                    pInfo->FullPathName[copyLength] = L'\0';
+                    ExFreePool(fullPathName);
+                }
+                ObDereferenceObject(validProcess);
+            }
+            
 
             Count++;
 

@@ -42,7 +42,7 @@ void ModuleWnd::RenderDriverObject() {
     }
 
     // 表格显示驱动对象信息
-    if (ImGui::BeginTable(u8"驱动对象列表", 4,
+    if (ImGui::BeginTable(u8"驱动对象列表", 5,
         ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY)) {
 
         // 表头
@@ -50,6 +50,7 @@ void ModuleWnd::RenderDriverObject() {
         ImGui::TableSetupColumn(u8"驱动对象", ImGuiTableColumnFlags_WidthFixed, 120.0f);
         ImGui::TableSetupColumn(u8"基址", ImGuiTableColumnFlags_WidthFixed, 120.0f);
         ImGui::TableSetupColumn(u8"大小", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+        ImGui::TableSetupColumn(u8"路径", ImGuiTableColumnFlags_WidthFixed, 100.0f);
         ImGui::TableHeadersRow();
 
         // 数据行
@@ -73,6 +74,9 @@ void ModuleWnd::RenderDriverObject() {
             // 大小
             ImGui::TableSetColumnIndex(3);
             ImGui::Text("0x%X", drvObj.DriverSize);
+
+            ImGui::TableSetColumnIndex(4);
+            ImGui::Text("%ls", drvObj.DriverPath);
         }
 
         ImGui::EndTable();

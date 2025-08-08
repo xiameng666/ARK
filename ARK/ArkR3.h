@@ -25,6 +25,7 @@ typedef struct DRIVER_OBJECT_INFO {
     WCHAR DriverName[128];
     PVOID DriverStart;
     ULONG DriverSize;
+    WCHAR DriverPath[260];
 } *PDRIVER_OBJECT_INFO;
 
 typedef struct GDT_INFO {

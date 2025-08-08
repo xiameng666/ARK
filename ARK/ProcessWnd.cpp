@@ -67,12 +67,20 @@ void ProcessWnd::RenderProcessWnd() {
 
     ImGui::Separator();
 
-    if (ImGui::BeginTable("proc_table", 5, ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_Sortable)) {
-        ImGui::TableSetupColumn(u8"进程名", ImGuiTableColumnFlags_DefaultSort);           
-        ImGui::TableSetupColumn(u8"进程ID", ImGuiTableColumnFlags_DefaultSort);           
-        ImGui::TableSetupColumn(u8"父PID", ImGuiTableColumnFlags_DefaultSort);            
-        ImGui::TableSetupColumn(u8"页目录地址", ImGuiTableColumnFlags_DefaultSort);       
-        ImGui::TableSetupColumn(u8"EPROCESS地址", ImGuiTableColumnFlags_DefaultSort);     
+    if (ImGui::BeginTable("proc_table", 6, ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders |
+        ImGuiTableFlags_Resizable | ImGuiTableFlags_Sortable)) {
+        ImGui::TableSetupColumn(u8"进程名", ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_WidthFixed,
+            120.0f);
+        ImGui::TableSetupColumn(u8"进程ID", ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_WidthFixed,
+            80.0f);
+        ImGui::TableSetupColumn(u8"父PID", ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_WidthFixed,
+            80.0f);
+        ImGui::TableSetupColumn(u8"页目录地址", ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_WidthFixed,
+            120.0f);
+        ImGui::TableSetupColumn(u8"EPROCESS地址", ImGuiTableColumnFlags_DefaultSort |
+            ImGuiTableColumnFlags_WidthFixed, 120.0f);
+        ImGui::TableSetupColumn(u8"路径", ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_WidthStretch);
+
         ImGui::TableHeadersRow();
 
         // 处理排序
@@ -187,6 +195,17 @@ void ProcessWnd::RenderProcessWnd() {
             // 4 EPROCESS地址
             ImGui::TableSetColumnIndex(4);
             ImGui::Text("%p", process.EprocessAddr);
+
+            // 5 路径
+            ImGui::TableSetColumnIndex(5);
+            std::wstring path = process.FullPathName;
+            if (path.find(L"\\Device\\HarddiskVolume") == 0) {
+                size_t pos = path.find(L"\\", 20); // 跳过\Device\HarddiskVolumeX
+                if (pos != std::wstring::npos) {
+                    path = L"C:" + path.substr(pos);
+                }
+            }
+            ImGui::Text("%ws", path.c_str());
 
             row++;
         }

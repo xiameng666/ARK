@@ -1210,7 +1210,13 @@ std::vector<DRIVER_OBJECT_INFO> ArkR3::DriverObjectGetVec()
 
     if (result) {
         for (ULONG i = 0; i < count; i++) {
-            DriverObjectVec_.emplace_back(buffer[i]);
+            DRIVER_OBJECT_INFO mInfo = buffer[i];
+
+            // 处理完整路径
+            std::wstring fixedPath = FixModulePath(mInfo.DriverPath);
+            wcscpy_s(mInfo.DriverPath, sizeof(mInfo.DriverPath) / sizeof(WCHAR), fixedPath.c_str());
+
+            DriverObjectVec_.emplace_back(mInfo);
         }
         Log("DriverObjectGetVec: 收到 %d 个驱动对象\n", count);
     }
