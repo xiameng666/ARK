@@ -85,9 +85,6 @@
     <ClCompile Include="FileManager.cpp">
       <Filter>other</Filter>
     </ClCompile>
-    <ClCompile Include="pestruct.cpp">
-      <Filter>ARK</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\imconfig.h">
@@ -156,9 +153,6 @@
     </ClInclude>
     <ClInclude Include="FileManager.h">
       <Filter>other</Filter>
-    </ClInclude>
-    <ClInclude Include="pestruct.h">
-      <Filter>ARK</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

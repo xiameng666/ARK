@@ -79,6 +79,10 @@ void KernelWnd::RenderIDTTable()
     if (ImGui::Button(u8"Ë¢ÐÂ")) {
         ctx_->idtUiVec = ctx_->arkR3.IdtGetVec();
     }
+    ImGui::SameLine();
+    if (ImGui::Button(u8"»Ö¸´")) {
+        ctx_->arkR3.RestoreIDT();
+    }
 
     if (ImGui::BeginTable("IDT", 7,
         ImGuiTableFlags_RowBg | ImGuiTableFlags_NoBordersInBody |

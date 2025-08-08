@@ -3,7 +3,6 @@
 
 #include "ArkR3.h"
 
-PEparser* pe_ = nullptr;
 
 // extern SSDT_INFO g_SSDT_XP_SP3_Table[];
 
@@ -23,7 +22,6 @@ ArkR3::~ArkR3()
     memBufferSize_ = 0;
     memDataSize_ = 0;
 
-    if (pe_!=nullptr) free (pe_);
 }
 
 // 从ezpdb获取PDB路径并发给驱动
@@ -72,8 +70,6 @@ bool ArkR3::SendPdbPath2R0() {
         NULL
     );
 
-    //SendVA()
-    //EnumAllSymbols();
     if (result) {
         Log("SendPdbPaths2R0 - Ntos: %s, Win32k: %s\n", ntosPathA.c_str(), win32kPathA.c_str());
         return true;
@@ -127,55 +123,6 @@ bool ArkR3::InitSymbolState()
 
     return true;
 }
-
-
-ULONG_PTR ArkR3::GetSSDTBaseRVA() {
-    ULONG_PTR ssdtRVA = 0;
-    ULONG bytesReturned = 0;
-
-    BOOL result = DeviceIoControl(
-        m_hDriver,
-        CTL_SEND_SSDTBASE,
-        NULL, 0,
-        &ssdtRVA, sizeof(ULONG_PTR),
-        &bytesReturned,
-        NULL
-    );
-
-    if (result) {
-        Log("[R3] 成功获取KiServiceTable RVA: 0x%x\n", ssdtRVA);
-        return ssdtRVA;
-    }
-
-    Log("[R3] 获取KiServiceTable RVA失败 - result:%d, bytes:%d",
-        result, bytesReturned);
-    return 0;
-}
-
-/*
-void ArkR3::GetFileSSDT() {
-    pe_ = new PEparser(ntos_path_.c_str());
-    pe_->Parse();
-
-    ULONG_PTR dwRVA = GetSSDTBaseRVA();
-    DWORD ssdtFOA = pe_->RVAToFOA(dwRVA);
-
-    HMODULE hMod = LoadLibrary("ntoskrnl.exe");
-    DWORD dwVA = (DWORD)GetProcAddress(hMod, "KeServiceDescriptorTable");
-    DWORD dwR3RVA = dwVA - ntbase_;
-    Log("R0获取的RVA:%p  转化为FOA %p  R3获取的RVA %p\n", dwRVA, ssdtFOA, dwR3RVA);
-
-    PVOID fileBase = pe_->m_pFileBase;
-    PSYSTEM_SERVICE_DESCRIPTOR_TABLE pFileSSDT =
-        (PSYSTEM_SERVICE_DESCRIPTOR_TABLE)((ULONG_PTR)fileBase + ssdtFOA);
-
-    Log("文件中的SSDT结构:\n");
-    Log("  Base: %p", pFileSSDT->Base);
-    Log("  NumberOfServices: %d\n", pFileSSDT->NumberOfServices);
-    Log("  ServiceCounterTable: %p\n", pFileSSDT->ServiceCounterTable);
-    Log("  ParamTableBase: %p\n", pFileSSDT->ParamTableBase);
-}
-*/
 
 bool ArkR3::RestoreShadowSSdt()
 {
@@ -522,15 +469,17 @@ std::vector<IDT_INFO> ArkR3::IdtGetVec()
 
         // 直接添加到vector中
         for (ULONG i = 0; i < actualCount; i++) {
-            
+
 
             /**/
             if (strstr(pIdtData->Path, "ntoskrnl.exe") != NULL) {
-                int rva = pIdtData[i].Address - ntbase_;
-                std::string funcName = ntos_pdb_->get_function_name(rva);
+                ULONG_PTR rva = pIdtData[i].Address - ntbase_;
+                std::string funcName = ntos_pdb_->get_function_name((int)rva);
                 strcpy_s(pIdtData[i].funcName, sizeof(pIdtData[i].funcName),
                     funcName.empty() ? "Unknown" : funcName.c_str());
             }
+
+            Log("\"%s\"\n", pIdtData[i].funcName);
 
             //修复模块路径
             std::string fixedPath = FixModulePath(pIdtData[i].Path);
@@ -554,7 +503,30 @@ std::vector<IDT_INFO> ArkR3::IdtGetVec()
     return IDTVec_;
 }
 
+bool ArkR3::RestoreIDT()
+{
+    DWORD bytesReturned = 0;
 
+    BOOL result = DeviceIoControl(
+        m_hDriver,
+        CTL_RESTORE_IDT,
+        nullptr,
+        0,
+        nullptr,
+        0,
+        &bytesReturned,
+        nullptr
+    );
+
+    if (result) {
+        Log("IDT恢复成功\n");
+        return true;
+    }
+    else {
+        LogErr("IDT恢复失败\n");
+        return false;
+    }
+}
 BOOL ArkR3::ProcessForceKill(ULONG ProcessId)
 {
     DWORD bytesReturned = 0;
@@ -698,7 +670,7 @@ BOOL ArkR3::MemAttachRead(DWORD ProcessId, ULONG_PTR VirtualAddress, DWORD Size)
 
     // 构造请求结构体
     PROCESS_MEM_REQ req;
-    req.ProcessId = (HANDLE)ProcessId;// UlongToHandle(ProcessId);
+    req.ProcessId = UlongToHandle(ProcessId);// UlongToHandle(ProcessId);
     req.VirtualAddress = (PVOID)VirtualAddress;
     req.Size = Size;
 
@@ -751,7 +723,7 @@ BOOL ArkR3::MemAttachWrite(DWORD ProcessId, ULONG_PTR VirtualAddress, DWORD Size
 
     // 构造请求头
     PPROCESS_MEM_REQ req = (PPROCESS_MEM_REQ)pBuffer;
-    req->ProcessId = (HANDLE)ProcessId;
+    req->ProcessId = UlongToHandle(ProcessId);
     req->VirtualAddress = (PVOID)VirtualAddress;
     req->Size = Size;
 
@@ -922,9 +894,9 @@ std::vector<SSDT_INFO> ArkR3::SSDTGetVec()
 
 std::string ArkR3::GetWin32kFunctionName(ULONG_PTR address) {
 
-    int rva = address - win32k_base_;
+    ULONG_PTR rva = address - win32k_base_;
     //int rva = address;
-    return win32k_pdb_->get_function_name(rva);
+    return win32k_pdb_->get_function_name((int)rva);
 }
 
 // ShadowSSDT枚举
@@ -1284,17 +1256,11 @@ bool ArkR3::EnumAllSymbols() {
         return false;
     }
 
-    pe_ = new PEparser(win32k_path_.c_str());
-    pe_->Parse();
-
     auto nt_functions = win32k_pdb_->enum_symbols_by_pattern("Nt*");
     for (const auto& sym : nt_functions) {
-        auto FOA = pe_->RVAToFOA(sym.rva);
         //读文件FOA 特征服务号 服务号就是下标 然后呢？
-        printf("FOA :0x%X NT Function: %s, RVA: 0x%X\n", FOA,sym.name.c_str(), sym.rva);
+        printf("NT Function: %s, RVA: 0x%X\n",sym.name.c_str(), sym.rva);
     }
-
-
 
     return true;
 }
@@ -1546,15 +1512,6 @@ std::vector<NETWORK_PORT_INFO> ArkR3::NetworkPortGetVec(){
 
   //typedef UNICODE_STRING* PUNICODE_STRING;
 
-  //typedef struct _RTL_BUFFER {
-  //    PWCHAR    Buffer;
-  //    PWCHAR    StaticBuffer;
-  //    SIZE_T    Size;
-  //    SIZE_T    StaticSize;
-  //    SIZE_T    ReservedForAllocatedSize; // for future doubling
-  //    PVOID     ReservedForIMalloc; // for future pluggable growth
-  //} RTL_BUFFER, * PRTL_BUFFER;
-
   //typedef struct _RTL_UNICODE_STRING_BUFFER {
   //    UNICODE_STRING String;
   //    RTL_BUFFER     ByteBuffer;
@@ -1654,49 +1611,3 @@ BOOL ArkR3::ForceDeleteFile(const std::string& filePath)
         return FALSE;
     }
 }
-
-/*
-// 获取网络端口信息  改为R3实现
-std::vector<NETWORK_PORT_INFO> ArkR3::NetworkPortGetVec() {
-    NetworkPortVec_.clear();
-
-    // 分配缓冲区给网络端口信息
-    const DWORD maxPorts = 2000;
-    DWORD bufferSize = maxPorts * sizeof(NETWORK_PORT_INFO);
-    PNETWORK_PORT_INFO buffer = (PNETWORK_PORT_INFO)malloc(bufferSize);
-
-    if (!buffer) {
-        Log("NetworkPortGetVec: malloc error\n");
-        return NetworkPortVec_;
-    }
-
-    DWORD bytesRet = 0;
-    BOOL result = DeviceIoControl(
-        m_hDriver,
-        CTL_ENUM_NETWORK_PORT,
-        NULL,
-        0,
-        buffer,
-        bufferSize,
-        &bytesRet,
-        NULL
-    );
-
-    if (result) {
-        ULONG portCount = bytesRet / sizeof(NETWORK_PORT_INFO);
-        Log("NetworkPortGetVec: 分析了 %d 个网络端口\n", portCount);
-
-        // 将结果复制到成员变量
-        for (ULONG i = 0; i < portCount; i++) {
-            NetworkPortVec_.push_back(buffer[i]);
-        }
-
-    }
-    else {
-        Log("NetworkPortGetVec: DeviceIoControl failed, error=%d\n", GetLastError());
-    }
-
-    free(buffer);
-    return NetworkPortVec_;
-}
-*/

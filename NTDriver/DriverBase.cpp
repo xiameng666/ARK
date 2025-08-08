@@ -12,12 +12,15 @@ PDRIVER_OBJECT g_DriverObject = NULL;  // 保存当前驱动对象
 wchar_t g_ntosPdbPath[512] = L"C:\\Symbols";
 wchar_t g_win32kPdbPath[512] = L"C:\\Symbols";
 
-void ClearWP() {
+ULONG g_CoreCount = 0; //核心数
+void* g_IdtData = NULL;  //保存的idt数据
+
+void EnableWrite() {
     ULONG_PTR cr0 = __readcr0();
     cr0 &= ~0x10000; // 清除WP位
     __writecr0(cr0);
 }
-void SetWP() {
+void DisableWrite() {
     ULONG_PTR cr0 = __readcr0();
     cr0 |= 0x10000;
     __writecr0(cr0);
@@ -232,6 +235,44 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
             break;
         }
 
+        case CTL_RESTORE_IDT:
+        {
+            __try {
+                // 检查是否有保存的IDT数据
+                if (g_CoreCount==0 || !g_IdtData) {
+                    Log("[XM] 没有保存的IDT数据，无法恢复");
+                    status = STATUS_INVALID_DEVICE_REQUEST;
+                    break;
+                }
+
+                ULONG offset = 0;
+                ULONG IdtSize = 0;
+                for (ULONG cpu = 0; cpu < g_CoreCount; cpu++) {
+                    KAFFINITY oldAffinity = KeSetSystemAffinityThreadEx(1ULL << cpu);
+
+                    IDTR idtr = { 0 };
+                    __sidt(&idtr);
+                    IdtSize = idtr.Limit + 1;
+                    offset = cpu * IdtSize;
+
+                    EnableWrite();
+                    RtlCopyMemory((void*)idtr.Base, (PUCHAR)g_IdtData + offset, IdtSize);
+                    DisableWrite();
+
+                    KeRevertToUserAffinityThreadEx(oldAffinity);
+                }
+
+                status = STATUS_SUCCESS;
+                info = 0;
+                Log("[XM] CTL_RESTORE_IDT 完成");
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER) {
+                status = STATUS_UNSUCCESSFUL;
+                Log("[XM] CTL_RESTORE_IDT exception");
+            }
+            break;
+        }
+
         case CTL_ENUM_IDT:
         {
             __try {
@@ -242,6 +283,21 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
 
                 ULONG cpuCount = KeQueryActiveProcessorCountEx(ALL_PROCESSOR_GROUPS);
 
+                {
+                    //申请放得下所有idt表的内存 恢复的时候直接覆写
+                    g_CoreCount = cpuCount;
+                    IDTR idtr = { 0 };
+                    __sidt(&idtr);
+
+                    ULONG allocSize = g_CoreCount * (idtr.Limit + 1);
+                    g_IdtData = ExAllocatePoolWithTag(NonPagedPool, allocSize, 'IDT0');
+                    if (!g_IdtData) {
+                        Log("[XM] IDT数据存储空间分配失败，大小=%d", allocSize);
+                        return STATUS_INSUFFICIENT_RESOURCES;
+                    }
+                    RtlZeroMemory(g_IdtData, allocSize);
+                }
+
                 INIT_NTOS;
 
                 for (ULONG cpu = 0; cpu < cpuCount; cpu++) {
@@ -250,8 +306,13 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
                     IDTR idtr = { 0 };
                     __sidt(&idtr);
 
-                    ULONG idtEntries = (idtr.Limit + 1) / sizeof(InterruptDescriptor);
+                    ULONG idtSize = idtr.Limit + 1;
+                    ULONG idtEntries = idtSize / sizeof(InterruptDescriptor);
                     PINTDESC pIdtBase = (PINTDESC)idtr.Base;
+
+                    //保存IDT数据到数据结构  恢复的时候直接覆写
+                    ULONG offset = cpu * idtSize;
+                    RtlCopyMemory((PUCHAR)g_IdtData+ offset, pIdtBase, idtSize);
 
                     // 枚举所有IDT条目
                     for (ULONG i = 0; i < idtEntries; i++) {

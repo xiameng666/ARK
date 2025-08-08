@@ -2,4227 +2,859 @@
 #include <ntimage.h>
 #include "pe.h"
 
-// Win7 SSDT 函数名数组
-const char* WIN7_SSDT_FUNCTIONS[] = {
-      "NtMapUserPhysicalPagesScatter",
-      "NtWaitForSingleObject",
-      "NtCallbackReturn",
-      "NtReadFile",
-      "NtDeviceIoControlFile",
-      "NtWriteFile",
-      "NtRemoveIoCompletion",
-      "NtReleaseSemaphore",
-      "NtReplyWaitReceivePort",
-      "NtReplyPort",
-      "NtSetInformationThread",
-      "NtSetEvent",
-      "NtClose",
-      "NtQueryObject",
-      "NtQueryInformationFile",
-      "NtOpenKey",
-      "NtEnumerateValueKey",
-      "NtFindAtom",
-      "NtQueryDefaultLocale",
-      "NtQueryKey",
-      "NtQueryValueKey",
-      "NtAllocateVirtualMemory",
-      "NtQueryInformationProcess",
-      "NtWaitForMultipleObjects32",
-      "NtWriteFileGather",
-      "NtSetInformationProcess",
-      "NtCreateKey",
-      "NtFreeVirtualMemory",
-      "NtImpersonateClientOfPort",
-      "NtReleaseMutant",
-      "NtQueryInformationToken",
-      "NtRequestWaitReplyPort",
-      "NtQueryVirtualMemory",
-      "NtOpenThreadToken",
-      "NtQueryInformationThread",
-      "NtOpenProcess",
-      "NtSetInformationFile",
-      "NtMapViewOfSection",
-      "NtAccessCheckAndAuditAlarm",
-      "NtUnmapViewOfSection",
-      "NtReplyWaitReceivePortEx",
-      "NtTerminateProcess",
-      "NtSetEventBoostPriority",
-      "NtReadFileScatter",
-      "NtOpenThreadTokenEx",
-      "NtOpenProcessTokenEx",
-      "NtQueryPerformanceCounter",
-      "NtEnumerateKey",
-      "NtOpenFile",
-      "NtDelayExecution",
-      "NtQueryDirectoryFile",
-      "NtQuerySystemInformation",
-      "NtOpenSection",
-      "NtQueryTimer",
-      "NtFsControlFile",
-      "NtWriteVirtualMemory",
-      "NtCloseObjectAuditAlarm",
-      "NtDuplicateObject",
-      "NtQueryAttributesFile",
-      "NtClearEvent",
-      "NtReadVirtualMemory",
-      "NtOpenEvent",
-      "NtAdjustPrivilegesToken",
-      "NtDuplicateToken",
-      "NtContinue",
-      "NtQueryDefaultUILanguage",
-      "NtQueueApcThread",
-      "NtYieldExecution",
-      "NtAddAtom",
-      "NtCreateEvent",
-      "NtQueryVolumeInformationFile",
-      "NtCreateSection",
-      "NtFlushBuffersFile",
-      "NtApphelpCacheControl",
-      "NtCreateProcessEx",
-      "NtCreateThread",
-      "NtIsProcessInJob",
-      "NtProtectVirtualMemory",
-      "NtQuerySection",
-      "NtResumeThread",
-      "NtTerminateThread",
-      "NtReadRequestData",
-      "NtCreateFile",
-      "NtQueryEvent",
-      "NtWriteRequestData",
-      "NtOpenDirectoryObject",
-      "NtAccessCheckByTypeAndAuditAlarm",
-      "NtQuerySystemTime",
-      "NtWaitForMultipleObjects",
-      "NtSetInformationObject",
-      "NtCancelIoFile",
-      "NtTraceEvent",
-      "NtPowerInformation",
-      "NtSetValueKey",
-      "NtCancelTimer",
-      "NtSetTimer",
-      "NtAcceptConnectPort",
-      "NtAccessCheck",
-      "NtAccessCheckByType",
-      "NtAccessCheckByTypeResultList",
-      "NtAccessCheckByTypeResultListAndAuditAlarm",
-      "NtAccessCheckByTypeResultListAndAuditAlarmByHandle",
-      "NtAddBootEntry",
-      "NtAddDriverEntry",
-      "NtAdjustGroupsToken",
-      "NtAlertResumeThread",
-      "NtAlertThread",
-      "NtAllocateLocallyUniqueId",
-      "NtAllocateReserveObject",
-      "NtAllocateUserPhysicalPages",
-      "NtAllocateUuids",
-      "NtAlpcAcceptConnectPort",
-      "NtAlpcCancelMessage",
-      "NtAlpcConnectPort",
-      "NtAlpcCreatePort",
-      "NtAlpcCreatePortSection",
-      "NtAlpcCreateResourceReserve",
-      "NtAlpcCreateSectionView",
-      "NtAlpcCreateSecurityContext",
-      "NtAlpcDeletePortSection",
-      "NtAlpcDeleteResourceReserve",
-      "NtAlpcDeleteSectionView",
-      "NtAlpcDeleteSecurityContext",
-      "NtAlpcDisconnectPort",
-      "NtAlpcImpersonateClientOfPort",
-      "NtAlpcOpenSenderProcess",
-      "NtAlpcOpenSenderThread",
-      "NtAlpcQueryInformation",
-      "NtAlpcQueryInformationMessage",
-      "NtAlpcRevokeSecurityContext",
-      "NtAlpcSendWaitReceivePort",
-      "NtAlpcSetInformation",
-      "NtAreMappedFilesTheSame",
-      "NtAssignProcessToJobObject",
-      "NtCancelIoFileEx",
-      "NtCancelSynchronousIoFile",
-      "NtCommitComplete",
-      "NtCommitEnlistment",
-      "NtCommitTransaction",
-      "NtCompactKeys",
-      "NtCompareTokens",
-      "CmBcbCacheTrimNotification",
-      "NtCompressKey",
-      "NtConnectPort",
-      "NtCreateDebugObject",
-      "NtCreateDirectoryObject",
-      "NtCreateEnlistment",
-      "NtCreateEventPair",
-      "NtCreateIoCompletion",
-      "NtCreateJobObject",
-      "NtCreateJobSet",
-      "NtCreateKeyTransacted",
-      "NtCreateKeyedEvent",
-      "NtCreateMailslotFile",
-      "NtCreateMutant",
-      "NtCreateNamedPipeFile",
-      "NtCreatePagingFile",
-      "NtCreatePort",
-      "NtCreatePrivateNamespace",
-      "NtCreateProcess",
-      "NtCreateProfile",
-      "NtCreateProfileEx",
-      "NtCreateResourceManager",
-      "NtCreateSemaphore",
-      "NtCreateSymbolicLinkObject",
-      "NtCreateThreadEx",
-      "NtCreateTimer",
-      "NtCreateToken",
-      "NtCreateTransaction",
-      "NtCreateTransactionManager",
-      "NtCreateUserProcess",
-      "NtCreateWaitablePort",
-      "NtCreateWorkerFactory",
-      "NtDebugActiveProcess",
-      "NtDebugContinue",
-      "NtDeleteAtom",
-      "NtDeleteBootEntry",
-      "NtDeleteDriverEntry",
-      "NtDeleteFile",
-      "NtDeleteKey",
-      "NtDeleteObjectAuditAlarm",
-      "NtDeletePrivateNamespace",
-      "NtDeleteValueKey",
-      "NtDisableLastKnownGood",
-      "NtDisplayString",
-      "NtDrawText",
-      "NtEnableLastKnownGood",
-      "NtEnumerateBootEntries",
-      "NtEnumerateDriverEntries",
-      "NtEnumerateSystemEnvironmentValuesEx",
-      "NtEnumerateTransactionObject",
-      "NtExtendSection",
-      "NtFilterToken",
-      "NtFlushInstallUILanguage",
-      "NtFlushInstructionCache",
-      "NtFlushKey",
-      "NtFlushProcessWriteBuffers",
-      "NtFlushVirtualMemory",
-      "NtFlushWriteBuffer",
-      "NtFreeUserPhysicalPages",
-      "NtFreezeRegistry",
-      "NtFreezeTransactions",
-      "NtGetContextThread",
-      "NtGetCurrentProcessorNumber",
-      "NtGetDevicePowerState",
-      "NtGetMUIRegistryInfo",
-      "NtGetNextProcess",
-      "NtGetNextThread",
-      "NtGetNlsSectionPtr",
-      "NtGetNotificationResourceManager",
-      "NtGetPlugPlayEvent",
-      "NtGetWriteWatch",
-      "NtImpersonateAnonymousToken",
-      "NtImpersonateThread",
-      "NtInitializeNlsFiles",
-      "NtInitializeRegistry",
-      "NtInitiatePowerAction",
-      "NtIsSystemResumeAutomatic",
-      "NtIsUILanguageComitted",
-      "NtListenPort",
-      "NtLoadDriver",
-      "NtLoadKey",
-      "NtLoadKey2",
-      "NtLoadKeyEx",
-      "NtLockFile",
-      "NtLockProductActivationKeys",
-      "NtLockRegistryKey",
-      "NtLockVirtualMemory",
-      "NtMakePermanentObject",
-      "NtMakeTemporaryObject",
-      "NtMapCMFModule",
-      "NtMapUserPhysicalPages",
-      "NtModifyBootEntry",
-      "NtModifyDriverEntry",
-      "NtNotifyChangeDirectoryFile",
-      "NtNotifyChangeKey",
-      "NtNotifyChangeMultipleKeys",
-      "NtNotifyChangeSession",
-      "NtOpenEnlistment",
-      "NtOpenEventPair",
-      "NtOpenIoCompletion",
-      "NtOpenJobObject",
-      "NtOpenKeyEx",
-      "NtOpenKeyTransacted",
-      "NtOpenKeyTransactedEx",
-      "NtOpenKeyedEvent",
-      "NtOpenMutant",
-      "NtOpenObjectAuditAlarm",
-      "NtOpenPrivateNamespace",
-      "NtOpenProcessToken",
-      "NtOpenResourceManager",
-      "NtOpenSemaphore",
-      "NtOpenSession",
-      "NtOpenSymbolicLinkObject",
-      "NtOpenThread",
-      "NtOpenTimer",
-      "NtOpenTransaction",
-      "NtOpenTransactionManager",
-      "NtPlugPlayControl",
-      "NtPrePrepareComplete",
-      "NtPrePrepareEnlistment",
-      "NtPrepareComplete",
-      "NtPrepareEnlistment",
-      "NtPrivilegeCheck",
-      "NtPrivilegeObjectAuditAlarm",
-      "NtPrivilegedServiceAuditAlarm",
-      "NtPropagationComplete",
-      "NtPropagationFailed",
-      "NtPulseEvent",
-      "NtQueryBootEntryOrder",
-      "NtQueryBootOptions",
-      "NtQueryDebugFilterState",
-      "NtQueryDirectoryObject",
-      "NtQueryDriverEntryOrder",
-      "NtQueryEaFile",
-      "NtQueryFullAttributesFile",
-      "NtQueryInformationAtom",
-      "NtQueryInformationEnlistment",
-      "NtQueryInformationJobObject",
-      "NtQueryInformationPort",
-      "NtQueryInformationResourceManager",
-      "NtQueryInformationTransaction",
-      "NtQueryInformationTransactionManager",
-      "NtQueryInformationWorkerFactory",
-      "NtQueryInstallUILanguage",
-      "NtQueryIntervalProfile",
-      "NtQueryIoCompletion",
-      "NtQueryLicenseValue",
-      "NtQueryMultipleValueKey",
-      "NtQueryMutant",
-      "NtQueryOpenSubKeys",
-      "NtQueryOpenSubKeysEx",
-      "NtQueryPortInformationProcess",
-      "NtQueryQuotaInformationFile",
-      "NtQuerySecurityAttributesToken",
-      "NtQuerySecurityObject",
-      "NtQuerySemaphore",
-      "NtQuerySymbolicLinkObject",
-      "NtQuerySystemEnvironmentValue",
-      "NtQuerySystemEnvironmentValueEx",
-      "NtQuerySystemInformationEx",
-      "NtQueryTimerResolution",
-      "NtQueueApcThreadEx",
-      "NtRaiseException",
-      "NtRaiseHardError",
-      "NtReadOnlyEnlistment",
-      "NtRecoverEnlistment",
-      "NtRecoverResourceManager",
-      "NtRecoverTransactionManager",
-      "NtRegisterProtocolAddressInformation",
-      "NtRegisterThreadTerminatePort",
-      "NtReleaseKeyedEvent",
-      "NtReleaseWorkerFactoryWorker",
-      "NtRemoveIoCompletionEx",
-      "NtRemoveProcessDebug",
-      "NtRenameKey",
-      "NtRenameTransactionManager",
-      "NtReplaceKey",
-      "NtReplacePartitionUnit",
-      "NtReplyWaitReplyPort",
-      "NtRequestPort",
-      "NtResetEvent",
-      "NtResetWriteWatch",
-      "NtRestoreKey",
-      "NtResumeProcess",
-      "NtRollbackComplete",
-      "NtRollbackEnlistment",
-      "NtRollbackTransaction",
-      "NtRollforwardTransactionManager",
-      "NtSaveKey",
-      "NtSaveKeyEx",
-      "NtSaveMergedKeys",
-      "NtSecureConnectPort",
-      "NtSerializeBoot",
-      "NtSetBootEntryOrder",
-      "NtSetBootOptions",
-      "NtSetContextThread",
-      "NtSetDebugFilterState",
-      "NtSetDefaultHardErrorPort",
-      "NtSetDefaultLocale",
-      "NtSetDefaultUILanguage",
-      "NtSetDriverEntryOrder",
-      "NtSetEaFile",
-      "NtSetHighEventPair",
-      "NtSetHighWaitLowEventPair",
-      "NtSetInformationDebugObject",
-      "NtSetInformationEnlistment",
-      "NtSetInformationJobObject",
-      "NtSetInformationKey",
-      "NtSetInformationResourceManager",
-      "NtSetInformationToken",
-      "NtSetInformationTransaction",
-      "NtSetInformationTransactionManager",
-      "NtSetInformationWorkerFactory",
-      "NtSetIntervalProfile",
-      "NtSetIoCompletion",
-      "NtSetIoCompletionEx",
-      "CcTestControl",
-      "NtSetLowEventPair",
-      "NtSetLowWaitHighEventPair",
-      "NtSetQuotaInformationFile",
-      "NtSetSecurityObject",
-      "NtSetSystemEnvironmentValue",
-      "NtSetSystemEnvironmentValueEx",
-      "NtSetSystemInformation",
-      "NtSetSystemPowerState",
-      "NtSetSystemTime",
-      "NtSetThreadExecutionState",
-      "NtSetTimerEx",
-      "NtSetTimerResolution",
-      "NtSetUuidSeed",
-      "NtSetVolumeInformationFile",
-      "NtShutdownSystem",
-      "NtShutdownWorkerFactory",
-      "NtSignalAndWaitForSingleObject",
-      "NtSinglePhaseReject",
-      "NtStartProfile",
-      "NtStopProfile",
-      "NtSuspendProcess",
-      "NtSuspendThread",
-      "NtSystemDebugControl",
-      "NtTerminateJobObject",
-      "NtTestAlert",
-      "NtThawRegistry",
-      "NtThawTransactions",
-      "NtTraceControl",
-      "NtTranslateFilePath",
-      "NtUmsThreadYield",
-      "NtUnloadDriver",
-      "NtUnloadKey",
-      "NtUnloadKey2",
-      "NtUnloadKeyEx",
-      "NtUnlockFile",
-      "NtUnlockVirtualMemory",
-      "NtVdmControl",
-      "NtWaitForDebugEvent",
-      "NtWaitForKeyedEvent",
-      "NtWaitForWorkViaWorkerFactory",
-      "NtWaitHighEventPair",
-      "NtWaitLowEventPair",
-      "NtWorkerFactoryWorkerReady"
-};
 
 // Win7 ShadowSSDT 函数名数组
-const char* WIN7_SHADOW_SSDT_FUNCTIONS[] = {
+ char* WIN7_SHADOW_SSDT_FUNCTIONS[] = {
       "NtUserGetThreadState",
-      "NtUserPeekMessage",
-      "NtUserCallOneParam",
-      "NtUserGetKeyState",
-      "NtUserInvalidateRect",
-      "NtUserCallNoParam",
-      "NtUserGetMessage",
-      "NtUserMessageCall",
-      "NtGdiBitBlt",
-      "NtGdiGetCharSet",
-      "NtUserGetDC",
-      "NtGdiSelectBitmap",
-      "NtUserWaitMessage",
-      "NtUserTranslateMessage",
-      "NtUserGetProp",
-      "NtUserPostMessage",
-      "NtUserQueryWindow",
-      "NtUserTranslateAccelerator",
-      "NtGdiFlush",
-      "NtUserRedrawWindow",
-      "NtUserWindowFromPoint",
-      "NtUserCallMsgFilter",
-      "NtUserValidateTimerCallback",
-      "NtUserBeginPaint",
-      "NtUserSetTimer",
-      "NtUserEndPaint",
-      "NtUserSetCursor",
-      "NtUserKillTimer",
-      "NtUserBuildHwndList",
-      "NtUserSelectPalette",
-      "NtUserCallNextHookEx",
-      "NtUserHideCaret",
-      "NtGdiIntersectClipRect",
-      "NtUserCallHwndLock",
-      "NtUserGetProcessWindowStation",
-      "NtGdiDeleteObjectApp",
-      "NtUserSetWindowPos",
-      "NtUserShowCaret",
-      "NtUserEndDeferWindowPosEx",
-      "NtUserCallHwndParamLock",
-      "NtUserVkKeyScanEx",
-      "NtGdiSetDIBitsToDeviceInternal",
-      "NtUserCallTwoParam",
-      "NtGdiGetRandomRgn",
-      "NtUserCopyAcceleratorTable",
-      "NtUserNotifyWinEvent",
-      "NtGdiExtSelectClipRgn",
-      "NtUserIsClipboardFormatAvailable",
-      "NtUserSetScrollInfo",
-      "NtGdiStretchBlt",
-      "NtUserCreateCaret",
-      "NtGdiRectVisible",
-      "NtGdiCombineRgn",
-      "NtGdiGetDCObject",
-      "NtUserDispatchMessage",
-      "NtUserRegisterWindowMessage",
-      "NtGdiExtTextOutW",
-      "NtGdiSelectFont",
-      "NtGdiRestoreDC",
-      "NtGdiSaveDC",
-      "NtUserGetForegroundWindow",
-      "NtUserShowScrollBar",
-      "NtUserFindExistingCursorIcon",
-      "NtGdiGetDCDword",
-      "NtGdiGetRegionData",
-      "NtGdiLineTo",
-      "NtUserSystemParametersInfo",
-      "NtGdiGetAppClipBox",
-      "NtUserGetAsyncKeyState",
-      "NtUserGetCPD",
-      "NtUserRemoveProp",
-      "NtGdiDoPalette",
-      "NtGdiPolyPolyDraw",
-      "NtUserSetCapture",
-      "NtUserEnumDisplayMonitors",
-      "NtGdiCreateCompatibleBitmap",
-      "NtUserSetProp",
-      "NtGdiGetTextCharsetInfo",
-      "NtUserSBGetParms",
-      "NtUserGetIconInfo",
-      "NtUserExcludeUpdateRgn",
-      "NtUserSetFocus",
-      "NtGdiExtGetObjectW",
-      "NtUserDeferWindowPos",
-      "NtUserGetUpdateRect",
-      "NtGdiCreateCompatibleDC",
-      "NtUserGetClipboardSequenceNumber",
-      "NtGdiCreatePen",
-      "NtUserShowWindow",
-      "NtUserGetKeyboardLayoutList",
-      "NtGdiPatBlt",
-      "NtUserMapVirtualKeyEx",
-      "NtUserSetWindowLong",
-      "NtGdiHfontCreate",
-      "NtUserMoveWindow",
-      "NtUserPostThreadMessage",
-      "NtUserDrawIconEx",
-      "NtUserGetSystemMenu",
-      "NtGdiDrawStream",
-      "NtUserInternalGetWindowText",
-      "NtUserGetWindowDC",
-      "NtGdiD3dDrawPrimitives2",
-      "NtGdiInvertRgn",
-      "NtGdiGetRgnBox",
-      "NtGdiGetAndSetDCDword",
-      "NtGdiMaskBlt",
-      "NtGdiGetWidthTable",
-      "NtUserScrollDC",
-      "NtUserGetObjectInformation",
-      "NtGdiCreateBitmap",
-      "NtUserFindWindowEx",
-      "NtGdiPolyPatBlt",
-      "NtUserUnhookWindowsHookEx",
-      "NtGdiGetNearestColor",
-      "NtGdiTransformPoints",
-      "NtGdiGetDCPoint",
-      "NtGdiCreateDIBBrush",
-      "NtGdiGetTextMetricsW",
-      "NtUserCreateWindowEx",
-      "NtUserSetParent",
-      "NtUserGetKeyboardState",
-      "NtUserToUnicodeEx",
-      "NtUserGetControlBrush",
-      "NtUserGetClassName",
-      "NtGdiAlphaBlend",
-      "NtGdiDdBlt",
-      "NtGdiOffsetRgn",
-      "NtUserDefSetText",
-      "NtGdiGetTextFaceW",
-      "NtGdiStretchDIBitsInternal",
-      "NtUserSendInput",
-      "NtUserGetThreadDesktop",
-      "NtGdiCreateRectRgn",
-      "NtGdiGetDIBitsInternal",
-      "NtUserGetUpdateRgn",
-      "NtGdiDeleteClientObj",
-      "NtUserGetIconSize",
-      "NtUserFillWindow",
-      "NtGdiExtCreateRegion",
-      "NtGdiComputeXformCoefficients",
-      "NtUserSetWindowsHookEx",
-      "NtUserNotifyProcessCreate",
-      "NtGdiUnrealizeObject",
-      "NtUserGetTitleBarInfo",
-      "NtGdiRectangle",
-      "NtUserSetThreadDesktop",
-      "NtUserGetDCEx",
-      "NtUserGetScrollBarInfo",
-      "NtGdiGetTextExtent",
-      "NtUserSetWindowFNID",
-      "NtGdiSetLayout",
-      "NtUserCalcMenuBar",
-      "NtUserThunkedMenuItemInfo",
-      "NtGdiExcludeClipRect",
-      "NtGdiCreateDIBSection",
-      "NtGdiGetDCforBitmap",
-      "NtUserDestroyCursor",
-      "NtUserDestroyWindow",
-      "NtUserCallHwndParam",
-      "NtGdiCreateDIBitmapInternal",
-      "NtUserOpenWindowStation",
-      "NtGdiDdDeleteSurfaceObject",
-      "NtGdiDdCanCreateSurface",
-      "NtGdiDdCreateSurface",
-      "NtUserSetCursorIconData",
-      "NtGdiDdDestroySurface",
-      "NtUserCloseDesktop",
-      "NtUserOpenDesktop",
-      "NtUserSetProcessWindowStation",
-      "NtUserGetAtomName",
-      "NtGdiDdResetVisrgn",
-      "NtGdiExtCreatePen",
-      "NtGdiCreatePaletteInternal",
-      "NtGdiSetBrushOrg",
-      "NtUserBuildNameList",
-      "NtGdiSetPixel",
-      "NtUserRegisterClassExWOW",
-      "NtGdiCreatePatternBrushInternal",
-      "NtUserGetAncestor",
-      "NtGdiGetOutlineTextMetricsInternalW",
-      "NtGdiSetBitmapBits",
-      "NtUserCloseWindowStation",
-      "NtUserGetDoubleClickTime",
-      "NtUserEnableScrollBar",
-      "NtGdiCreateSolidBrush",
-      "NtUserGetClassInfoEx",
-      "NtGdiCreateClientObj",
-      "NtUserUnregisterClass",
-      "NtUserDeleteMenu",
-      "NtGdiRectInRegion",
-      "NtUserScrollWindowEx",
-      "NtGdiGetPixel",
-      "NtUserSetClassLong",
-      "NtUserGetMenuBarInfo",
-      "NtGdiDdCreateSurfaceEx",
-      "NtGdiDdCreateSurfaceObject",
-      "NtGdiGetNearestPaletteIndex",
-      "NtGdiDdLockD3D",
-      "NtGdiDdUnlockD3D",
-      "NtGdiGetCharWidthW",
-      "NtUserInvalidateRgn",
-      "NtUserGetClipboardOwner",
-      "NtUserSetWindowRgn",
-      "NtUserBitBltSysBmp",
-      "NtGdiGetCharWidthInfo",
-      "NtUserValidateRect",
-      "NtUserCloseClipboard",
-      "NtUserOpenClipboard",
-      "NtGdiGetStockObject",
-      "NtUserSetClipboardData",
-      "NtUserEnableMenuItem",
-      "NtUserAlterWindowStyle",
-      "NtGdiFillRgn",
-      "NtUserGetWindowPlacement",
-      "NtGdiModifyWorldTransform",
-      "NtGdiGetFontData",
-      "NtUserGetOpenClipboardWindow",
-      "NtUserSetThreadState",
-      "NtGdiOpenDCW",
-      "NtUserTrackMouseEvent",
-      "NtGdiGetTransform",
-      "NtUserDestroyMenu",
-      "NtGdiGetBitmapBits",
-      "NtUserConsoleControl",
-      "NtUserSetActiveWindow",
-      "NtUserSetInformationThread",
-      "NtUserSetWindowPlacement",
-      "NtUserGetControlColor",
-      "NtGdiSetMetaRgn",
-      "NtGdiSetMiterLimit",
-      "NtGdiSetVirtualResolution",
-      "NtGdiGetRasterizerCaps",
-      "NtUserSetWindowWord",
-      "NtUserGetClipboardFormatName",
-      "NtUserRealInternalGetMessage",
-      "NtUserCreateLocalMemHandle",
-      "NtUserAttachThreadInput",
-      "NtGdiCreateHalftonePalette",
-      "NtUserPaintMenuBar",
-      "NtUserSetKeyboardState",
-      "NtGdiCombineTransform",
-      "NtUserCreateAcceleratorTable",
-      "NtUserGetCursorFrameInfo",
-      "NtUserGetAltTabInfo",
-      "NtUserGetCaretBlinkTime",
-      "NtGdiQueryFontAssocInfo",
-      "NtUserProcessConnect",
-      "NtUserEnumDisplayDevices",
-      "NtUserEmptyClipboard",
-      "NtUserGetClipboardData",
-      "NtUserRemoveMenu",
-      "NtGdiSetBoundsRect",
-      "NtGdiGetBitmapDimension",
-      "NtUserConvertMemHandle",
-      "NtUserDestroyAcceleratorTable",
-      "NtUserGetGUIThreadInfo",
-      "NtGdiCloseFigure",
-      "NtUserSetWindowsHookAW",
-      "NtUserSetMenuDefaultItem",
-      "NtUserCheckMenuItem",
-      "NtUserSetWinEventHook",
-      "NtUserUnhookWinEvent",
-      "NtUserLockWindowUpdate",
-      "NtUserSetSystemMenu",
-      "NtUserThunkedMenuInfo",
-      "NtGdiBeginPath",
-      "NtGdiEndPath",
-      "NtGdiFillPath",
-      "NtUserCallHwnd",
-      "NtUserDdeInitialize",
-      "NtUserModifyUserStartupInfoFlags",
-      "NtUserCountClipboardFormats",
-      "NtGdiAddFontMemResourceEx",
-      "NtGdiEqualRgn",
-      "NtGdiGetSystemPaletteUse",
-      "NtGdiRemoveFontMemResourceEx",
-      "NtUserEnumDisplaySettings",
-      "NtUserPaintDesktop",
-      "NtGdiExtEscape",
-      "NtGdiSetBitmapDimension",
-      "NtGdiSetFontEnumeration",
-      "NtUserChangeClipboardChain",
-      "NtUserSetClipboardViewer",
-      "NtUserShowWindowAsync",
-      "NtGdiCreateColorSpace",
-      "NtGdiDeleteColorSpace",
-      "NtUserActivateKeyboardLayout",
-      "NtGdiAbortDoc",
-      "NtGdiAbortPath",
-      "NtGdiAddEmbFontToDC",
-      "NtGdiAddFontResourceW",
-      "NtGdiAddRemoteFontToDC",
-      "NtGdiAddRemoteMMInstanceToDC",
-      "NtGdiAngleArc",
-      "NtGdiAnyLinkedFonts",
-      "NtGdiArcInternal",
-      "NtGdiBRUSHOBJ_DeleteRbrush",
-      "NtGdiBRUSHOBJ_hGetColorTransform",
-      "NtGdiBRUSHOBJ_pvAllocRbrush",
-      "NtGdiBRUSHOBJ_pvGetRbrush",
-      "NtGdiBRUSHOBJ_ulGetBrushColor",
-      "NtGdiBeginGdiRendering",
-      "NtGdiCLIPOBJ_bEnum",
-      "NtGdiCLIPOBJ_cEnumStart",
-      "NtGdiCLIPOBJ_ppoGetPath",
-      "NtGdiCancelDC",
-      "NtGdiChangeGhostFont",
-      "NtGdiCheckBitmapBits",
-      "NtGdiClearBitmapAttributes",
-      "NtGdiClearBrushAttributes",
-      "NtGdiColorCorrectPalette",
-      "NtGdiConfigureOPMProtectedOutput",
-      "NtGdiConvertMetafileRect",
-      "NtGdiCreateBitmapFromDxSurface",
-      "NtGdiCreateColorTransform",
-      "NtGdiCreateEllipticRgn",
-      "NtGdiCreateHatchBrushInternal",
-      "NtGdiCreateMetafileDC",
-      "NtGdiCreateOPMProtectedOutputs",
-      "NtGdiCreateRoundRectRgn",
-      "NtGdiCreateServerMetaFile",
-      "NtGdiD3dContextCreate",
-      "NtGdiD3dContextDestroy",
-      "NtGdiD3dContextDestroyAll",
-      "NtGdiD3dValidateTextureStageState",
-      "NtGdiDDCCIGetCapabilitiesString",
-      "NtGdiDDCCIGetCapabilitiesStringLength",
-      "NtGdiDDCCIGetTimingReport",
-      "NtGdiDDCCIGetVCPFeature",
-      "NtGdiDDCCISaveCurrentSettings",
-      "NtGdiDDCCISetVCPFeature",
-      "NtGdiDdAddAttachedSurface",
-      "NtGdiDdAlphaBlt",
-      "NtGdiDdAttachSurface",
-      "NtGdiDdBeginMoCompFrame",
-      "NtGdiDdCanCreateD3DBuffer",
-      "NtGdiDdColorControl",
-      "NtGdiDdCreateD3DBuffer",
-      "NtGdiDdCreateDirectDrawObject",
-      "NtGdiDdCreateFullscreenSprite",
-      "NtGdiDdCreateMoComp",
-      "NtGdiDdDDIAcquireKeyedMutex",
-      "NtGdiDdDDICheckExclusiveOwnership",
-      "NtGdiDdDDICheckMonitorPowerState",
-      "NtGdiDdDDICheckOcclusion",
-      "NtGdiDdDDICheckSharedResourceAccess",
-      "NtGdiDdDDICheckVidPnExclusiveOwnership",
-      "NtGdiDdDDICloseAdapter",
-      "NtGdiDdDDIConfigureSharedResource",
-      "NtGdiDdDDICreateAllocation",
-      "NtGdiDdDDICreateContext",
-      "NtGdiDdDDICreateDCFromMemory",
-      "NtGdiDdDDICreateDevice",
-      "NtGdiDdDDICreateKeyedMutex",
-      "NtGdiDdDDICreateOverlay",
-      "NtGdiDdDDICreateSynchronizationObject",
-      "NtGdiDdDDIDestroyAllocation",
-      "NtGdiDdDDIDestroyContext",
-      "NtGdiDdDDIDestroyDCFromMemory",
-      "NtGdiDdDDIDestroyDevice",
-      "NtGdiDdDDIDestroyKeyedMutex",
-      "NtGdiDdDDIDestroyOverlay",
-      "NtGdiDdDDIDestroySynchronizationObject",
-      "NtGdiDdDDIEscape",
-      "NtGdiDdDDIFlipOverlay",
-      "NtGdiDdDDIGetContextSchedulingPriority",
-      "NtGdiDdDDIGetDeviceState",
-      "NtGdiDdDDIGetDisplayModeList",
-      "NtGdiDdDDIGetMultisampleMethodList",
-      "NtGdiDdDDIGetOverlayState",
-      "NtGdiDdDDIGetPresentHistory",
-      "NtGdiDdDDIGetPresentQueueEvent",
-      "NtGdiDdDDIGetProcessSchedulingPriorityClass",
-      "NtGdiDdDDIGetRuntimeData",
-      "NtGdiDdDDIGetScanLine",
-      "NtGdiDdDDIGetSharedPrimaryHandle",
-      "NtGdiDdDDIInvalidateActiveVidPn",
-      "NtGdiDdDDILock",
-      "NtGdiDdDDIOpenAdapterFromDeviceName",
-      "NtGdiDdDDIOpenAdapterFromHdc",
-      "NtGdiDdDDIOpenKeyedMutex",
-      "NtGdiDdDDIOpenResource",
-      "NtGdiDdDDIOpenSynchronizationObject",
-      "NtGdiDdDDIPollDisplayChildren",
-      "NtGdiDdDDIPresent",
-      "NtGdiDdDDIQueryAdapterInfo",
-      "NtGdiDdDDIQueryAllocationResidency",
-      "NtGdiDdDDIQueryResourceInfo",
-      "NtGdiDdDDIQueryStatistics",
-      "NtGdiDdDDIReleaseKeyedMutex",
-      "NtGdiDdDDIReleaseProcessVidPnSourceOwners",
-      "NtGdiDdDDIRender",
-      "NtGdiDdDDISetAllocationPriority",
-      "NtGdiDdDDISetContextSchedulingPriority",
-      "NtGdiDdDDISetDisplayMode",
-      "NtGdiDdDDISetDisplayPrivateDriverFormat",
-      "NtGdiDdDDISetGammaRamp",
-      "NtGdiDdDDISetProcessSchedulingPriorityClass",
-      "NtGdiDdDDISetQueuedLimit",
-      "NtGdiDdDDISetVidPnSourceOwner",
-      "NtGdiDdDDISharedPrimaryLockNotification",
-      "NtGdiDdDDISharedPrimaryUnLockNotification",
-      "NtGdiDdDDISignalSynchronizationObject",
-      "NtGdiDdDDIUnlock",
-      "NtGdiDdDDIUpdateOverlay",
-      "NtGdiDdDDIWaitForIdle",
-      "NtGdiDdDDIWaitForSynchronizationObject",
-      "NtGdiDdDDIWaitForVerticalBlankEvent",
-      "NtGdiDdDeleteDirectDrawObject",
-      "NtGdiDdDestroyD3DBuffer",
-      "NtGdiDdDestroyFullscreenSprite",
-      "NtGdiDdDestroyMoComp",
-      "NtGdiDdEndMoCompFrame",
-      "NtGdiDdFlip",
-      "NtGdiDdFlipToGDISurface",
-      "NtGdiDdGetAvailDriverMemory",
-      "NtGdiDdGetBltStatus",
-      "NtGdiDdGetDC",
-      "NtGdiDdGetDriverInfo",
-      "NtGdiDdGetDriverState",
-      "NtGdiDdGetDxHandle",
-      "NtGdiDdGetFlipStatus",
-      "NtGdiDdGetInternalMoCompInfo",
-      "NtGdiDdGetMoCompBuffInfo",
-      "NtGdiDdGetMoCompFormats",
-      "NtGdiDdGetMoCompGuids",
-      "NtGdiDdGetScanLine",
-      "NtGdiDdLock",
-      "NtGdiDdNotifyFullscreenSpriteUpdate",
-      "NtGdiDdQueryDirectDrawObject",
-      "NtGdiDdQueryMoCompStatus",
-      "DxEngVisRgnUniq",
-      "NtGdiDdReenableDirectDrawObject",
-      "NtGdiDdReleaseDC",
-      "NtGdiDdRenderMoComp",
-      "NtGdiDdSetColorKey",
-      "NtGdiDdSetExclusiveMode",
-      "NtGdiDdSetGammaRamp",
-      "NtGdiDdSetOverlayPosition",
-      "NtGdiDdUnattachSurface",
-      "NtGdiDdUnlock",
-      "NtGdiDdUpdateOverlay",
-      "NtGdiDdWaitForVerticalBlank",
-      "NtGdiDeleteColorTransform",
-      "NtGdiDescribePixelFormat",
-      "NtGdiDestroyOPMProtectedOutput",
-      "NtGdiDestroyPhysicalMonitor",
-      "NtGdiDoBanding",
-      "NtGdiDrawEscape",
-      "NtGdiDvpAcquireNotification",
-      "NtGdiDvpCanCreateVideoPort",
-      "NtGdiDvpColorControl",
-      "NtGdiDvpCreateVideoPort",
-      "NtGdiDvpDestroyVideoPort",
-      "NtGdiDvpFlipVideoPort",
-      "NtGdiDvpGetVideoPortBandwidth",
-      "NtGdiDvpGetVideoPortConnectInfo",
-      "NtGdiDvpGetVideoPortField",
-      "NtGdiDvpGetVideoPortFlipStatus",
-      "NtGdiDvpGetVideoPortInputFormats",
-      "NtGdiDvpGetVideoPortLine",
-      "NtGdiDvpGetVideoPortOutputFormats",
-      "NtGdiDvpGetVideoSignalStatus",
-      "NtGdiDvpReleaseNotification",
-      "NtGdiDvpUpdateVideoPort",
-      "NtGdiDvpWaitForVideoPortSync",
-      "NtGdiDxgGenericThunk",
-      "NtGdiEllipse",
-      "NtGdiEnableEudc",
-      "NtGdiEndDoc",
-      "NtGdiEndGdiRendering",
-      "NtGdiEndPage",
-      "NtGdiEngAlphaBlend",
-      "NtGdiEngAssociateSurface",
-      "NtGdiEngBitBlt",
-      "NtGdiEngCheckAbort",
-      "NtGdiEngComputeGlyphSet",
-      "NtGdiEngCopyBits",
-      "NtGdiEngCreateBitmap",
-      "NtGdiEngCreateClip",
-      "NtGdiEngCreateDeviceBitmap",
-      "NtGdiEngCreateDeviceSurface",
-      "NtGdiEngCreatePalette",
-      "NtGdiEngDeleteClip",
-      "NtGdiEngDeletePalette",
-      "NtGdiEngDeletePath",
-      "NtGdiEngDeleteSurface",
-      "NtGdiEngEraseSurface",
-      "NtGdiEngFillPath",
-      "NtGdiEngGradientFill",
-      "NtGdiEngLineTo",
-      "NtGdiEngLockSurface",
-      "NtGdiEngMarkBandingSurface",
-      "NtGdiEngPaint",
-      "NtGdiEngPlgBlt",
-      "NtGdiEngStretchBlt",
-      "NtGdiEngStretchBltROP",
-      "NtGdiEngStrokeAndFillPath",
-      "NtGdiEngStrokePath",
-      "NtGdiEngTextOut",
-      "NtGdiEngTransparentBlt",
-      "NtGdiEngUnlockSurface",
-      "NtGdiEnumFonts",
-      "NtGdiEnumObjects",
-      "NtGdiEudcLoadUnloadLink",
-      "NtGdiExtFloodFill",
-      "NtGdiFONTOBJ_cGetAllGlyphHandles",
-      "NtGdiFONTOBJ_cGetGlyphs",
-      "NtGdiFONTOBJ_pQueryGlyphAttrs",
-      "NtGdiFONTOBJ_pfdg",
-      "NtGdiFONTOBJ_pifi",
-      "NtGdiFONTOBJ_pvTrueTypeFontFile",
-      "NtGdiFONTOBJ_pxoGetXform",
-      "NtGdiFONTOBJ_vGetInfo",
-      "NtGdiFlattenPath",
-      "NtGdiFontIsLinked",
-      "NtGdiForceUFIMapping",
-      "NtGdiFrameRgn",
-      "NtGdiFullscreenControl",
-      "NtGdiGetBoundsRect",
-      "NtGdiGetCOPPCompatibleOPMInformation",
-      "NtGdiGetCertificate",
-      "NtGdiGetCertificateSize",
-      "NtGdiGetCharABCWidthsW",
-      "NtGdiGetCharacterPlacementW",
-      "NtGdiGetColorAdjustment",
-      "NtGdiGetColorSpaceforBitmap",
-      "NtGdiGetDeviceCaps",
-      "NtGdiGetDeviceCapsAll",
-      "NtGdiGetDeviceGammaRamp",
-      "NtGdiGetDeviceWidth",
-      "NtGdiGetDhpdev",
-      "NtGdiGetETM",
-      "NtGdiGetEmbUFI",
-      "NtGdiGetEmbedFonts",
-      "NtGdiGetEudcTimeStampEx",
-      "NtGdiGetFontFileData",
-      "NtGdiGetFontFileInfo",
-      "NtGdiGetFontResourceInfoInternalW",
-      "NtGdiGetFontUnicodeRanges",
-      "NtGdiGetGlyphIndicesW",
-      "NtGdiGetGlyphIndicesWInternal",
-      "NtGdiGetGlyphOutline",
-      "NtGdiGetKerningPairs",
-      "NtGdiGetLinkedUFIs",
-      "NtGdiGetMiterLimit",
-      "NtGdiGetMonitorID",
-      "NtGdiGetNumberOfPhysicalMonitors",
-      "NtGdiGetOPMInformation",
-      "NtGdiGetOPMRandomNumber",
-      "NtGdiGetObjectBitmapHandle",
-      "NtGdiGetPath",
-      "NtGdiGetPerBandInfo",
-      "NtGdiGetPhysicalMonitorDescription",
-      "NtGdiGetPhysicalMonitors",
-      "NtGdiGetRealizationInfo",
-      "NtGdiGetServerMetaFileBits",
-      "DxgStubGenericThunk",
-      "NtGdiGetStats",
-      "NtGdiGetStringBitmapW",
-      "NtGdiGetSuggestedOPMProtectedOutputArraySize",
-      "NtGdiGetTextExtentExW",
-      "NtGdiGetUFI",
-      "NtGdiGetUFIPathname",
-      "NtGdiGradientFill",
-      "NtGdiHLSurfGetInformation",
-      "NtGdiHLSurfSetInformation",
-      "NtGdiHT_Get8BPPFormatPalette",
-      "NtGdiHT_Get8BPPMaskPalette",
-      "NtGdiIcmBrushInfo",
-      "DxgStubEnableDirectDraw",
-      "EngGetPrinter",
-      "NtGdiMakeFontDir",
-      "NtGdiMakeInfoDC",
-      "NtGdiMakeObjectUnXferable",
-      "NtGdiMakeObjectXferable",
-      "NtGdiMirrorWindowOrg",
-      "NtGdiMonoBitmap",
-      "NtGdiMoveTo",
-      "NtGdiOffsetClipRgn",
-      "NtGdiPATHOBJ_bEnum",
-      "NtGdiPATHOBJ_bEnumClipLines",
-      "NtGdiPATHOBJ_vEnumStart",
-      "NtGdiPATHOBJ_vEnumStartClipLines",
-      "NtGdiPATHOBJ_vGetBounds",
-      "NtGdiPathToRegion",
-      "NtGdiPlgBlt",
-      "NtGdiPolyDraw",
-      "NtGdiPolyTextOutW",
-      "NtGdiPtInRegion",
-      "NtGdiPtVisible",
-      "NtGdiQueryFonts",
-      "NtGdiRemoveFontResourceW",
-      "NtGdiRemoveMergeFont",
-      "NtGdiResetDC",
-      "NtGdiResizePalette",
-      "NtGdiRoundRect",
-      "NtGdiSTROBJ_bEnum",
-      "NtGdiSTROBJ_bEnumPositionsOnly",
-      "NtGdiSTROBJ_bGetAdvanceWidths",
-      "NtGdiSTROBJ_dwGetCodePage",
-      "NtGdiSTROBJ_vEnumStart",
-      "NtGdiScaleViewportExtEx",
-      "NtGdiScaleWindowExtEx",
-      "NtGdiSelectBrush",
-      "NtGdiSelectClipPath",
-      "NtGdiSelectPen",
-      "NtGdiSetBitmapAttributes",
-      "NtGdiSetBrushAttributes",
-      "NtGdiSetColorAdjustment",
-      "NtGdiSetColorSpace",
-      "NtGdiSetDeviceGammaRamp",
-      "NtGdiSetFontXform",
-      "NtGdiSetIcmMode",
-      "NtGdiSetLinkedUFIs",
-      "NtGdiSetMagicColors",
-      "NtGdiSetOPMSigningKeyAndSequenceNumbers",
-      "NtGdiSetPUMPDOBJ",
-      "NtGdiSetPixelFormat",
-      "NtGdiSetRectRgn",
-      "NtGdiSetSizeDevice",
-      "NtGdiSetSystemPaletteUse",
-      "NtGdiSetTextJustification",
-      "NtGdiSfmGetNotificationTokens",
-      "NtGdiStartDoc",
-      "NtGdiStartPage",
-      "NtGdiStrokeAndFillPath",
-      "NtGdiStrokePath",
-      "NtGdiSwapBuffers",
-      "NtGdiTransparentBlt",
-      "NtGdiUMPDEngFreeUserMem",
-      "NtGdiUpdateColors",
-      "NtGdiUpdateTransform",
-      "NtGdiWidenPath",
-      "NtGdiXFORMOBJ_bApplyXform",
-      "NtGdiXFORMOBJ_iGetXform",
-      "NtGdiXLATEOBJ_cGetPalette",
-      "NtGdiXLATEOBJ_hGetColorTransform",
-      "NtGdiXLATEOBJ_iXlate",
-      "NtUserAddClipboardFormatListener",
-      "NtUserAssociateInputContext",
-      "NtUserBlockInput",
-      "NtUserBuildHimcList",
-      "NtUserBuildPropList",
-      "NtUserCalculatePopupWindowPosition",
-      "NtUserCallHwndOpt",
-      "NtUserChangeDisplaySettings",
-      "NtUserChangeWindowMessageFilterEx",
-      "NtUserCheckAccessForIntegrityLevel",
-      "NtUserCheckDesktopByThreadId",
-      "NtUserCheckWindowThreadDesktop",
-      "NtUserChildWindowFromPointEx",
-      "NtUserClipCursor",
-      "NtUserCreateDesktopEx",
-      "NtUserCreateInputContext",
-      "NtUserCreateWindowStation",
-      "NtUserCtxDisplayIOCtl",
-      "NtUserDestroyInputContext",
-      "NtUserDisableThreadIme",
-      "NtUserDisplayConfigGetDeviceInfo",
-      "NtUserDisplayConfigSetDeviceInfo",
-      "NtUserDoSoundConnect",
-      "NtUserDoSoundDisconnect",
-      "NtUserDragDetect",
-      "NtUserDragObject",
-      "NtUserDrawAnimatedRects",
-      "NtUserDrawCaption",
-      "NtUserDrawCaptionTemp",
-      "NtUserDrawMenuBarTemp",
-      "NtUserDwmStartRedirection",
-      "NtUserDwmStopRedirection",
-      "NtUserEndMenu",
-      "NtUserEndTouchOperation",
-      "NtUserEvent",
-      "NtUserFlashWindowEx",
-      "NtUserFrostCrashedWindow",
-      "NtUserGetAppImeLevel",
-      "NtUserGetCaretPos",
-      "NtUserGetClipCursor",
-      "NtUserGetClipboardViewer",
-      "NtUserGetComboBoxInfo",
-      "NtUserGetCursorInfo",
-      "NtUserGetDisplayConfigBufferSizes",
-      "NtUserGetGestureConfig",
-      "NtUserGetGestureExtArgs",
-      "NtUserGetGestureInfo",
-      "NtUserGetGuiResources",
-      "NtUserGetImeHotKey",
-      "NtUserGetImeInfoEx",
-      "NtUserGetInputLocaleInfo",
-      "NtUserGetInternalWindowPos",
-      "NtUserGetKeyNameText",
-      "NtUserGetKeyboardLayoutName",
-      "NtUserGetLayeredWindowAttributes",
-      "NtUserGetListBoxInfo",
-      "NtUserGetMenuIndex",
-      "NtUserGetMenuItemRect",
-      "NtUserGetMouseMovePointsEx",
-      "NtUserGetPriorityClipboardFormat",
-      "NtUserGetRawInputBuffer",
-      "NtUserGetRawInputData",
-      "NtUserGetRawInputDeviceInfo",
-      "NtUserGetRawInputDeviceList",
-      "NtUserGetRegisteredRawInputDevices",
-      "NtUserGetTopLevelWindow",
-      "NtUserGetTouchInputInfo",
-      "NtUserGetUpdatedClipboardFormats",
-      "NtUserGetWOWClass",
-      "NtUserGetWindowCompositionAttribute",
-      "NtUserGetWindowCompositionInfo",
-      "NtUserGetWindowDisplayAffinity",
-      "NtUserGetWindowMinimizeRect",
-      "NtUserGetWindowRgnEx",
-      "NtUserGhostWindowFromHungWindow",
-      "NtUserHardErrorControl",
-      "NtUserHiliteMenuItem",
-      "NtUserHungWindowFromGhostWindow",
-      "NtUserHwndQueryRedirectionInfo",
-      "NtUserHwndSetRedirectionInfo",
-      "NtUserImpersonateDdeClientWindow",
-      "NtUserInitTask",
-      "NtUserInitialize",
-      "NtUserInitializeClientPfnArrays",
-      "NtUserInjectGesture",
-      "NtUserInternalGetWindowIcon",
-      "NtUserIsTopLevelWindow",
-      "NtUserIsTouchWindow",
-      "NtUserLoadKeyboardLayoutEx",
-      "NtUserLockWindowStation",
-      "NtUserLockWorkStation",
-      "NtUserLogicalToPhysicalPoint",
-      "NtUserMNDragLeave",
-      "NtUserMNDragOver",
-      "NtUserMagControl",
-      "NtUserMagGetContextInformation",
-      "NtUserMagSetContextInformation",
-      "NtUserManageGestureHandlerWindow",
-      "NtUserMenuItemFromPoint",
-      "NtUserMinMaximize",
-      "NtUserModifyWindowTouchCapability",
-      "NtUserNotifyIMEStatus",
-      "NtUserOpenInputDesktop",
-      "NtUserOpenThreadDesktop",
-      "NtUserPaintMonitor",
-      "NtUserPhysicalToLogicalPoint",
-      "NtUserPrintWindow",
-      "NtUserQueryDisplayConfig",
-      "NtUserQueryInformationThread",
-      "NtUserQueryInputContext",
-      "NtUserQuerySendMessage",
-      "NtUserRealChildWindowFromPoint",
-      "NtUserRealWaitMessageEx",
-      "NtUserRegisterErrorReportingDialog",
-      "NtUserRegisterHotKey",
-      "NtUserRegisterRawInputDevices",
-      "NtUserRegisterServicesProcess",
-      "NtUserRegisterSessionPort",
-      "NtUserRegisterTasklist",
-      "NtUserRegisterUserApiHook",
-      "NtUserRemoteConnect",
-      "NtUserRemoteRedrawRectangle",
-      "NtUserRemoteRedrawScreen",
-      "NtUserRemoteStopScreenUpdates",
-      "NtUserRemoveClipboardFormatListener",
-      "NtUserResolveDesktopForWOW",
-      "NtUserSendTouchInput",
-      "NtUserSetAppImeLevel",
-      "NtUserSetChildWindowNoActivate",
-      "NtUserSetClassWord",
-      "NtUserSetCursorContents",
-      "NtUserSetDisplayConfig",
-      "NtUserSetGestureConfig",
-      "NtUserSetImeHotKey",
-      "NtUserSetImeInfoEx",
-      "NtUserSetImeOwnerWindow",
-      "NtUserSetInternalWindowPos",
-      "NtUserSetLayeredWindowAttributes",
-      "NtUserSetMenu",
-      "NtUserSetMenuContextHelpId",
-      "NtUserSetMenuFlagRtoL",
-      "NtUserSetMirrorRendering",
-      "NtUserSetObjectInformation",
-      "NtUserSetProcessDPIAware",
-      "NtUserSetShellWindowEx",
-      "NtUserSetSysColors",
-      "NtUserSetSystemCursor",
-      "NtUserSetSystemTimer",
-      "NtUserSetThreadLayoutHandles",
-      "NtUserSetWindowCompositionAttribute",
-      "NtUserSetWindowDisplayAffinity",
-      "NtUserSetWindowRgnEx",
-      "NtUserSetWindowStationUser",
-      "NtUserSfmDestroyLogicalSurfaceBinding",
-      "NtUserSfmDxBindSwapChain",
-      "NtUserSfmDxGetSwapChainStats",
-      "NtUserSfmDxOpenSwapChain",
-      "NtUserSfmDxQuerySwapChainBindingStatus",
-      "NtUserSfmDxReleaseSwapChain",
-      "NtUserSfmDxReportPendingBindingsToDwm",
-      "NtUserSfmDxSetSwapChainBindingStatus",
-      "NtUserSfmDxSetSwapChainStats",
-      "NtUserSfmGetLogicalSurfaceBinding",
-      "NtUserShowSystemCursor",
-      "NtUserSoundSentry",
-      "NtUserSwitchDesktop",
-      "NtUserTestForInteractiveUser",
-      "NtUserTrackPopupMenuEx",
-      "NtUserUnloadKeyboardLayout",
-      "NtUserUnlockWindowStation",
-      "NtUserUnregisterHotKey",
-      "NtUserUnregisterSessionPort",
-      "NtUserUnregisterUserApiHook",
-      "NtUserUpdateInputContext",
-      "NtUserUpdateInstance",
-      "NtUserUpdateLayeredWindow",
-      "NtUserUpdatePerUserSystemParameters",
-      "NtUserUpdateWindowTransform",
-      "NtUserUserHandleGrantAccess",
-      "NtUserValidateHandleSecure",
-      "NtUserWaitForInputIdle",
-      "NtUserWaitForMsgAndEvent",
-      "NtUserWindowFromPhysicalPoint",
-      "NtUserYieldTask",
-      "NtUserSetClassLongPtr",
-      "NtUserSetWindowLongPtr"
+ "NtUserPeekMessage",
+ "NtUserCallOneParam",
+ "NtUserGetKeyState",
+ "NtUserInvalidateRect",
+ "NtUserCallNoParam",
+ "NtUserGetMessage",
+ "NtUserMessageCall",
+ "NtGdiBitBlt",
+ "NtGdiGetCharSet",
+ "NtUserGetDC",
+ "NtGdiSelectBitmap",
+ "NtUserWaitMessage",
+ "NtUserTranslateMessage",
+ "NtUserGetProp",
+ "NtUserPostMessage",
+ "NtUserQueryWindow",
+ "NtUserTranslateAccelerator",
+ "NtGdiFlush",
+ "NtUserRedrawWindow",
+ "NtUserWindowFromPoint",
+ "NtUserCallMsgFilter",
+ "NtUserValidateTimerCallback",
+ "NtUserBeginPaint",
+ "NtUserSetTimer",
+ "NtUserEndPaint",
+ "NtUserSetCursor",
+ "NtUserKillTimer",
+ "NtUserBuildHwndList",
+ "NtUserSelectPalette",
+ "NtUserCallNextHookEx",
+ "NtUserHideCaret",
+ "NtGdiIntersectClipRect",
+ "NtUserCallHwndLock",
+ "NtUserGetProcessWindowStation",
+ "NtGdiDeleteObjectApp",
+ "NtUserSetWindowPos",
+ "NtUserShowCaret",
+ "NtUserEndDeferWindowPosEx",
+ "NtUserCallHwndParamLock",
+ "NtUserVkKeyScanEx",
+ "NtGdiSetDIBitsToDeviceInternal",
+ "NtUserCallTwoParam",
+ "NtGdiGetRandomRgn",
+ "NtUserCopyAcceleratorTable",
+ "NtUserNotifyWinEvent",
+ "NtGdiExtSelectClipRgn",
+ "NtUserIsClipboardFormatAvailable",
+ "NtUserSetScrollInfo",
+ "NtGdiStretchBlt",
+ "NtUserCreateCaret",
+ "NtGdiRectVisible",
+ "NtGdiCombineRgn",
+ "NtGdiGetDCObject",
+ "NtUserDispatchMessage",
+ "NtUserRegisterWindowMessage",
+ "NtGdiExtTextOutW",
+ "NtGdiSelectFont",
+ "NtGdiRestoreDC",
+ "NtGdiSaveDC",
+ "NtUserGetForegroundWindow",
+ "NtUserShowScrollBar",
+ "NtUserFindExistingCursorIcon",
+ "NtGdiGetDCDword",
+ "NtGdiGetRegionData",
+ "NtGdiLineTo",
+ "NtUserSystemParametersInfo",
+ "NtGdiGetAppClipBox",
+ "NtUserGetAsyncKeyState",
+ "NtUserGetCPD",
+ "NtUserRemoveProp",
+ "NtGdiDoPalette",
+ "NtGdiPolyPolyDraw",
+ "NtUserSetCapture",
+ "NtUserEnumDisplayMonitors",
+ "NtGdiCreateCompatibleBitmap",
+ "NtUserSetProp",
+ "NtGdiGetTextCharsetInfo",
+ "NtUserSBGetParms",
+ "NtUserGetIconInfo",
+ "NtUserExcludeUpdateRgn",
+ "NtUserSetFocus",
+ "NtGdiExtGetObjectW",
+ "NtUserDeferWindowPos",
+ "NtUserGetUpdateRect",
+ "NtGdiCreateCompatibleDC",
+ "NtUserGetClipboardSequenceNumber",
+ "NtGdiCreatePen",
+ "NtUserShowWindow",
+ "NtUserGetKeyboardLayoutList",
+ "NtGdiPatBlt",
+ "NtUserMapVirtualKeyEx",
+ "NtUserSetWindowLong",
+ "NtGdiHfontCreate",
+ "NtUserMoveWindow",
+ "NtUserPostThreadMessage",
+ "NtUserDrawIconEx",
+ "NtUserGetSystemMenu",
+ "NtGdiDrawStream",
+ "NtUserInternalGetWindowText",
+ "NtUserGetWindowDC",
+ "NtGdiD3dDrawPrimitives2",
+ "NtGdiInvertRgn",
+ "NtGdiGetRgnBox",
+ "NtGdiGetAndSetDCDword",
+ "NtGdiMaskBlt",
+ "NtGdiGetWidthTable",
+ "NtUserScrollDC",
+ "NtUserGetObjectInformation",
+ "NtGdiCreateBitmap",
+ "NtUserFindWindowEx",
+ "NtGdiPolyPatBlt",
+ "NtUserUnhookWindowsHookEx",
+ "NtGdiGetNearestColor",
+ "NtGdiTransformPoints",
+ "NtGdiGetDCPoint",
+ "NtGdiCreateDIBBrush",
+ "NtGdiGetTextMetricsW",
+ "NtUserCreateWindowEx",
+ "NtUserSetParent",
+ "NtUserGetKeyboardState",
+ "NtUserToUnicodeEx",
+ "NtUserGetControlBrush",
+ "NtUserGetClassName",
+ "NtGdiAlphaBlend",
+ "NtGdiDdBlt",
+ "NtGdiOffsetRgn",
+ "NtUserDefSetText",
+ "NtGdiGetTextFaceW",
+ "NtGdiStretchDIBitsInternal",
+ "NtUserSendInput",
+ "NtUserGetThreadDesktop",
+ "NtGdiCreateRectRgn",
+ "NtGdiGetDIBitsInternal",
+ "NtUserGetUpdateRgn",
+ "NtGdiDeleteClientObj",
+ "NtUserGetIconSize",
+ "NtUserFillWindow",
+ "NtGdiExtCreateRegion",
+ "NtGdiComputeXformCoefficients",
+ "NtUserSetWindowsHookEx",
+ "NtUserNotifyProcessCreate",
+ "NtGdiUnrealizeObject",
+ "NtUserGetTitleBarInfo",
+ "NtGdiRectangle",
+ "NtUserSetThreadDesktop",
+ "NtUserGetDCEx",
+ "NtUserGetScrollBarInfo",
+ "NtGdiGetTextExtent",
+ "NtUserSetWindowFNID",
+ "NtGdiSetLayout",
+ "NtUserCalcMenuBar",
+ "NtUserThunkedMenuItemInfo",
+ "NtGdiExcludeClipRect",
+ "NtGdiCreateDIBSection",
+ "NtGdiGetDCforBitmap",
+ "NtUserDestroyCursor",
+ "NtUserDestroyWindow",
+ "NtUserCallHwndParam",
+ "NtGdiCreateDIBitmapInternal",
+ "NtUserOpenWindowStation",
+ "NtGdiDdDeleteSurfaceObject",
+ "NtGdiDdCanCreateSurface",
+ "NtGdiDdCreateSurface",
+ "NtUserSetCursorIconData",
+ "NtGdiDdDestroySurface",
+ "NtUserCloseDesktop",
+ "NtUserOpenDesktop",
+ "NtUserSetProcessWindowStation",
+ "NtUserGetAtomName",
+ "NtGdiDdResetVisrgn",
+ "NtGdiExtCreatePen",
+ "NtGdiCreatePaletteInternal",
+ "NtGdiSetBrushOrg",
+ "NtUserBuildNameList",
+ "NtGdiSetPixel",
+ "NtUserRegisterClassExWOW",
+ "NtGdiCreatePatternBrushInternal",
+ "NtUserGetAncestor",
+ "NtGdiGetOutlineTextMetricsInternalW",
+ "NtGdiSetBitmapBits",
+ "NtUserCloseWindowStation",
+ "NtUserGetDoubleClickTime",
+ "NtUserEnableScrollBar",
+ "NtGdiCreateSolidBrush",
+ "NtUserGetClassInfoEx",
+ "NtGdiCreateClientObj",
+ "NtUserUnregisterClass",
+ "NtUserDeleteMenu",
+ "NtGdiRectInRegion",
+ "NtUserScrollWindowEx",
+ "NtGdiGetPixel",
+ "NtUserSetClassLong",
+ "NtUserGetMenuBarInfo",
+ "NtGdiDdCreateSurfaceEx",
+ "NtGdiDdCreateSurfaceObject",
+ "NtGdiGetNearestPaletteIndex",
+ "NtGdiDdLockD3D",
+ "NtGdiDdUnlockD3D",
+ "NtGdiGetCharWidthW",
+ "NtUserInvalidateRgn",
+ "NtUserGetClipboardOwner",
+ "NtUserSetWindowRgn",
+ "NtUserBitBltSysBmp",
+ "NtGdiGetCharWidthInfo",
+ "NtUserValidateRect",
+ "NtUserCloseClipboard",
+ "NtUserOpenClipboard",
+ "NtGdiGetStockObject",
+ "NtUserSetClipboardData",
+ "NtUserEnableMenuItem",
+ "NtUserAlterWindowStyle",
+ "NtGdiFillRgn",
+ "NtUserGetWindowPlacement",
+ "NtGdiModifyWorldTransform",
+ "NtGdiGetFontData",
+ "NtUserGetOpenClipboardWindow",
+ "NtUserSetThreadState",
+ "NtGdiOpenDCW",
+ "NtUserTrackMouseEvent",
+ "NtGdiGetTransform",
+ "NtUserDestroyMenu",
+ "NtGdiGetBitmapBits",
+ "NtUserConsoleControl",
+ "NtUserSetActiveWindow",
+ "NtUserSetInformationThread",
+ "NtUserSetWindowPlacement",
+ "NtUserGetControlColor",
+ "NtGdiSetMetaRgn",
+ "NtGdiSetMiterLimit",
+ "NtGdiSetVirtualResolution",
+ "NtGdiGetRasterizerCaps",
+ "NtUserSetWindowWord",
+ "NtUserGetClipboardFormatName",
+ "NtUserRealInternalGetMessage",
+ "NtUserCreateLocalMemHandle",
+ "NtUserAttachThreadInput",
+ "NtGdiCreateHalftonePalette",
+ "NtUserPaintMenuBar",
+ "NtUserSetKeyboardState",
+ "NtGdiCombineTransform",
+ "NtUserCreateAcceleratorTable",
+ "NtUserGetCursorFrameInfo",
+ "NtUserGetAltTabInfo",
+ "NtUserGetCaretBlinkTime",
+ "NtGdiQueryFontAssocInfo",
+ "NtUserProcessConnect",
+ "NtUserEnumDisplayDevices",
+ "NtUserEmptyClipboard",
+ "NtUserGetClipboardData",
+ "NtUserRemoveMenu",
+ "NtGdiSetBoundsRect",
+ "NtGdiGetBitmapDimension",
+ "NtUserConvertMemHandle",
+ "NtUserDestroyAcceleratorTable",
+ "NtUserGetGUIThreadInfo",
+ "NtGdiCloseFigure",
+ "NtUserSetWindowsHookAW",
+ "NtUserSetMenuDefaultItem",
+ "NtUserCheckMenuItem",
+ "NtUserSetWinEventHook",
+ "NtUserUnhookWinEvent",
+ "NtUserLockWindowUpdate",
+ "NtUserSetSystemMenu",
+ "NtUserThunkedMenuInfo",
+ "NtGdiBeginPath",
+ "NtGdiEndPath",
+ "NtGdiFillPath",
+ "NtUserCallHwnd",
+ "NtUserDdeInitialize",
+ "NtUserModifyUserStartupInfoFlags",
+ "NtUserCountClipboardFormats",
+ "NtGdiAddFontMemResourceEx",
+ "NtGdiEqualRgn",
+ "NtGdiGetSystemPaletteUse",
+ "NtGdiRemoveFontMemResourceEx",
+ "NtUserEnumDisplaySettings",
+ "NtUserPaintDesktop",
+ "NtGdiExtEscape",
+ "NtGdiSetBitmapDimension",
+ "NtGdiSetFontEnumeration",
+ "NtUserChangeClipboardChain",
+ "NtUserSetClipboardViewer",
+ "NtUserShowWindowAsync",
+ "NtGdiCreateColorSpace",
+ "NtGdiDeleteColorSpace",
+ "NtUserActivateKeyboardLayout",
+ "NtGdiAbortDoc",
+ "NtGdiAbortPath",
+ "NtGdiAddEmbFontToDC",
+ "NtGdiAddFontResourceW",
+ "NtGdiAddRemoteFontToDC",
+ "NtGdiAddRemoteMMInstanceToDC",
+ "NtGdiAngleArc",
+ "NtGdiAnyLinkedFonts",
+ "NtGdiArcInternal",
+ "NtGdiBRUSHOBJ_DeleteRbrush",
+ "NtGdiBRUSHOBJ_hGetColorTransform",
+ "NtGdiBRUSHOBJ_pvAllocRbrush",
+ "NtGdiBRUSHOBJ_pvGetRbrush",
+ "NtGdiBRUSHOBJ_ulGetBrushColor",
+ "NtGdiBeginGdiRendering",
+ "NtGdiCLIPOBJ_bEnum",
+ "NtGdiCLIPOBJ_cEnumStart",
+ "NtGdiCLIPOBJ_ppoGetPath",
+ "NtGdiCancelDC",
+ "NtGdiChangeGhostFont",
+ "NtGdiCheckBitmapBits",
+ "NtGdiClearBitmapAttributes",
+ "NtGdiClearBrushAttributes",
+ "NtGdiColorCorrectPalette",
+ "NtGdiConfigureOPMProtectedOutput",
+ "NtGdiConvertMetafileRect",
+ "NtGdiCreateBitmapFromDxSurface",
+ "NtGdiCreateColorTransform",
+ "NtGdiCreateEllipticRgn",
+ "NtGdiCreateHatchBrushInternal",
+ "NtGdiCreateMetafileDC",
+ "NtGdiCreateOPMProtectedOutputs",
+ "NtGdiCreateRoundRectRgn",
+ "NtGdiCreateServerMetaFile",
+ "NtGdiD3dContextCreate",
+ "NtGdiD3dContextDestroy",
+ "NtGdiD3dContextDestroyAll",
+ "NtGdiD3dValidateTextureStageState",
+ "NtGdiDDCCIGetCapabilitiesString",
+ "NtGdiDDCCIGetCapabilitiesStringLength",
+ "NtGdiDDCCIGetTimingReport",
+ "NtGdiDDCCIGetVCPFeature",
+ "NtGdiDDCCISaveCurrentSettings",
+ "NtGdiDDCCISetVCPFeature",
+ "NtGdiDdAddAttachedSurface",
+ "NtGdiDdAlphaBlt",
+ "NtGdiDdAttachSurface",
+ "NtGdiDdBeginMoCompFrame",
+ "NtGdiDdCanCreateD3DBuffer",
+ "NtGdiDdColorControl",
+ "NtGdiDdCreateD3DBuffer",
+ "NtGdiDdCreateDirectDrawObject",
+ "NtGdiDdCreateFullscreenSprite",
+ "NtGdiDdCreateMoComp",
+ "NtGdiDdDDIAcquireKeyedMutex",
+ "NtGdiDdDDICheckExclusiveOwnership",
+ "NtGdiDdDDICheckMonitorPowerState",
+ "NtGdiDdDDICheckOcclusion",
+ "NtGdiDdDDICheckSharedResourceAccess",
+ "NtGdiDdDDICheckVidPnExclusiveOwnership",
+ "NtGdiDdDDICloseAdapter",
+ "NtGdiDdDDIConfigureSharedResource",
+ "NtGdiDdDDICreateAllocation",
+ "NtGdiDdDDICreateContext",
+ "NtGdiDdDDICreateDCFromMemory",
+ "NtGdiDdDDICreateDevice",
+ "NtGdiDdDDICreateKeyedMutex",
+ "NtGdiDdDDICreateOverlay",
+ "NtGdiDdDDICreateSynchronizationObject",
+ "NtGdiDdDDIDestroyAllocation",
+ "NtGdiDdDDIDestroyContext",
+ "NtGdiDdDDIDestroyDCFromMemory",
+ "NtGdiDdDDIDestroyDevice",
+ "NtGdiDdDDIDestroyKeyedMutex",
+ "NtGdiDdDDIDestroyOverlay",
+ "NtGdiDdDDIDestroySynchronizationObject",
+ "NtGdiDdDDIEscape",
+ "NtGdiDdDDIFlipOverlay",
+ "NtGdiDdDDIGetContextSchedulingPriority",
+ "NtGdiDdDDIGetDeviceState",
+ "NtGdiDdDDIGetDisplayModeList",
+ "NtGdiDdDDIGetMultisampleMethodList",
+ "NtGdiDdDDIGetOverlayState",
+ "NtGdiDdDDIGetPresentHistory",
+ "NtGdiDdDDIGetPresentQueueEvent",
+ "NtGdiDdDDIGetProcessSchedulingPriorityClass",
+ "NtGdiDdDDIGetRuntimeData",
+ "NtGdiDdDDIGetScanLine",
+ "NtGdiDdDDIGetSharedPrimaryHandle",
+ "NtGdiDdDDIInvalidateActiveVidPn",
+ "NtGdiDdDDILock",
+ "NtGdiDdDDIOpenAdapterFromDeviceName",
+ "NtGdiDdDDIOpenAdapterFromHdc",
+ "NtGdiDdDDIOpenKeyedMutex",
+ "NtGdiDdDDIOpenResource",
+ "NtGdiDdDDIOpenSynchronizationObject",
+ "NtGdiDdDDIPollDisplayChildren",
+ "NtGdiDdDDIPresent",
+ "NtGdiDdDDIQueryAdapterInfo",
+ "NtGdiDdDDIQueryAllocationResidency",
+ "NtGdiDdDDIQueryResourceInfo",
+ "NtGdiDdDDIQueryStatistics",
+ "NtGdiDdDDIReleaseKeyedMutex",
+ "NtGdiDdDDIReleaseProcessVidPnSourceOwners",
+ "NtGdiDdDDIRender",
+ "NtGdiDdDDISetAllocationPriority",
+ "NtGdiDdDDISetContextSchedulingPriority",
+ "NtGdiDdDDISetDisplayMode",
+ "NtGdiDdDDISetDisplayPrivateDriverFormat",
+ "NtGdiDdDDISetGammaRamp",
+ "NtGdiDdDDISetProcessSchedulingPriorityClass",
+ "NtGdiDdDDISetQueuedLimit",
+ "NtGdiDdDDISetVidPnSourceOwner",
+ "NtGdiDdDDISharedPrimaryLockNotification",
+ "NtGdiDdDDISharedPrimaryUnLockNotification",
+ "NtGdiDdDDISignalSynchronizationObject",
+ "NtGdiDdDDIUnlock",
+ "NtGdiDdDDIUpdateOverlay",
+ "NtGdiDdDDIWaitForIdle",
+ "NtGdiDdDDIWaitForSynchronizationObject",
+ "NtGdiDdDDIWaitForVerticalBlankEvent",
+ "NtGdiDdDeleteDirectDrawObject",
+ "NtGdiDdDestroyD3DBuffer",
+ "NtGdiDdDestroyFullscreenSprite",
+ "NtGdiDdDestroyMoComp",
+ "NtGdiDdEndMoCompFrame",
+ "NtGdiDdFlip",
+ "NtGdiDdFlipToGDISurface",
+ "NtGdiDdGetAvailDriverMemory",
+ "NtGdiDdGetBltStatus",
+ "NtGdiDdGetDC",
+ "NtGdiDdGetDriverInfo",
+ "NtGdiDdGetDriverState",
+ "NtGdiDdGetDxHandle",
+ "NtGdiDdGetFlipStatus",
+ "NtGdiDdGetInternalMoCompInfo",
+ "NtGdiDdGetMoCompBuffInfo",
+ "NtGdiDdGetMoCompFormats",
+ "NtGdiDdGetMoCompGuids",
+ "NtGdiDdGetScanLine",
+ "NtGdiDdLock",
+ "NtGdiDdNotifyFullscreenSpriteUpdate",
+ "NtGdiDdQueryDirectDrawObject",
+ "NtGdiDdQueryMoCompStatus",
+ "DxEngVisRgnUniq",
+ "NtGdiDdReenableDirectDrawObject",
+ "NtGdiDdReleaseDC",
+ "NtGdiDdRenderMoComp",
+ "NtGdiDdSetColorKey",
+ "NtGdiDdSetExclusiveMode",
+ "NtGdiDdSetGammaRamp",
+ "NtGdiDdSetOverlayPosition",
+ "NtGdiDdUnattachSurface",
+ "NtGdiDdUnlock",
+ "NtGdiDdUpdateOverlay",
+ "NtGdiDdWaitForVerticalBlank",
+ "NtGdiDeleteColorTransform",
+ "NtGdiDescribePixelFormat",
+ "NtGdiDestroyOPMProtectedOutput",
+ "NtGdiDestroyPhysicalMonitor",
+ "NtGdiDoBanding",
+ "NtGdiDrawEscape",
+ "NtGdiDvpAcquireNotification",
+ "NtGdiDvpCanCreateVideoPort",
+ "NtGdiDvpColorControl",
+ "NtGdiDvpCreateVideoPort",
+ "NtGdiDvpDestroyVideoPort",
+ "NtGdiDvpFlipVideoPort",
+ "NtGdiDvpGetVideoPortBandwidth",
+ "NtGdiDvpGetVideoPortConnectInfo",
+ "NtGdiDvpGetVideoPortField",
+ "NtGdiDvpGetVideoPortFlipStatus",
+ "NtGdiDvpGetVideoPortInputFormats",
+ "NtGdiDvpGetVideoPortLine",
+ "NtGdiDvpGetVideoPortOutputFormats",
+ "NtGdiDvpGetVideoSignalStatus",
+ "NtGdiDvpReleaseNotification",
+ "NtGdiDvpUpdateVideoPort",
+ "NtGdiDvpWaitForVideoPortSync",
+ "NtGdiDxgGenericThunk",
+ "NtGdiEllipse",
+ "NtGdiEnableEudc",
+ "NtGdiEndDoc",
+ "NtGdiEndGdiRendering",
+ "NtGdiEndPage",
+ "NtGdiEngAlphaBlend",
+ "NtGdiEngAssociateSurface",
+ "NtGdiEngBitBlt",
+ "NtGdiEngCheckAbort",
+ "NtGdiEngComputeGlyphSet",
+ "NtGdiEngCopyBits",
+ "NtGdiEngCreateBitmap",
+ "NtGdiEngCreateClip",
+ "NtGdiEngCreateDeviceBitmap",
+ "NtGdiEngCreateDeviceSurface",
+ "NtGdiEngCreatePalette",
+ "NtGdiEngDeleteClip",
+ "NtGdiEngDeletePalette",
+ "NtGdiEngDeletePath",
+ "NtGdiEngDeleteSurface",
+ "NtGdiEngEraseSurface",
+ "NtGdiEngFillPath",
+ "NtGdiEngGradientFill",
+ "NtGdiEngLineTo",
+ "NtGdiEngLockSurface",
+ "NtGdiEngMarkBandingSurface",
+ "NtGdiEngPaint",
+ "NtGdiEngPlgBlt",
+ "NtGdiEngStretchBlt",
+ "NtGdiEngStretchBltROP",
+ "NtGdiEngStrokeAndFillPath",
+ "NtGdiEngStrokePath",
+ "NtGdiEngTextOut",
+ "NtGdiEngTransparentBlt",
+ "NtGdiEngUnlockSurface",
+ "NtGdiEnumFonts",
+ "NtGdiEnumObjects",
+ "NtGdiEudcLoadUnloadLink",
+ "NtGdiExtFloodFill",
+ "NtGdiFONTOBJ_cGetAllGlyphHandles",
+ "NtGdiFONTOBJ_cGetGlyphs",
+ "NtGdiFONTOBJ_pQueryGlyphAttrs",
+ "NtGdiFONTOBJ_pfdg",
+ "NtGdiFONTOBJ_pifi",
+ "NtGdiFONTOBJ_pvTrueTypeFontFile",
+ "NtGdiFONTOBJ_pxoGetXform",
+ "NtGdiFONTOBJ_vGetInfo",
+ "NtGdiFlattenPath",
+ "NtGdiFontIsLinked",
+ "NtGdiForceUFIMapping",
+ "NtGdiFrameRgn",
+ "NtGdiFullscreenControl",
+ "NtGdiGetBoundsRect",
+ "NtGdiGetCOPPCompatibleOPMInformation",
+ "NtGdiGetCertificate",
+ "NtGdiGetCertificateSize",
+ "NtGdiGetCharABCWidthsW",
+ "NtGdiGetCharacterPlacementW",
+ "NtGdiGetColorAdjustment",
+ "NtGdiGetColorSpaceforBitmap",
+ "NtGdiGetDeviceCaps",
+ "NtGdiGetDeviceCapsAll",
+ "NtGdiGetDeviceGammaRamp",
+ "NtGdiGetDeviceWidth",
+ "NtGdiGetDhpdev",
+ "NtGdiGetETM",
+ "NtGdiGetEmbUFI",
+ "NtGdiGetEmbedFonts",
+ "NtGdiGetEudcTimeStampEx",
+ "NtGdiGetFontFileData",
+ "NtGdiGetFontFileInfo",
+ "NtGdiGetFontResourceInfoInternalW",
+ "NtGdiGetFontUnicodeRanges",
+ "NtGdiGetGlyphIndicesW",
+ "NtGdiGetGlyphIndicesWInternal",
+ "NtGdiGetGlyphOutline",
+ "NtGdiGetKerningPairs",
+ "NtGdiGetLinkedUFIs",
+ "NtGdiGetMiterLimit",
+ "NtGdiGetMonitorID",
+ "NtGdiGetNumberOfPhysicalMonitors",
+ "NtGdiGetOPMInformation",
+ "NtGdiGetOPMRandomNumber",
+ "NtGdiGetObjectBitmapHandle",
+ "NtGdiGetPath",
+ "NtGdiGetPerBandInfo",
+ "NtGdiGetPhysicalMonitorDescription",
+ "NtGdiGetPhysicalMonitors",
+ "NtGdiGetRealizationInfo",
+ "NtGdiGetServerMetaFileBits",
+ "DxgStubGenericThunk",
+ "NtGdiGetStats",
+ "NtGdiGetStringBitmapW",
+ "NtGdiGetSuggestedOPMProtectedOutputArraySize",
+ "NtGdiGetTextExtentExW",
+ "NtGdiGetUFI",
+ "NtGdiGetUFIPathname",
+ "NtGdiGradientFill",
+ "NtGdiHLSurfGetInformation",
+ "NtGdiHLSurfSetInformation",
+ "NtGdiHT_Get8BPPFormatPalette",
+ "NtGdiHT_Get8BPPMaskPalette",
+ "NtGdiIcmBrushInfo",
+ "DxgStubEnableDirectDraw",
+ "EngGetPrinter",
+ "NtGdiMakeFontDir",
+ "NtGdiMakeInfoDC",
+ "NtGdiMakeObjectUnXferable",
+ "NtGdiMakeObjectXferable",
+ "NtGdiMirrorWindowOrg",
+ "NtGdiMonoBitmap",
+ "NtGdiMoveTo",
+ "NtGdiOffsetClipRgn",
+ "NtGdiPATHOBJ_bEnum",
+ "NtGdiPATHOBJ_bEnumClipLines",
+ "NtGdiPATHOBJ_vEnumStart",
+ "NtGdiPATHOBJ_vEnumStartClipLines",
+ "NtGdiPATHOBJ_vGetBounds",
+ "NtGdiPathToRegion",
+ "NtGdiPlgBlt",
+ "NtGdiPolyDraw",
+ "NtGdiPolyTextOutW",
+ "NtGdiPtInRegion",
+ "NtGdiPtVisible",
+ "NtGdiQueryFonts",
+ "NtGdiRemoveFontResourceW",
+ "NtGdiRemoveMergeFont",
+ "NtGdiResetDC",
+ "NtGdiResizePalette",
+ "NtGdiRoundRect",
+ "NtGdiSTROBJ_bEnum",
+ "NtGdiSTROBJ_bEnumPositionsOnly",
+ "NtGdiSTROBJ_bGetAdvanceWidths",
+ "NtGdiSTROBJ_dwGetCodePage",
+ "NtGdiSTROBJ_vEnumStart",
+ "NtGdiScaleViewportExtEx",
+ "NtGdiScaleWindowExtEx",
+ "NtGdiSelectBrush",
+ "NtGdiSelectClipPath",
+ "NtGdiSelectPen",
+ "NtGdiSetBitmapAttributes",
+ "NtGdiSetBrushAttributes",
+ "NtGdiSetColorAdjustment",
+ "NtGdiSetColorSpace",
+ "NtGdiSetDeviceGammaRamp",
+ "NtGdiSetFontXform",
+ "NtGdiSetIcmMode",
+ "NtGdiSetLinkedUFIs",
+ "NtGdiSetMagicColors",
+ "NtGdiSetOPMSigningKeyAndSequenceNumbers",
+ "NtGdiSetPUMPDOBJ",
+ "NtGdiSetPixelFormat",
+ "NtGdiSetRectRgn",
+ "NtGdiSetSizeDevice",
+ "NtGdiSetSystemPaletteUse",
+ "NtGdiSetTextJustification",
+ "NtGdiSfmGetNotificationTokens",
+ "NtGdiStartDoc",
+ "NtGdiStartPage",
+ "NtGdiStrokeAndFillPath",
+ "NtGdiStrokePath",
+ "NtGdiSwapBuffers",
+ "NtGdiTransparentBlt",
+ "NtGdiUMPDEngFreeUserMem",
+ "DxgStubGenericThunk",
+ "DxgStubEnableDirectDraw",
+ "NtGdiUpdateColors",
+ "NtGdiUpdateTransform",
+ "NtGdiWidenPath",
+ "NtGdiXFORMOBJ_bApplyXform",
+ "NtGdiXFORMOBJ_iGetXform",
+ "NtGdiXLATEOBJ_cGetPalette",
+ "NtGdiXLATEOBJ_hGetColorTransform",
+ "NtGdiXLATEOBJ_iXlate",
+ "NtUserAddClipboardFormatListener",
+ "NtUserAssociateInputContext",
+ "NtUserBlockInput",
+ "NtUserBuildHimcList",
+ "NtUserBuildPropList",
+ "NtUserCalculatePopupWindowPosition",
+ "NtUserCallHwndOpt",
+ "NtUserChangeDisplaySettings",
+ "NtUserChangeWindowMessageFilterEx",
+ "NtUserCheckAccessForIntegrityLevel",
+ "NtUserCheckDesktopByThreadId",
+ "NtUserCheckWindowThreadDesktop",
+ "NtUserChildWindowFromPointEx",
+ "NtUserClipCursor",
+ "NtUserCreateDesktopEx",
+ "NtUserCreateInputContext",
+ "NtUserCreateWindowStation",
+ "NtUserCtxDisplayIOCtl",
+ "NtUserDestroyInputContext",
+ "NtUserDisableThreadIme",
+ "NtUserDisplayConfigGetDeviceInfo",
+ "NtUserDisplayConfigSetDeviceInfo",
+ "NtUserDoSoundConnect",
+ "NtUserDoSoundDisconnect",
+ "NtUserDragDetect",
+ "NtUserDragObject",
+ "NtUserDrawAnimatedRects",
+ "NtUserDrawCaption",
+ "NtUserDrawCaptionTemp",
+ "NtUserDrawMenuBarTemp",
+ "NtUserDwmStartRedirection",
+ "NtUserDwmStopRedirection",
+ "NtUserEndMenu",
+ "NtUserEndTouchOperation",
+ "NtUserEvent",
+ "NtUserFlashWindowEx",
+ "NtUserFrostCrashedWindow",
+ "NtUserGetAppImeLevel",
+ "NtUserGetCaretPos",
+ "NtUserGetClipCursor",
+ "NtUserGetClipboardViewer",
+ "NtUserGetComboBoxInfo",
+ "NtUserGetCursorInfo",
+ "NtUserGetDisplayConfigBufferSizes",
+ "NtUserGetGestureConfig",
+ "NtUserGetGestureExtArgs",
+ "NtUserGetGestureInfo",
+ "NtUserGetGuiResources",
+ "NtUserGetImeHotKey",
+ "NtUserGetImeInfoEx",
+ "NtUserGetInputLocaleInfo",
+ "NtUserGetInternalWindowPos",
+ "NtUserGetKeyNameText",
+ "NtUserGetKeyboardLayoutName",
+ "NtUserGetLayeredWindowAttributes",
+ "NtUserGetListBoxInfo",
+ "NtUserGetMenuIndex",
+ "NtUserGetMenuItemRect",
+ "NtUserGetMouseMovePointsEx",
+ "NtUserGetPriorityClipboardFormat",
+ "NtUserGetRawInputBuffer",
+ "NtUserGetRawInputData",
+ "NtUserGetRawInputDeviceInfo",
+ "NtUserGetRawInputDeviceList",
+ "NtUserGetRegisteredRawInputDevices",
+ "NtUserGetTopLevelWindow",
+ "NtUserGetTouchInputInfo",
+ "NtUserGetUpdatedClipboardFormats",
+ "NtUserGetWOWClass",
+ "NtUserGetWindowCompositionAttribute",
+ "NtUserGetWindowCompositionInfo",
+ "NtUserGetWindowDisplayAffinity",
+ "NtUserGetWindowMinimizeRect",
+ "NtUserGetWindowRgnEx",
+ "NtUserGhostWindowFromHungWindow",
+ "NtUserHardErrorControl",
+ "NtUserHiliteMenuItem",
+ "NtUserHungWindowFromGhostWindow",
+ "NtUserHwndQueryRedirectionInfo",
+ "NtUserHwndSetRedirectionInfo",
+ "NtUserImpersonateDdeClientWindow",
+ "NtUserInitTask",
+ "NtUserInitialize",
+ "NtUserInitializeClientPfnArrays",
+ "NtUserInjectGesture",
+ "NtUserInternalGetWindowIcon",
+ "NtUserIsTopLevelWindow",
+ "NtUserIsTouchWindow",
+ "NtUserLoadKeyboardLayoutEx",
+ "NtUserLockWindowStation",
+ "NtUserLockWorkStation",
+ "NtUserLogicalToPhysicalPoint",
+ "NtUserMNDragLeave",
+ "NtUserMNDragOver",
+ "NtUserMagControl",
+ "NtUserMagGetContextInformation",
+ "NtUserMagSetContextInformation",
+ "NtUserManageGestureHandlerWindow",
+ "NtUserMenuItemFromPoint",
+ "NtUserMinMaximize",
+ "NtUserModifyWindowTouchCapability",
+ "NtUserNotifyIMEStatus",
+ "NtUserOpenInputDesktop",
+ "NtUserOpenThreadDesktop",
+ "NtUserPaintMonitor",
+ "NtUserPhysicalToLogicalPoint",
+ "NtUserPrintWindow",
+ "NtUserQueryDisplayConfig",
+ "NtUserQueryInformationThread",
+ "NtUserQueryInputContext",
+ "NtUserQuerySendMessage",
+ "NtUserRealChildWindowFromPoint",
+ "NtUserRealWaitMessageEx",
+ "NtUserRegisterErrorReportingDialog",
+ "NtUserRegisterHotKey",
+ "NtUserRegisterRawInputDevices",
+ "NtUserRegisterServicesProcess",
+ "NtUserRegisterSessionPort",
+ "NtUserRegisterTasklist",
+ "NtUserRegisterUserApiHook",
+ "NtUserRemoteConnect",
+ "NtUserRemoteRedrawRectangle",
+ "NtUserRemoteRedrawScreen",
+ "NtUserRemoteStopScreenUpdates",
+ "NtUserRemoveClipboardFormatListener",
+ "NtUserResolveDesktopForWOW",
+ "NtUserSendTouchInput",
+ "NtUserSetAppImeLevel",
+ "NtUserSetChildWindowNoActivate",
+ "NtUserSetClassWord",
+ "NtUserSetCursorContents",
+ "NtUserSetDisplayConfig",
+ "NtUserSetGestureConfig",
+ "NtUserSetImeHotKey",
+ "NtUserSetImeInfoEx",
+ "NtUserSetImeOwnerWindow",
+ "NtUserSetInternalWindowPos",
+ "NtUserSetLayeredWindowAttributes",
+ "NtUserSetMenu",
+ "NtUserSetMenuContextHelpId",
+ "NtUserSetMenuFlagRtoL",
+ "NtUserSetMirrorRendering",
+ "NtUserSetObjectInformation",
+ "NtUserSetProcessDPIAware",
+ "NtUserSetShellWindowEx",
+ "NtUserSetSysColors",
+ "NtUserSetSystemCursor",
+ "NtUserSetSystemTimer",
+ "NtUserSetThreadLayoutHandles",
+ "NtUserSetWindowCompositionAttribute",
+ "NtUserSetWindowDisplayAffinity",
+ "NtUserSetWindowRgnEx",
+ "NtUserSetWindowStationUser",
+ "NtUserSfmDestroyLogicalSurfaceBinding",
+ "NtUserSfmDxBindSwapChain",
+ "NtUserSfmDxGetSwapChainStats",
+ "NtUserSfmDxOpenSwapChain",
+ "NtUserSfmDxQuerySwapChainBindingStatus",
+ "NtUserSfmDxReleaseSwapChain",
+ "NtUserSfmDxReportPendingBindingsToDwm",
+ "NtUserSfmDxSetSwapChainBindingStatus",
+ "NtUserSfmDxSetSwapChainStats",
+ "NtUserSfmGetLogicalSurfaceBinding",
+ "NtUserShowSystemCursor",
+ "NtUserSoundSentry",
+ "NtUserSwitchDesktop",
+ "NtUserTestForInteractiveUser",
+ "NtUserTrackPopupMenuEx",
+ "NtUserUnloadKeyboardLayout",
+ "NtUserUnlockWindowStation",
+ "NtUserUnregisterHotKey",
+ "NtUserUnregisterSessionPort",
+ "NtUserUnregisterUserApiHook",
+ "NtUserUpdateInputContext",
+ "NtUserUpdateInstance",
+ "NtUserUpdateLayeredWindow",
+ "NtUserUpdatePerUserSystemParameters",
+ "NtUserUpdateWindowTransform",
+ "NtUserUserHandleGrantAccess",
+ "NtUserValidateHandleSecure",
+ "NtUserWaitForInputIdle",
+ "NtUserWaitForMsgAndEvent",
+ "NtUserWindowFromPhysicalPoint",
+ "NtUserYieldTask",
+ "NtUserSetClassLongPtr",
+ "NtUserSetWindowLongPtr",
 };
 
-// Win10 SSDT 函数名数组
-const char* WIN10_SSDT_FUNCTIONS[] = {
-      "NtAccessCheck",
-      "NtWorkerFactoryWorkerReady",
-      "NtAcceptConnectPort",
-      "NtMapUserPhysicalPagesScatter",
-      "NtWaitForSingleObject",
-      "NtCallbackReturn",
-      "NtReadFile",
-      "NtDeviceIoControlFile",
-      "NtWriteFile",
-      "NtRemoveIoCompletion",
-      "NtReleaseSemaphore",
-      "NtReplyWaitReceivePort",
-      "NtReplyPort",
-      "NtSetInformationThread",
-      "NtSetEvent",
-      "NtClose",
-      "NtQueryObject",
-      "NtQueryInformationFile",
-      "NtOpenKey",
-      "NtEnumerateValueKey",
-      "NtFindAtom",
-      "NtQueryDefaultLocale",
-      "NtQueryKey",
-      "NtQueryValueKey",
-      "NtAllocateVirtualMemory",
-      "NtQueryInformationProcess",
-      "NtWaitForMultipleObjects32",
-      "NtWriteFileGather",
-      "NtSetInformationProcess",
-      "NtCreateKey",
-      "NtFreeVirtualMemory",
-      "NtImpersonateClientOfPort",
-      "NtReleaseMutant",
-      "NtQueryInformationToken",
-      "NtRequestWaitReplyPort",
-      "NtQueryVirtualMemory",
-      "NtOpenThreadToken",
-      "NtQueryInformationThread",
-      "NtOpenProcess",
-      "NtSetInformationFile",
-      "NtMapViewOfSection",
-      "NtAccessCheckAndAuditAlarm",
-      "NtUnmapViewOfSection",
-      "NtReplyWaitReceivePortEx",
-      "NtTerminateProcess",
-      "NtSetEventBoostPriority",
-      "NtReadFileScatter",
-      "NtOpenThreadTokenEx",
-      "NtOpenProcessTokenEx",
-      "NtQueryPerformanceCounter",
-      "NtEnumerateKey",
-      "NtOpenFile",
-      "NtDelayExecution",
-      "NtQueryDirectoryFile",
-      "NtQuerySystemInformation",
-      "NtOpenSection",
-      "NtQueryTimer",
-      "NtFsControlFile",
-      "NtWriteVirtualMemory",
-      "NtCloseObjectAuditAlarm",
-      "NtDuplicateObject",
-      "NtQueryAttributesFile",
-      "NtClearEvent",
-      "NtReadVirtualMemory",
-      "NtOpenEvent",
-      "NtAdjustPrivilegesToken",
-      "NtDuplicateToken",
-      "NtContinue",
-      "NtQueryDefaultUILanguage",
-      "NtQueueApcThread",
-      "NtYieldExecution",
-      "NtAddAtom",
-      "NtCreateEvent",
-      "NtQueryVolumeInformationFile",
-      "NtCreateSection",
-      "NtFlushBuffersFile",
-      "NtApphelpCacheControl",
-      "NtCreateProcessEx",
-      "NtCreateThread",
-      "NtIsProcessInJob",
-      "NtProtectVirtualMemory",
-      "NtQuerySection",
-      "NtResumeThread",
-      "NtTerminateThread",
-      "NtReadRequestData",
-      "NtCreateFile",
-      "NtQueryEvent",
-      "NtWriteRequestData",
-      "NtOpenDirectoryObject",
-      "NtAccessCheckByTypeAndAuditAlarm",
-      "NtQuerySystemTime",
-      "NtWaitForMultipleObjects",
-      "NtSetInformationObject",
-      "NtCancelIoFile",
-      "NtTraceEvent",
-      "NtPowerInformation",
-      "NtSetValueKey",
-      "NtCancelTimer",
-      "NtSetTimer",
-      "NtAccessCheckByType",
-      "NtAccessCheckByTypeResultList",
-      "NtAccessCheckByTypeResultListAndAuditAlarm",
-      "NtAccessCheckByTypeResultListAndAuditAlarmByHandle",
-      "NtAcquireProcessActivityReference",
-      "NtAddAtomEx",
-      "NtAddBootEntry",
-      "NtAddDriverEntry",
-      "NtAdjustGroupsToken",
-      "?GetPnpProperty@NT_DISK@@UEAAJPEAXPEAPEAX@Z",
-      "NtAlertResumeThread",
-      "NtAlertThread",
-      "NtAlertThreadByThreadId",
-      "NtAllocateLocallyUniqueId",
-      "NtAllocateReserveObject",
-      "NtAllocateUserPhysicalPages",
-      "NtAllocateUuids",
-      "NtAllocateVirtualMemoryEx",
-      "NtAlpcAcceptConnectPort",
-      "NtAlpcCancelMessage",
-      "NtAlpcConnectPort",
-      "NtAlpcConnectPortEx",
-      "NtAlpcCreatePort",
-      "NtAlpcCreatePortSection",
-      "NtAlpcCreateResourceReserve",
-      "NtAlpcCreateSectionView",
-      "NtAlpcCreateSecurityContext",
-      "NtAlpcDeletePortSection",
-      "NtAlpcDeleteResourceReserve",
-      "NtAlpcDeleteSectionView",
-      "NtAlpcDeleteSecurityContext",
-      "NtAlpcDisconnectPort",
-      "NtAlpcImpersonateClientContainerOfPort",
-      "NtAlpcImpersonateClientOfPort",
-      "NtAlpcOpenSenderProcess",
-      "NtAlpcOpenSenderThread",
-      "NtAlpcQueryInformation",
-      "NtAlpcQueryInformationMessage",
-      "NtAlpcRevokeSecurityContext",
-      "NtAlpcSendWaitReceivePort",
-      "NtAlpcSetInformation",
-      "NtAreMappedFilesTheSame",
-      "NtAssignProcessToJobObject",
-      "NtAssociateWaitCompletionPacket",
-      "NtCallEnclave",
-      "NtCancelIoFileEx",
-      "NtCancelSynchronousIoFile",
-      "NtCancelTimer2",
-      "NtCancelWaitCompletionPacket",
-      "NtCommitComplete",
-      "NtCommitEnlistment",
-      "NtCommitRegistryTransaction",
-      "NtCommitTransaction",
-      "NtCompactKeys",
-      "NtCompareObjects",
-      "NtCompareSigningLevels",
-      "NtCompareTokens",
-      "ArbPreprocessEntry",
-      "NtCompressKey",
-      "NtConnectPort",
-      "NtConvertBetweenAuxiliaryCounterAndPerformanceCounter",
-      "ArbAddReserved",
-      "NtCreateDebugObject",
-      "NtCreateDirectoryObject",
-      "NtCreateDirectoryObjectEx",
-      "NtCreateEnclave",
-      "NtCreateEnlistment",
-      "?GetPnpProperty@NT_DISK@@UEAAJPEAXPEAPEAX@Z",
-      "NtCreateIRTimer",
-      "NtCreateIoCompletion",
-      "NtCreateJobObject",
-      "ArbAddReserved",
-      "NtCreateKeyTransacted",
-      "NtCreateKeyedEvent",
-      "NtCreateLowBoxToken",
-      "NtCreateMailslotFile",
-      "NtCreateMutant",
-      "NtCreateNamedPipeFile",
-      "NtCreatePagingFile",
-      "NtCreatePartition",
-      "NtCreatePort",
-      "NtCreatePrivateNamespace",
-      "NtCreateProcess",
-      "NtCreateProfile",
-      "NtCreateProfileEx",
-      "NtCreateRegistryTransaction",
-      "NtCreateResourceManager",
-      "NtCreateSectionEx",
-      "NtCreateSemaphore",
-      "NtCreateSymbolicLinkObject",
-      "NtCreateThreadEx",
-      "NtCreateTimer",
-      "NtCreateTimer2",
-      "NtCreateToken",
-      "NtCreateTokenEx",
-      "NtCreateTransaction",
-      "NtCreateTransactionManager",
-      "NtCreateUserProcess",
-      "NtCreateWaitCompletionPacket",
-      "NtCreateWaitablePort",
-      "NtCreateWnfStateName",
-      "NtCreateWorkerFactory",
-      "NtDebugActiveProcess",
-      "NtDebugContinue",
-      "NtDeleteAtom",
-      "NtDeleteBootEntry",
-      "NtDeleteDriverEntry",
-      "NtDeleteFile",
-      "NtDeleteKey",
-      "NtDeleteObjectAuditAlarm",
-      "NtDeletePrivateNamespace",
-      "NtDeleteValueKey",
-      "NtDeleteWnfStateData",
-      "NtDeleteWnfStateName",
-      "NtDisableLastKnownGood",
-      "NtDisplayString",
-      "NtDrawText",
-      "NtEnableLastKnownGood",
-      "NtEnumerateBootEntries",
-      "NtEnumerateDriverEntries",
-      "NtEnumerateSystemEnvironmentValuesEx",
-      "NtEnumerateTransactionObject",
-      "NtExtendSection",
-      "NtFilterBootOption",
-      "NtFilterToken",
-      "?GetPnpProperty@NT_DISK@@UEAAJPEAXPEAPEAX@Z",
-      "NtFlushBuffersFileEx",
-      "NtFlushInstallUILanguage",
-      "ArbPreprocessEntry",
-      "NtFlushKey",
-      "NtFlushProcessWriteBuffers",
-      "NtFlushVirtualMemory",
-      "NtFlushWriteBuffer",
-      "NtFreeUserPhysicalPages",
-      "NtFreezeRegistry",
-      "NtFreezeTransactions",
-      "NtGetCachedSigningLevel",
-      "NtGetCompleteWnfStateSubscription",
-      "NtGetContextThread",
-      "NtGetCurrentProcessorNumber",
-      "NtGetCurrentProcessorNumberEx",
-      "NtGetDevicePowerState",
-      "NtGetMUIRegistryInfo",
-      "NtGetNextProcess",
-      "NtGetNextThread",
-      "NtGetNlsSectionPtr",
-      "NtGetNotificationResourceManager",
-      "NtGetWriteWatch",
-      "NtImpersonateAnonymousToken",
-      "NtImpersonateThread",
-      "NtInitializeEnclave",
-      "NtInitializeNlsFiles",
-      "NtInitializeRegistry",
-      "NtInitiatePowerAction",
-      "NtIsSystemResumeAutomatic",
-      "NtIsUILanguageComitted",
-      "NtListenPort",
-      "NtLoadDriver",
-      "NtLoadEnclaveData",
-      "NtLoadKey",
-      "NtLoadKey2",
-      "NtLoadKeyEx",
-      "NtLockFile",
-      "NtLockProductActivationKeys",
-      "NtLockRegistryKey",
-      "NtLockVirtualMemory",
-      "NtMakePermanentObject",
-      "NtMakeTemporaryObject",
-      "NtManageHotPatch",
-      "NtManagePartition",
-      "NtMapCMFModule",
-      "NtMapUserPhysicalPages",
-      "NtMapViewOfSectionEx",
-      "NtModifyBootEntry",
-      "NtModifyDriverEntry",
-      "NtNotifyChangeDirectoryFile",
-      "NtNotifyChangeDirectoryFileEx",
-      "NtNotifyChangeKey",
-      "NtNotifyChangeMultipleKeys",
-      "NtNotifyChangeSession",
-      "NtOpenEnlistment",
-      "?GetPnpProperty@NT_DISK@@UEAAJPEAXPEAPEAX@Z",
-      "NtOpenIoCompletion",
-      "NtOpenJobObject",
-      "NtOpenKeyEx",
-      "NtOpenKeyTransacted",
-      "NtOpenKeyTransactedEx",
-      "NtOpenKeyedEvent",
-      "NtOpenMutant",
-      "NtOpenObjectAuditAlarm",
-      "NtOpenPartition",
-      "NtOpenPrivateNamespace",
-      "NtOpenProcessToken",
-      "NtOpenRegistryTransaction",
-      "NtOpenResourceManager",
-      "NtOpenSemaphore",
-      "NtOpenSession",
-      "NtOpenSymbolicLinkObject",
-      "NtOpenThread",
-      "NtOpenTimer",
-      "NtOpenTransaction",
-      "NtOpenTransactionManager",
-      "NtPlugPlayControl",
-      "NtPrePrepareComplete",
-      "NtPrePrepareEnlistment",
-      "NtPrepareComplete",
-      "NtPrepareEnlistment",
-      "NtPrivilegeCheck",
-      "NtPrivilegeObjectAuditAlarm",
-      "NtPrivilegedServiceAuditAlarm",
-      "NtPropagationComplete",
-      "NtPropagationFailed",
-      "NtPulseEvent",
-      "NtQueryAuxiliaryCounterFrequency",
-      "NtQueryBootEntryOrder",
-      "NtQueryBootOptions",
-      "NtQueryDebugFilterState",
-      "NtQueryDirectoryFileEx",
-      "NtQueryDirectoryObject",
-      "NtQueryDriverEntryOrder",
-      "NtQueryEaFile",
-      "NtQueryFullAttributesFile",
-      "NtQueryInformationAtom",
-      "NtQueryInformationByName",
-      "NtQueryInformationEnlistment",
-      "NtQueryInformationJobObject",
-      "NtQueryInformationPort",
-      "NtQueryInformationResourceManager",
-      "NtQueryInformationTransaction",
-      "NtQueryInformationTransactionManager",
-      "NtQueryInformationWorkerFactory",
-      "NtQueryInstallUILanguage",
-      "NtQueryIntervalProfile",
-      "NtQueryIoCompletion",
-      "NtQueryLicenseValue",
-      "NtQueryMultipleValueKey",
-      "NtQueryMutant",
-      "NtQueryOpenSubKeys",
-      "NtQueryOpenSubKeysEx",
-      "CmpCleanUpHigherLayerKcbCachesPreCallback",
-      "NtQueryQuotaInformationFile",
-      "NtQuerySecurityAttributesToken",
-      "NtQuerySecurityObject",
-      "NtQuerySecurityPolicy",
-      "NtQuerySemaphore",
-      "NtQuerySymbolicLinkObject",
-      "NtQuerySystemEnvironmentValue",
-      "NtQuerySystemEnvironmentValueEx",
-      "NtQuerySystemInformationEx",
-      "NtQueryTimerResolution",
-      "NtQueryWnfStateData",
-      "NtQueryWnfStateNameInformation",
-      "NtQueueApcThreadEx",
-      "NtRaiseException",
-      "NtRaiseHardError",
-      "NtReadOnlyEnlistment",
-      "NtRecoverEnlistment",
-      "NtRecoverResourceManager",
-      "NtRecoverTransactionManager",
-      "NtRegisterProtocolAddressInformation",
-      "NtRegisterThreadTerminatePort",
-      "NtReleaseKeyedEvent",
-      "NtReleaseWorkerFactoryWorker",
-      "NtRemoveIoCompletionEx",
-      "NtRemoveProcessDebug",
-      "NtRenameKey",
-      "NtRenameTransactionManager",
-      "NtReplaceKey",
-      "NtReplacePartitionUnit",
-      "NtReplyWaitReplyPort",
-      "NtRequestPort",
-      "NtResetEvent",
-      "NtResetWriteWatch",
-      "NtRestoreKey",
-      "NtResumeProcess",
-      "NtRevertContainerImpersonation",
-      "NtRollbackComplete",
-      "NtRollbackEnlistment",
-      "NtRollbackRegistryTransaction",
-      "NtRollbackTransaction",
-      "NtRollforwardTransactionManager",
-      "NtSaveKey",
-      "NtSaveKeyEx",
-      "NtSaveMergedKeys",
-      "NtSecureConnectPort",
-      "NtSerializeBoot",
-      "NtSetBootEntryOrder",
-      "NtSetBootOptions",
-      "NtSetCachedSigningLevel",
-      "NtSetCachedSigningLevel2",
-      "NtSetContextThread",
-      "NtSetDebugFilterState",
-      "NtSetDefaultHardErrorPort",
-      "NtSetDefaultLocale",
-      "NtSetDefaultUILanguage",
-      "NtSetDriverEntryOrder",
-      "NtSetEaFile",
-      "?GetPnpProperty@NT_DISK@@UEAAJPEAXPEAPEAX@Z",
-      "?GetPnpProperty@NT_DISK@@UEAAJPEAXPEAPEAX@Z",
-      "NtSetIRTimer",
-      "NtSetInformationDebugObject",
-      "NtSetInformationEnlistment",
-      "NtSetInformationJobObject",
-      "NtSetInformationKey",
-      "NtSetInformationResourceManager",
-      "NtSetInformationSymbolicLink",
-      "NtSetInformationToken",
-      "NtSetInformationTransaction",
-      "NtSetInformationTransactionManager",
-      "NtSetInformationVirtualMemory",
-      "NtSetInformationWorkerFactory",
-      "NtSetIntervalProfile",
-      "NtSetIoCompletion",
-      "NtSetIoCompletionEx",
-      "BvgaSetVirtualFrameBuffer",
-      "?GetPnpProperty@NT_DISK@@UEAAJPEAXPEAPEAX@Z",
-      "?GetPnpProperty@NT_DISK@@UEAAJPEAXPEAPEAX@Z",
-      "NtSetQuotaInformationFile",
-      "NtSetSecurityObject",
-      "NtSetSystemEnvironmentValue",
-      "NtSetSystemEnvironmentValueEx",
-      "NtSetSystemInformation",
-      "NtSetSystemPowerState",
-      "NtSetSystemTime",
-      "NtSetThreadExecutionState",
-      "NtSetTimer2",
-      "NtSetTimerEx",
-      "NtSetTimerResolution",
-      "NtSetUuidSeed",
-      "NtSetVolumeInformationFile",
-      "NtSetWnfProcessNotificationEvent",
-      "NtShutdownSystem",
-      "NtShutdownWorkerFactory",
-      "NtSignalAndWaitForSingleObject",
-      "NtSinglePhaseReject",
-      "NtStartProfile",
-      "NtStopProfile",
-      "NtSubscribeWnfStateChange",
-      "NtSuspendProcess",
-      "NtSuspendThread",
-      "NtSystemDebugControl",
-      "NtTerminateEnclave",
-      "NtTerminateJobObject",
-      "NtTestAlert",
-      "NtThawRegistry",
-      "NtThawTransactions",
-      "NtTraceControl",
-      "NtTranslateFilePath",
-      "NtUmsThreadYield",
-      "NtUnloadDriver",
-      "NtUnloadKey",
-      "NtUnloadKey2",
-      "NtUnloadKeyEx",
-      "NtUnlockFile",
-      "NtUnlockVirtualMemory",
-      "NtUnmapViewOfSectionEx",
-      "NtUnsubscribeWnfStateChange",
-      "NtUpdateWnfStateData",
-      "?GetPnpProperty@NT_DISK@@UEAAJPEAXPEAPEAX@Z",
-      "NtWaitForAlertByThreadId",
-      "NtWaitForDebugEvent",
-      "NtWaitForKeyedEvent",
-      "NtWaitForWorkViaWorkerFactory",
-      "?GetPnpProperty@NT_DISK@@UEAAJPEAXPEAPEAX@Z",
-      "?GetPnpProperty@NT_DISK@@UEAAJPEAXPEAPEAX@Z"
-};
-
-// Win10 ShadowSSDT 函数名数组
-const char* WIN10_SHADOWSSDT_FUNCTIONS[] = {
-    "NtUserGetOwnerTransformedMonitorRect"
-    
-    "NtUserYieldTask"
-    
-    "NtUserSetSensorPresence"
-    
-    "NtUserGetThreadState"
-    
-    "NtUserPeekMessage"
-    
-    "NtUserCallOneParam"
-    
-    "NtUserGetKeyState"
-    
-    "NtUserInvalidateRect"
-    
-    "NtUserCallNoParam"
-    
-    "NtUserGetMessage"
-    
-    "NtUserMessageCall"
-    
-    "NtGdiBitBlt"
-    
-    "NtGdiGetCharSet"
-    
-    "NtUserGetDC"
-    
-    "NtGdiSelectBitmap"
-    
-    "NtUserWaitMessage"
-    
-    "NtUserTranslateMessage"
-    
-    "NtUserGetProp"
-    
-    "NtUserPostMessage"
-    
-    "NtUserQueryWindow"
-    
-    "NtUserTranslateAccelerator"
-    
-    "NtGdiFlush"
-    
-    "NtUserRedrawWindow"
-    
-    "NtUserWindowFromPoint"
-    
-    "NtUserCallMsgFilter"
-    
-    "NtUserValidateTimerCallback"
-    
-    "NtUserBeginPaint"
-    
-    "NtUserSetTimer"
-    
-    "NtUserEndPaint"
-    
-    "NtUserSetCursor"
-    
-    "NtUserKillTimer"
-    
-    "NtUserBuildHwndList"
-    
-    "NtUserSelectPalette"
-    
-    "NtUserCallNextHookEx"
-    
-    "NtUserHideCaret"
-    
-    "NtGdiIntersectClipRect"
-    
-    "NtUserCallHwndLock"
-    
-    "NtUserGetProcessWindowStation"
-    
-    "NtGdiDeleteObjectApp"
-    
-    "NtUserSetWindowPos"
-    
-    "NtUserShowCaret"
-    
-    "NtUserEndDeferWindowPosEx"
-    
-    "NtUserCallHwndParamLock"
-    
-    "NtUserVkKeyScanEx"
-    
-    "NtGdiSetDIBitsToDeviceInternal"
-    
-    "NtUserCallTwoParam"
-    
-    "NtGdiGetRandomRgn"
-    
-    "NtUserCopyAcceleratorTable"
-    
-    "NtUserNotifyWinEvent"
-    
-    "NtGdiExtSelectClipRgn"
-    
-    "NtUserIsClipboardFormatAvailable"
-    
-    "NtUserSetScrollInfo"
-    
-    "NtGdiStretchBlt"
-    
-    "NtUserCreateCaret"
-    
-    "NtGdiRectVisible"
-    
-    "NtGdiCombineRgn"
-    
-    "NtGdiGetDCObject"
-    
-    "NtUserDispatchMessage"
-    
-    "NtUserRegisterWindowMessage"
-    
-    "NtGdiExtTextOutW"
-    
-    "NtGdiSelectFont"
-    
-    "NtGdiRestoreDC"
-    
-    "NtGdiSaveDC"
-    
-    "NtUserGetForegroundWindow"
-    
-    "NtUserShowScrollBar"
-    
-    "NtUserFindExistingCursorIcon"
-    
-    "NtGdiGetDCDword"
-    
-    "NtGdiGetRegionData"
-    
-    "NtGdiLineTo"
-    
-    "NtUserSystemParametersInfo"
-    
-    "NtGdiGetAppClipBox"
-    
-    "NtUserGetAsyncKeyState"
-    
-    "NtUserGetCPD"
-    
-    "NtUserRemoveProp"
-    
-    "NtGdiDoPalette"
-    
-    "NtGdiPolyPolyDraw"
-    
-    "NtUserSetCapture"
-    
-    "NtUserEnumDisplayMonitors"
-    
-    "NtGdiCreateCompatibleBitmap"
-    
-    "NtUserSetProp"
-    
-    "NtGdiGetTextCharsetInfo"
-    
-    "NtUserSBGetParms"
-    
-    "NtUserGetIconInfo"
-    
-    "NtUserExcludeUpdateRgn"
-    
-    "NtUserSetFocus"
-    
-    "NtGdiExtGetObjectW"
-    
-    "NtUserGetUpdateRect"
-    
-    "NtGdiCreateCompatibleDC"
-    
-    "NtUserGetClipboardSequenceNumber"
-    
-    "NtGdiCreatePen"
-    
-    "NtUserShowWindow"
-    
-    "NtUserGetKeyboardLayoutList"
-    
-    "NtGdiPatBlt"
-    
-    "NtUserMapVirtualKeyEx"
-    
-    "NtUserSetWindowLong"
-    
-    "NtGdiHfontCreate"
-    
-    "NtUserMoveWindow"
-    
-    "NtUserPostThreadMessage"
-    
-    "NtUserDrawIconEx"
-    
-    "NtUserGetSystemMenu"
-    
-    "NtGdiDrawStream"
-    
-    "NtUserInternalGetWindowText"
-    
-    "NtUserGetWindowDC"
-    
-    "NtGdiInvertRgn"
-    
-    "NtGdiGetRgnBox"
-    
-    "NtGdiGetAndSetDCDword"
-    
-    "NtGdiMaskBlt"
-    
-    "NtGdiGetWidthTable"
-    
-    "NtUserScrollDC"
-    
-    "NtUserGetObjectInformation"
-    
-    "NtGdiCreateBitmap"
-    
-    "NtUserFindWindowEx"
-    
-    "NtGdiPolyPatBlt"
-    
-    "NtUserUnhookWindowsHookEx"
-    
-    "NtGdiGetNearestColor"
-    
-    "NtGdiTransformPoints"
-    
-    "NtGdiGetDCPoint"
-    
-    "NtGdiCreateDIBBrush"
-    
-    "NtGdiGetTextMetricsW"
-    
-    "NtUserCreateWindowEx"
-    
-    "NtUserSetParent"
-    
-    "NtUserGetKeyboardState"
-    
-    "NtUserToUnicodeEx"
-    
-    "NtUserGetControlBrush"
-    
-    "NtUserGetClassName"
-    
-    "NtGdiAlphaBlend"
-    
-    "NtGdiOffsetRgn"
-    
-    "NtUserDefSetText"
-    
-    "NtGdiGetTextFaceW"
-    
-    "NtGdiStretchDIBitsInternal"
-    
-    "NtUserSendInput"
-    
-    "NtUserGetThreadDesktop"
-    
-    "NtGdiCreateRectRgn"
-    
-    "NtGdiGetDIBitsInternal"
-    
-    "NtUserGetUpdateRgn"
-    
-    "NtGdiDeleteClientObj"
-    
-    "NtUserGetIconSize"
-    
-    "NtUserFillWindow"
-    
-    "NtGdiExtCreateRegion"
-    
-    "NtGdiComputeXformCoefficients"
-    
-    "NtUserSetWindowsHookEx"
-    
-    "NtUserNotifyProcessCreate"
-    
-    "NtGdiUnrealizeObject"
-    
-    "NtUserGetTitleBarInfo"
-    
-    "NtGdiRectangle"
-    
-    "NtUserSetThreadDesktop"
-    
-    "NtUserGetDCEx"
-    
-    "NtUserGetScrollBarInfo"
-    
-    "NtGdiGetTextExtent"
-    
-    "NtUserSetWindowFNID"
-    
-    "NtGdiSetLayout"
-    
-    "NtUserCalcMenuBar"
-    
-    "NtUserThunkedMenuItemInfo"
-    
-    "NtGdiExcludeClipRect"
-    
-    "NtGdiCreateDIBSection"
-    
-    "NtGdiGetDCforBitmap"
-    
-    "NtUserDestroyCursor"
-    
-    "NtUserDestroyWindow"
-    
-    "NtUserCallHwndParam"
-    
-    "NtGdiCreateDIBitmapInternal"
-    
-    "NtUserOpenWindowStation"
-    
-    "NtUserSetCursorIconData"
-    
-    "NtUserCloseDesktop"
-    
-    "NtUserOpenDesktop"
-    
-    "NtUserSetProcessWindowStation"
-    
-    "NtUserGetAtomName"
-    
-    "NtGdiExtCreatePen"
-    
-    "NtGdiCreatePaletteInternal"
-    
-    "NtGdiSetBrushOrg"
-    
-    "NtUserBuildNameList"
-    
-    "NtGdiSetPixel"
-    
-    "NtUserRegisterClassExWOW"
-    
-    "NtGdiCreatePatternBrushInternal"
-    
-    "NtUserGetAncestor"
-    
-    "NtGdiGetOutlineTextMetricsInternalW"
-    
-    "NtGdiSetBitmapBits"
-    
-    "NtUserCloseWindowStation"
-    
-    "NtUserGetDoubleClickTime"
-    
-    "NtUserEnableScrollBar"
-    
-    "NtGdiCreateSolidBrush"
-    
-    "NtUserGetClassInfoEx"
-    
-    "NtGdiCreateClientObj"
-    
-    "NtUserUnregisterClass"
-    
-    "NtUserDeleteMenu"
-    
-    "NtGdiRectInRegion"
-    
-    "NtUserScrollWindowEx"
-    
-    "NtGdiGetPixel"
-    
-    "NtUserSetClassLong"
-    
-    "NtUserGetMenuBarInfo"
-    
-    "NtGdiGetNearestPaletteIndex"
-    
-    "NtGdiGetCharWidthW"
-    
-    "NtUserInvalidateRgn"
-    
-    "NtUserGetClipboardOwner"
-    
-    "NtUserSetWindowRgn"
-    
-    "NtUserBitBltSysBmp"
-    
-    "NtGdiGetCharWidthInfo"
-    
-    "NtUserValidateRect"
-    
-    "NtUserCloseClipboard"
-    
-    "NtUserOpenClipboard"
-    
-    "NtUserSetClipboardData"
-    
-    "NtUserEnableMenuItem"
-    
-    "NtUserAlterWindowStyle"
-    
-    "NtGdiFillRgn"
-    
-    "NtUserGetWindowPlacement"
-    
-    "NtGdiModifyWorldTransform"
-    
-    "NtGdiGetFontData"
-    
-    "NtUserGetOpenClipboardWindow"
-    
-    "NtUserSetThreadState"
-    
-    "NtGdiOpenDCW"
-    
-    "NtUserTrackMouseEvent"
-    
-    "NtGdiGetTransform"
-    
-    "NtUserDestroyMenu"
-    
-    "NtGdiGetBitmapBits"
-    
-    "NtUserConsoleControl"
-    
-    "NtUserSetActiveWindow"
-    
-    "NtUserSetInformationThread"
-    
-    "NtUserSetWindowPlacement"
-    
-    "NtUserGetControlColor"
-    
-    "NtGdiSetMetaRgn"
-    
-    "NtGdiSetMiterLimit"
-    
-    "NtGdiSetVirtualResolution"
-    
-    "NtGdiGetRasterizerCaps"
-    
-    "NtUserSetWindowWord"
-    
-    "NtUserGetClipboardFormatName"
-    
-    "NtUserRealInternalGetMessage"
-    
-    "NtUserCreateLocalMemHandle"
-    
-    "NtUserAttachThreadInput"
-    
-    "NtGdiCreateHalftonePalette"
-    
-    "NtUserPaintMenuBar"
-    
-    "NtUserSetKeyboardState"
-    
-    "NtGdiCombineTransform"
-    
-    "NtUserCreateAcceleratorTable"
-    
-    "NtUserGetCursorFrameInfo"
-    
-    "NtUserGetAltTabInfo"
-    
-    "NtUserGetCaretBlinkTime"
-    
-    "NtGdiQueryFontAssocInfo"
-    
-    "NtUserProcessConnect"
-    
-    "NtUserEnumDisplayDevices"
-    
-    "NtUserEmptyClipboard"
-    
-    "NtUserGetClipboardData"
-    
-    "NtUserRemoveMenu"
-    
-    "NtGdiSetBoundsRect"
-    
-    "NtGdiGetBitmapDimension"
-    
-    "NtUserConvertMemHandle"
-    
-    "NtUserDestroyAcceleratorTable"
-    
-    "NtUserGetGUIThreadInfo"
-    
-    "NtGdiCloseFigure"
-    
-    "NtUserSetWindowsHookAW"
-    
-    "NtUserSetMenuDefaultItem"
-    
-    "NtUserCheckMenuItem"
-    
-    "NtUserSetWinEventHook"
-    
-    "NtUserUnhookWinEvent"
-    
-    "NtUserLockWindowUpdate"
-    
-    "NtUserSetSystemMenu"
-    
-    "NtUserThunkedMenuInfo"
-    
-    "NtGdiBeginPath"
-    
-    "NtGdiEndPath"
-    
-    "NtGdiFillPath"
-    
-    "NtUserCallHwnd"
-    
-    "NtUserDdeInitialize"
-    
-    "NtUserModifyUserStartupInfoFlags"
-    
-    "NtUserCountClipboardFormats"
-    
-    "NtGdiAddFontMemResourceEx"
-    
-    "NtGdiEqualRgn"
-    
-    "NtGdiGetSystemPaletteUse"
-    
-    "NtGdiRemoveFontMemResourceEx"
-    
-    "NtUserEnumDisplaySettings"
-    
-    "NtUserPaintDesktop"
-    
-    "NtGdiExtEscape"
-    
-    "NtGdiSetBitmapDimension"
-    
-    "NtGdiSetFontEnumeration"
-    
-    "NtUserChangeClipboardChain"
-    
-    "NtUserSetClipboardViewer"
-    
-    "NtUserShowWindowAsync"
-    
-    "NtGdiCreateColorSpace"
-    
-    "NtGdiDeleteColorSpace"
-    
-    "NtUserActivateKeyboardLayout"
-    
-    "NtBindCompositionSurface"
-    
-    "NtCloseCompositionInputSink"
-    
-    "NtCompositionInputThread"
-    
-    "NtCompositionSetDropTarget"
-    
-    "NtConfigureInputSpace"
-    
-    "NtCreateCompositionInputSink"
-    
-    "NtCreateCompositionSurfaceHandle"
-    
-    "NtCreateImplicitCompositionInputSink"
-    
-    "NtDCompositionAddCrossDeviceVisualChild"
-    
-    "NtDCompositionBeginFrame"
-    
-    "NtDCompositionCommitChannel"
-    
-    "NtDCompositionCommitSynchronizationObject"
-    
-    "NtDCompositionConfirmFrame"
-    
-    "NtDCompositionConnectPipe"
-    
-    "NtDCompositionCreateAndBindSharedSection"
-    
-    "NtDCompositionCreateChannel"
-    
-    "NtDCompositionCreateConnection"
-    
-    "NtDCompositionCreateDwmChannel"
-    
-    "NtDCompositionCreateSharedResourceHandle"
-    
-    "NtDCompositionCreateSynchronizationObject"
-    
-    "NtDCompositionDestroyChannel"
-    
-    "NtDCompositionDestroyConnection"
-    
-    "NtDCompositionDiscardFrame"
-    
-    "NtDCompositionDuplicateHandleToProcess"
-    
-    "NtDCompositionDuplicateSwapchainHandleToDwm"
-    
-    "NtDCompositionEnableMMCSS"
-    
-    "NtDCompositionGetBatchId"
-    
-    "NtDCompositionGetChannels"
-    
-    "NtDCompositionGetConnectionBatch"
-    
-    "NtDCompositionGetDeletedResources"
-    
-    "NtDCompositionGetFrameLegacyTokens"
-    
-    "NtDCompositionGetFrameStatistics"
-    
-    "NtDCompositionGetFrameSurfaceUpdates"
-    
-    "NtDCompositionGetMaterialProperty"
-    
-    "NtDCompositionProcessChannelBatchBuffer"
-    
-    "NtDCompositionReferenceSharedResourceOnDwmChannel"
-    
-    "NtDCompositionRegisterThumbnailVisual"
-    
-    "NtDCompositionRegisterVirtualDesktopVisual"
-    
-    "NtDCompositionReleaseAllResources"
-    
-    "NtDCompositionRemoveCrossDeviceVisualChild"
-    
-    "NtDCompositionRetireFrame"
-    
-    "NtDCompositionSetChannelCommitCompletionEvent"
-    
-    "NtDCompositionSetChannelConnectionId"
-    
-    "NtDCompositionSetChildRootVisual"
-    
-    "NtDCompositionSetDebugCounter"
-    
-    "NtDCompositionSetMaterialProperty"
-    
-    "NtDCompositionSubmitDWMBatch"
-    
-    "NtDCompositionSuspendAnimations"
-    
-    "NtDCompositionSynchronize"
-    
-    "NtDCompositionTelemetryAnimationScenarioBegin"
-    
-    "NtDCompositionTelemetryAnimationScenarioReference"
-    
-    "NtDCompositionTelemetryAnimationScenarioUnreference"
-    
-    "NtDCompositionTelemetrySetApplicationId"
-    
-    "NtDCompositionTelemetryTouchInteractionBegin"
-    
-    "NtDCompositionTelemetryTouchInteractionEnd"
-    
-    "NtDCompositionTelemetryTouchInteractionUpdate"
-    
-    "NtDCompositionUpdatePointerCapture"
-    
-    "NtDCompositionWaitForChannel"
-    
-    "NtDesktopCaptureBits"
-    
-    "NtDuplicateCompositionInputSink"
-    
-    "NtDxgkCreateTrackedWorkload"
-    
-    "NtDxgkDestroyTrackedWorkload"
-    
-    "NtDxgkDispMgrOperation"
-    
-    "NtDxgkEndTrackedWorkload"
-    
-    "NtDxgkGetAvailableTrackedWorkloadIndex"
-    
-    "NtDxgkGetProcessList"
-    
-    "NtDxgkGetTrackedWorkloadStatistics"
-    
-    "NtDxgkOutputDuplPresentToHwQueue"
-    
-    "NtDxgkRegisterVailProcess"
-    
-    "NtDxgkResetTrackedWorkload"
-    
-    "NtDxgkSubmitPresentBltToHwQueue"
-    
-    "NtDxgkSubmitPresentToHwQueue"
-    
-    "NtDxgkUpdateTrackedWorkload"
-    
-    "NtDxgkVailConnect"
-    
-    "NtDxgkVailDisconnect"
-    
-    "NtDxgkVailPromoteCompositionSurface"
-    
-    "NtEnableOneCoreTransformMode"
-    
-    "NtFlipObjectAddContent"
-    
-    "NtFlipObjectAddPoolBuffer"
-    
-    "NtFlipObjectConsumerAcquirePresent"
-    
-    "NtFlipObjectConsumerAdjustUsageReference"
-    
-    "NtFlipObjectConsumerBeginProcessPresent"
-    
-    "NtFlipObjectConsumerEndProcessPresent"
-    
-    "NtFlipObjectConsumerPostMessage"
-    
-    "NtFlipObjectConsumerQueryBufferInfo"
-    
-    "NtFlipObjectCreate"
-    
-    "NtFlipObjectDisconnectEndpoint"
-    
-    "NtFlipObjectOpen"
-    
-    "NtFlipObjectPresentCancel"
-    
-    "NtFlipObjectQueryBufferAvailableEvent"
-    
-    "NtFlipObjectQueryEndpointConnected"
-    
-    "NtFlipObjectQueryNextMessageToProducer"
-    
-    "NtFlipObjectReadNextMessageToProducer"
-    
-    "NtFlipObjectRemoveContent"
-    
-    "NtFlipObjectRemovePoolBuffer"
-    
-    "NtFlipObjectSetContent"
-    
-    "NtGdiAbortDoc"
-    
-    "NtGdiAbortPath"
-    
-    "NtGdiAddEmbFontToDC"
-    
-    "NtGdiAddFontResourceW"
-    
-    "NtGdiAddInitialFonts"
-    
-    "NtGdiAddRemoteFontToDC"
-    
-    "NtGdiAddRemoteMMInstanceToDC"
-    
-    "NtGdiAngleArc"
-    
-    "NtGdiAnyLinkedFonts"
-    
-    "NtGdiArcInternal"
-    
-    "NtGdiBRUSHOBJ_DeleteRbrush"
-    
-    "NtGdiBRUSHOBJ_hGetColorTransform"
-    
-    "NtGdiBRUSHOBJ_pvAllocRbrush"
-    
-    "NtGdiBRUSHOBJ_pvGetRbrush"
-    
-    "NtGdiBRUSHOBJ_ulGetBrushColor"
-    
-    "NtGdiBeginGdiRendering"
-    
-    "NtGdiCLIPOBJ_bEnum"
-    
-    "NtGdiCLIPOBJ_cEnumStart"
-    
-    "NtGdiCLIPOBJ_ppoGetPath"
-    
-    "NtGdiCancelDC"
-    
-    "NtGdiChangeGhostFont"
-    
-    "NtGdiCheckBitmapBits"
-    
-    "NtGdiClearBitmapAttributes"
-    
-    "NtGdiClearBrushAttributes"
-    
-    "NtGdiColorCorrectPalette"
-    
-    "NtGdiConfigureOPMProtectedOutput"
-    
-    "NtGdiConvertMetafileRect"
-    
-    "NtGdiCreateBitmapFromDxSurface"
-    
-    "NtGdiCreateBitmapFromDxSurface2"
-    
-    "NtGdiCreateColorTransform"
-    
-    "NtGdiCreateEllipticRgn"
-    
-    "NtGdiCreateHatchBrushInternal"
-    
-    "NtGdiCreateMetafileDC"
-    
-    "NtGdiCreateOPMProtectedOutput"
-    
-    "NtGdiCreateOPMProtectedOutputs"
-    
-    "NtGdiCreateRoundRectRgn"
-    
-    "NtGdiCreateServerMetaFile"
-    
-    "NtGdiCreateSessionMappedDIBSection"
-    
-    "NtGdiDDCCIGetCapabilitiesString"
-    
-    "NtGdiDDCCIGetCapabilitiesStringLength"
-    
-    "NtGdiDDCCIGetTimingReport"
-    
-    "NtGdiDDCCIGetVCPFeature"
-    
-    "NtGdiDDCCISaveCurrentSettings"
-    
-    "NtGdiDDCCISetVCPFeature"
-    
-    "NtGdiDdCreateFullscreenSprite"
-    
-    "NtGdiDdDDIAbandonSwapChain"
-    
-    "NtGdiDdDDIAcquireKeyedMutex"
-    
-    "NtGdiDdDDIAcquireKeyedMutex2"
-    
-    "NtGdiDdDDIAcquireSwapChain"
-    
-    "NtGdiDdDDIAddSurfaceToSwapChain"
-    
-    "NtGdiDdDDIAdjustFullscreenGamma"
-    
-    "NtGdiDdDDICacheHybridQueryValue"
-    
-    "NtGdiDdDDIChangeVideoMemoryReservation"
-    
-    "NtGdiDdDDICheckExclusiveOwnership"
-    
-    "NtGdiDdDDICheckMonitorPowerState"
-    
-    "NtGdiDdDDICheckMultiPlaneOverlaySupport"
-    
-    "NtGdiDdDDICheckMultiPlaneOverlaySupport2"
-    
-    "NtGdiDdDDICheckMultiPlaneOverlaySupport3"
-    
-    "NtGdiDdDDICheckOcclusion"
-    
-    "NtGdiDdDDICheckSharedResourceAccess"
-    
-    "NtGdiDdDDICheckVidPnExclusiveOwnership"
-    
-    "NtGdiDdDDICloseAdapter"
-    
-    "NtGdiDdDDIConfigureSharedResource"
-    
-    "NtGdiDdDDICreateAllocation"
-    
-    "NtGdiDdDDICreateBundleObject"
-    
-    "NtGdiDdDDICreateContext"
-    
-    "NtGdiDdDDICreateContextVirtual"
-    
-    "NtGdiDdDDICreateDCFromMemory"
-    
-    "NtGdiDdDDICreateDevice"
-    
-    "NtGdiDdDDICreateHwContext"
-    
-    "NtGdiDdDDICreateHwQueue"
-    
-    "NtGdiDdDDICreateKeyedMutex"
-    
-    "NtGdiDdDDICreateKeyedMutex2"
-    
-    "NtGdiDdDDICreateOutputDupl"
-    
-    "NtGdiDdDDICreateOverlay"
-    
-    "NtGdiDdDDICreatePagingQueue"
-    
-    "NtGdiDdDDICreateProtectedSession"
-    
-    "NtGdiDdDDICreateSwapChain"
-    
-    "NtGdiDdDDICreateSynchronizationObject"
-    
-    "NtGdiDdDDIDDisplayEnum"
-    
-    "NtGdiDdDDIDestroyAllocation"
-    
-    "NtGdiDdDDIDestroyAllocation2"
-    
-    "NtGdiDdDDIDestroyContext"
-    
-    "NtGdiDdDDIDestroyDCFromMemory"
-    
-    "NtGdiDdDDIDestroyDevice"
-    
-    "NtGdiDdDDIDestroyHwContext"
-    
-    "NtGdiDdDDIDestroyHwQueue"
-    
-    "NtGdiDdDDIDestroyKeyedMutex"
-    
-    "NtGdiDdDDIDestroyOutputDupl"
-    
-    "NtGdiDdDDIDestroyOverlay"
-    
-    "NtGdiDdDDIDestroyPagingQueue"
-    
-    "NtGdiDdDDIDestroyProtectedSession"
-    
-    "NtGdiDdDDIDestroySynchronizationObject"
-    
-    "NtGdiDdDDIDispMgrCreate"
-    
-    "NtGdiDdDDIDispMgrSourceOperation"
-    
-    "NtGdiDdDDIDispMgrTargetOperation"
-    
-    "NtGdiDdDDIEnumAdapters"
-    
-    "NtGdiDdDDIEnumAdapters2"
-    
-    "NtGdiDdDDIEscape"
-    
-    "NtGdiDdDDIEvict"
-    
-    "NtGdiDdDDIExtractBundleObject"
-    
-    "NtGdiDdDDIFlipOverlay"
-    
-    "NtGdiDdDDIFlushHeapTransitions"
-    
-    "NtGdiDdDDIFreeGpuVirtualAddress"
-    
-    "NtGdiDdDDIGetAllocationPriority"
-    
-    "NtGdiDdDDIGetCachedHybridQueryValue"
-    
-    "NtGdiDdDDIGetContextInProcessSchedulingPriority"
-    
-    "NtGdiDdDDIGetContextSchedulingPriority"
-    
-    "NtGdiDdDDIGetDWMVerticalBlankEvent"
-    
-    "NtGdiDdDDIGetDeviceState"
-    
-    "NtGdiDdDDIGetDisplayModeList"
-    
-    "NtGdiDdDDIGetMemoryBudgetTarget"
-    
-    "NtGdiDdDDIGetMultiPlaneOverlayCaps"
-    
-    "NtGdiDdDDIGetMultisampleMethodList"
-    
-    "NtGdiDdDDIGetOverlayState"
-    
-    "NtGdiDdDDIGetPostCompositionCaps"
-    
-    "NtGdiDdDDIGetPresentHistory"
-    
-    "NtGdiDdDDIGetPresentQueueEvent"
-    
-    "NtGdiDdDDIGetProcessDeviceRemovalSupport"
-    
-    "NtGdiDdDDIGetProcessSchedulingPriorityBand"
-    
-    "NtGdiDdDDIGetProcessSchedulingPriorityClass"
-    
-    "NtGdiDdDDIGetResourcePresentPrivateDriverData"
-    
-    "NtGdiDdDDIGetRuntimeData"
-    
-    "NtGdiDdDDIGetScanLine"
-    
-    "NtGdiDdDDIGetSetSwapChainMetadata"
-    
-    "NtGdiDdDDIGetSharedPrimaryHandle"
-    
-    "NtGdiDdDDIGetSharedResourceAdapterLuid"
-    
-    "NtGdiDdDDIGetSharedResourceAdapterLuidFlipManager"
-    
-    "NtGdiDdDDIGetYieldPercentage"
-    
-    "NtGdiDdDDIInvalidateActiveVidPn"
-    
-    "NtGdiDdDDIInvalidateCache"
-    
-    "NtGdiDdDDILock"
-    
-    "NtGdiDdDDILock2"
-    
-    "NtGdiDdDDIMakeResident"
-    
-    "NtGdiDdDDIMapGpuVirtualAddress"
-    
-    "NtGdiDdDDIMarkDeviceAsError"
-    
-    "NtGdiDdDDINetDispGetNextChunkInfo"
-    
-    "NtGdiDdDDINetDispQueryMiracastDisplayDeviceStatus"
-    
-    "NtGdiDdDDINetDispQueryMiracastDisplayDeviceSupport"
-    
-    "NtGdiDdDDINetDispStartMiracastDisplayDevice"
-    
-    "NtGdiDdDDINetDispStopMiracastDisplayDevice"
-    
-    "NtGdiDdDDIOfferAllocations"
-    
-    "NtGdiDdDDIOpenAdapterFromDeviceName"
-    
-    "NtGdiDdDDIOpenAdapterFromHdc"
-    
-    "NtGdiDdDDIOpenAdapterFromLuid"
-    
-    "NtGdiDdDDIOpenBundleObjectNtHandleFromName"
-    
-    "NtGdiDdDDIOpenKeyedMutex"
-    
-    "NtGdiDdDDIOpenKeyedMutex2"
-    
-    "NtGdiDdDDIOpenKeyedMutexFromNtHandle"
-    
-    "NtGdiDdDDIOpenNtHandleFromName"
-    
-    "NtGdiDdDDIOpenProtectedSessionFromNtHandle"
-    
-    "NtGdiDdDDIOpenResource"
-    
-    "NtGdiDdDDIOpenResourceFromNtHandle"
-    
-    "NtGdiDdDDIOpenSwapChain"
-    
-    "NtGdiDdDDIOpenSyncObjectFromNtHandle"
-    
-    "NtGdiDdDDIOpenSyncObjectFromNtHandle2"
-    
-    "NtGdiDdDDIOpenSyncObjectNtHandleFromName"
-    
-    "NtGdiDdDDIOpenSynchronizationObject"
-    
-    "NtGdiDdDDIOutputDuplGetFrameInfo"
-    
-    "NtGdiDdDDIOutputDuplGetMetaData"
-    
-    "NtGdiDdDDIOutputDuplGetPointerShapeData"
-    
-    "NtGdiDdDDIOutputDuplPresent"
-    
-    "NtGdiDdDDIOutputDuplReleaseFrame"
-    
-    "NtGdiDdDDIPinDirectFlipResources"
-    
-    "NtGdiDdDDIPollDisplayChildren"
-    
-    "NtGdiDdDDIPresent"
-    
-    "NtGdiDdDDIPresentMultiPlaneOverlay"
-    
-    "NtGdiDdDDIPresentMultiPlaneOverlay2"
-    
-    "NtGdiDdDDIPresentMultiPlaneOverlay3"
-    
-    "NtGdiDdDDIPresentRedirected"
-    
-    "NtGdiDdDDIQueryAdapterInfo"
-    
-    "NtGdiDdDDIQueryAllocationResidency"
-    
-    "NtGdiDdDDIQueryClockCalibration"
-    
-    "NtGdiDdDDIQueryFSEBlock"
-    
-    "NtGdiDdDDIQueryProcessOfferInfo"
-    
-    "NtGdiDdDDIQueryProtectedSessionInfoFromNtHandle"
-    
-    "NtGdiDdDDIQueryProtectedSessionStatus"
-    
-    "NtGdiDdDDIQueryRemoteVidPnSourceFromGdiDisplayName"
-    
-    "NtGdiDdDDIQueryResourceInfo"
-    
-    "NtGdiDdDDIQueryResourceInfoFromNtHandle"
-    
-    "NtGdiDdDDIQueryStatistics"
-    
-    "NtGdiDdDDIQueryVidPnExclusiveOwnership"
-    
-    "NtGdiDdDDIQueryVideoMemoryInfo"
-    
-    "NtGdiDdDDIReclaimAllocations"
-    
-    "NtGdiDdDDIReclaimAllocations2"
-    
-    "NtGdiDdDDIReleaseKeyedMutex"
-    
-    "NtGdiDdDDIReleaseKeyedMutex2"
-    
-    "NtGdiDdDDIReleaseProcessVidPnSourceOwners"
-    
-    "NtGdiDdDDIReleaseSwapChain"
-    
-    "NtGdiDdDDIRemoveSurfaceFromSwapChain"
-    
-    "NtGdiDdDDIRender"
-    
-    "NtGdiDdDDIReserveGpuVirtualAddress"
-    
-    "NtGdiDdDDISetAllocationPriority"
-    
-    "NtGdiDdDDISetContextInProcessSchedulingPriority"
-    
-    "NtGdiDdDDISetContextSchedulingPriority"
-    
-    "NtGdiDdDDISetDisplayMode"
-    
-    "NtGdiDdDDISetDodIndirectSwapchain"
-    
-    "NtGdiDdDDISetFSEBlock"
-    
-    "NtGdiDdDDISetGammaRamp"
-    
-    "NtGdiDdDDISetHwProtectionTeardownRecovery"
-    
-    "NtGdiDdDDISetMemoryBudgetTarget"
-    
-    "NtGdiDdDDISetMonitorColorSpaceTransform"
-    
-    "NtGdiDdDDISetProcessDeviceRemovalSupport"
-    
-    "NtGdiDdDDISetProcessSchedulingPriorityBand"
-    
-    "NtGdiDdDDISetProcessSchedulingPriorityClass"
-    
-    "NtGdiDdDDISetQueuedLimit"
-    
-    "NtGdiDdDDISetStablePowerState"
-    
-    "NtGdiDdDDISetStereoEnabled"
-    
-    "NtGdiDdDDISetSyncRefreshCountWaitTarget"
-    
-    "NtGdiDdDDISetVidPnSourceHwProtection"
-    
-    "NtGdiDdDDISetVidPnSourceOwner"
-    
-    "NtGdiDdDDISetYieldPercentage"
-    
-    "NtGdiDdDDIShareObjects"
-    
-    "NtGdiDdDDISharedPrimaryLockNotification"
-    
-    "NtGdiDdDDISharedPrimaryUnLockNotification"
-    
-    "NtGdiDdDDISignalSynchronizationObject"
-    
-    "NtGdiDdDDISignalSynchronizationObjectFromCpu"
-    
-    "NtGdiDdDDISignalSynchronizationObjectFromGpu"
-    
-    "NtGdiDdDDISignalSynchronizationObjectFromGpu2"
-    
-    "NtGdiDdDDISubmitCommand"
-    
-    "NtGdiDdDDISubmitCommandToHwQueue"
-    
-    "NtGdiDdDDISubmitSignalSyncObjectsToHwQueue"
-    
-    "NtGdiDdDDISubmitWaitForSyncObjectsToHwQueue"
-    
-    "NtGdiDdDDITrimProcessCommitment"
-    
-    "NtGdiDdDDIUnOrderedPresentSwapChain"
-    
-    "NtGdiDdDDIUnlock"
-    
-    "NtGdiDdDDIUnlock2"
-    
-    "NtGdiDdDDIUnpinDirectFlipResources"
-    
-    "NtGdiDdDDIUpdateAllocationProperty"
-    
-    "NtGdiDdDDIUpdateGpuVirtualAddress"
-    
-    "NtGdiDdDDIUpdateOverlay"
-    
-    "NtGdiDdDDIWaitForIdle"
-    
-    "NtGdiDdDDIWaitForSynchronizationObject"
-    
-    "NtGdiDdDDIWaitForSynchronizationObjectFromCpu"
-    
-    "NtGdiDdDDIWaitForSynchronizationObjectFromGpu"
-    
-    "NtGdiDdDDIWaitForVerticalBlankEvent"
-    
-    "NtGdiDdDDIWaitForVerticalBlankEvent2"
-    
-    "NtGdiDdDestroyFullscreenSprite"
-    
-    "NtGdiDdNotifyFullscreenSpriteUpdate"
-    
-    "NtGdiDdQueryVisRgnUniqueness"
-    
-    "NtGdiDeleteColorTransform"
-    
-    "NtGdiDescribePixelFormat"
-    
-    "NtGdiDestroyOPMProtectedOutput"
-    
-    "NtGdiDestroyPhysicalMonitor"
-    
-    "NtGdiDoBanding"
-    
-    "NtGdiDrawEscape"
-    
-    "NtGdiDwmCreatedBitmapRemotingOutput"
-    
-    "NtGdiEllipse"
-    
-    "NtGdiEnableEudc"
-    
-    "NtGdiEndDoc"
-    
-    "NtGdiEndGdiRendering"
-    
-    "NtGdiEndPage"
-    
-    "NtGdiEngAlphaBlend"
-    
-    "NtGdiEngAssociateSurface"
-    
-    "NtGdiEngBitBlt"
-    
-    "NtGdiEngCheckAbort"
-    
-    "NtGdiEngComputeGlyphSet"
-    
-    "NtGdiEngCopyBits"
-    
-    "NtGdiEngCreateBitmap"
-    
-    "NtGdiEngCreateClip"
-    
-    "NtGdiEngCreateDeviceBitmap"
-    
-    "NtGdiEngCreateDeviceSurface"
-    
-    "NtGdiEngCreatePalette"
-    
-    "NtGdiEngDeleteClip"
-    
-    "NtGdiEngDeletePalette"
-    
-    "NtGdiEngDeletePath"
-    
-    "NtGdiEngDeleteSurface"
-    
-    "NtGdiEngEraseSurface"
-    
-    "NtGdiEngFillPath"
-    
-    "NtGdiEngGradientFill"
-    
-    "NtGdiEngLineTo"
-    
-    "NtGdiEngLockSurface"
-    
-    "NtGdiEngMarkBandingSurface"
-    
-    "NtGdiEngPaint"
-    
-    "NtGdiEngPlgBlt"
-    
-    "NtGdiEngStretchBlt"
-    
-    "NtGdiEngStretchBltROP"
-    
-    "NtGdiEngStrokeAndFillPath"
-    
-    "NtGdiEngStrokePath"
-    
-    "NtGdiEngTextOut"
-    
-    "NtGdiEngTransparentBlt"
-    
-    "NtGdiEngUnlockSurface"
-    
-    "NtGdiEnsureDpiDepDefaultGuiFontForPlateau"
-    
-    "NtGdiEnumFonts"
-    
-    "NtGdiEnumObjects"
-    
-    "NtGdiEudcLoadUnloadLink"
-    
-    "NtGdiExtFloodFill"
-    
-    "NtGdiFONTOBJ_cGetAllGlyphHandles"
-    
-    "NtGdiFONTOBJ_cGetGlyphs"
-    
-    "NtGdiFONTOBJ_pQueryGlyphAttrs"
-    
-    "NtGdiFONTOBJ_pfdg"
-    
-    "NtGdiFONTOBJ_pifi"
-    
-    "NtGdiFONTOBJ_pvTrueTypeFontFile"
-    
-    "NtGdiFONTOBJ_pxoGetXform"
-    
-    "NtGdiFONTOBJ_vGetInfo"
-    
-    "NtGdiFlattenPath"
-    
-    "NtGdiFontIsLinked"
-    
-    "NtGdiForceUFIMapping"
-    
-    "NtGdiFrameRgn"
-    
-    "NtGdiFullscreenControl"
-    
-    "NtGdiGetAppliedDeviceGammaRamp"
-    
-    "NtGdiGetBitmapDpiScaleValue"
-    
-    "NtGdiGetBoundsRect"
-    
-    "NtGdiGetCOPPCompatibleOPMInformation"
-    
-    "NtGdiGetCertificate"
-    
-    "NtGdiGetCertificateByHandle"
-    
-    "NtGdiGetCertificateSize"
-    
-    "NtGdiGetCertificateSizeByHandle"
-    
-    "NtGdiGetCharABCWidthsW"
-    
-    "NtGdiGetCharacterPlacementW"
-    
-    "NtGdiGetColorAdjustment"
-    
-    "NtGdiGetColorSpaceforBitmap"
-    
-    "NtGdiGetCurrentDpiInfo"
-    
-    "NtGdiGetDCDpiScaleValue"
-    
-    "NtGdiGetDeviceCaps"
-    
-    "NtGdiGetDeviceCapsAll"
-    
-    "NtGdiGetDeviceGammaRamp"
-    
-    "NtGdiGetDeviceWidth"
-    
-    "NtGdiGetDhpdev"
-    
-    "NtGdiGetETM"
-    
-    "NtGdiGetEmbUFI"
-    
-    "NtGdiGetEmbedFonts"
-    
-    "NtGdiGetEntry"
-    
-    "NtGdiGetEudcTimeStampEx"
-    
-    "NtGdiGetFontFileData"
-    
-    "NtGdiGetFontFileInfo"
-    
-    "NtGdiGetFontResourceInfoInternalW"
-    
-    "NtGdiGetFontUnicodeRanges"
-    
-    "NtGdiGetGammaRampCapability"
-    
-    "NtGdiGetGlyphIndicesW"
-    
-    "NtGdiGetGlyphIndicesWInternal"
-    
-    "NtGdiGetGlyphOutline"
-    
-    "NtGdiGetKerningPairs"
-    
-    "NtGdiGetLinkedUFIs"
-    
-    "NtGdiGetMiterLimit"
-    
-    "NtGdiGetMonitorID"
-    
-    "NtGdiGetNumberOfPhysicalMonitors"
-    
-    "NtGdiGetOPMInformation"
-    
-    "NtGdiGetOPMRandomNumber"
-    
-    "NtGdiGetObjectBitmapHandle"
-    
-    "NtGdiGetPath"
-    
-    "NtGdiGetPerBandInfo"
-    
-    "NtGdiGetPhysicalMonitorDescription"
-    
-    "NtGdiGetPhysicalMonitors"
-    
-    "NtGdiGetProcessSessionFonts"
-    
-    "NtGdiGetPublicFontTableChangeCookie"
-    
-    "NtGdiGetRealizationInfo"
-    
-    "NtGdiGetServerMetaFileBits"
-    
-    "NtGdiGetSpoolMessage"
-    
-    "NtGdiGetStats"
-    
-    "NtGdiGetStringBitmapW"
-    
-    "NtGdiGetSuggestedOPMProtectedOutputArraySize"
-    
-    "NtGdiGetTextExtentExW"
-    
-    "NtGdiGetUFI"
-    
-    "NtGdiGetUFIPathname"
-    
-    "NtGdiGradientFill"
-    
-    "NtGdiHLSurfGetInformation"
-    
-    "NtGdiHLSurfSetInformation"
-    
-    "NtGdiHT_Get8BPPFormatPalette"
-    
-    "NtGdiHT_Get8BPPMaskPalette"
-    
-    "NtGdiIcmBrushInfo"
-    
-    "NtGdiInit"
-    
-    "NtGdiInitSpool"
-    
-    "NtGdiMakeFontDir"
-    
-    "NtGdiMakeInfoDC"
-    
-    "NtGdiMakeObjectUnXferable"
-    
-    "NtGdiMakeObjectXferable"
-    
-    "NtGdiMirrorWindowOrg"
-    
-    "NtGdiMonoBitmap"
-    
-    "NtGdiMoveTo"
-    
-    "NtGdiOffsetClipRgn"
-    
-    "NtGdiPATHOBJ_bEnum"
-    
-    "NtGdiPATHOBJ_bEnumClipLines"
-    
-    "NtGdiPATHOBJ_vEnumStart"
-    
-    "NtGdiPATHOBJ_vEnumStartClipLines"
-    
-    "NtGdiPATHOBJ_vGetBounds"
-    
-    "NtGdiPathToRegion"
-    
-    "NtGdiPlgBlt"
-    
-    "NtGdiPolyDraw"
-    
-    "NtGdiPolyTextOutW"
-    
-    "NtGdiPtInRegion"
-    
-    "NtGdiPtVisible"
-    
-    "NtGdiQueryFonts"
-    
-    "NtGdiRemoveFontResourceW"
-    
-    "NtGdiRemoveMergeFont"
-    
-    "NtGdiResetDC"
-    
-    "NtGdiResizePalette"
-    
-    "NtGdiRoundRect"
-    
-    "NtGdiSTROBJ_bEnum"
-    
-    "NtGdiSTROBJ_bEnumPositionsOnly"
-    
-    "NtGdiSTROBJ_bGetAdvanceWidths"
-    
-    "NtGdiSTROBJ_dwGetCodePage"
-    
-    "NtGdiSTROBJ_vEnumStart"
-    
-    "NtGdiScaleRgn"
-    
-    "NtGdiScaleValues"
-    
-    "NtGdiScaleViewportExtEx"
-    
-    "NtGdiScaleWindowExtEx"
-    
-    "NtGdiSelectBrush"
-    
-    "NtGdiSelectClipPath"
-    
-    "NtGdiSelectPen"
-    
-    "NtGdiSetBitmapAttributes"
-    
-    "NtGdiSetBrushAttributes"
-    
-    "NtGdiSetColorAdjustment"
-    
-    "NtGdiSetColorSpace"
-    
-    "NtGdiSetDeviceGammaRamp"
-    
-    "NtGdiSetFontXform"
-    
-    "NtGdiSetIcmMode"
-    
-    "NtGdiSetLinkedUFIs"
-    
-    "NtGdiSetMagicColors"
-    
-    "NtGdiSetOPMSigningKeyAndSequenceNumbers"
-    
-    "NtGdiSetPUMPDOBJ"
-    
-    "NtGdiSetPixelFormat"
-    
-    "NtGdiSetPrivateDeviceGammaRamp"
-    
-    "NtGdiSetRectRgn"
-    
-    "NtGdiSetSizeDevice"
-    
-    "NtGdiSetSystemPaletteUse"
-    
-    "NtGdiSetTextJustification"
-    
-    "NtGdiSetUMPDSandboxState"
-    
-    "NtGdiStartDoc"
-    
-    "NtGdiStartPage"
-    
-    "NtGdiStrokeAndFillPath"
-    
-    "NtGdiStrokePath"
-    
-    "NtGdiSwapBuffers"
-    
-    "NtGdiTransparentBlt"
-    
-    "NtGdiUMPDEngFreeUserMem"
-    
-    "NtGdiUnloadPrinterDriver"
-    
-    "NtGdiUnmapMemFont"
-    
-    "NtGdiUpdateColors"
-    
-    "NtGdiUpdateTransform"
-    
-    "NtGdiWidenPath"
-    
-    "NtGdiXFORMOBJ_bApplyXform"
-    
-    "NtGdiXFORMOBJ_iGetXform"
-    
-    "NtGdiXLATEOBJ_cGetPalette"
-    
-    "NtGdiXLATEOBJ_hGetColorTransform"
-    
-    "NtGdiXLATEOBJ_iXlate"
-    
-    "NtHWCursorUpdatePointer"
-    
-    "NtIsOneCoreTransformMode"
-    
-    "NtMITActivateInputProcessing"
-    
-    "NtMITCoreMsgKOpenConnectionTo"
-    
-    "NtMITDeactivateInputProcessing"
-    
-    "NtMITDisableMouseIntercept"
-    
-    "NtMITDispatchCompletion"
-    
-    "NtMITEnableMouseIntercept"
-    
-    "NtMITGetCursorUpdateHandle"
-    
-    "NtMITSetInputCallbacks"
-    
-    "NtMITSetInputDelegationMode"
-    
-    "NtMITSetInputSuppressionState"
-    
-    "NtMITSetKeyboardInputRoutingPolicy"
-    
-    "NtMITSetKeyboardOverriderState"
-    
-    "NtMITSetLastInputRecipient"
-    
-    "NtMITSynthesizeKeyboardInput"
-    
-    "NtMITSynthesizeMouseInput"
-    
-    "NtMITSynthesizeTouchInput"
-    
-    "NtMITUpdateInputGlobals"
-    
-    "NtMapVisualRelativePoints"
-    
-    "NtNotifyPresentToCompositionSurface"
-    
-    "NtOpenCompositionSurfaceDirtyRegion"
-    
-    "NtOpenCompositionSurfaceSectionInfo"
-    
-    "NtOpenCompositionSurfaceSwapChainHandleInfo"
-    
-    "NtQueryCompositionInputIsImplicit"
-    
-    "NtQueryCompositionInputQueueAndTransform"
-    
-    "NtQueryCompositionInputSink"
-    
-    "NtQueryCompositionInputSinkLuid"
-    
-    "NtQueryCompositionInputSinkViewId"
-    
-    "NtQueryCompositionSurfaceBinding"
-    
-    "NtQueryCompositionSurfaceHDRMetaData"
-    
-    "NtQueryCompositionSurfaceRenderingRealization"
-    
-    "NtQueryCompositionSurfaceStatistics"
-    
-    "NtRIMAddInputObserver"
-    
-    "NtRIMAreSiblingDevices"
-    
-    "NtRIMDeviceIoControl"
-    
-    "NtRIMEnableMonitorMappingForDevice"
-    
-    "NtRIMFreeInputBuffer"
-    
-    "NtRIMGetDevicePreparsedData"
-    
-    "NtRIMGetDevicePreparsedDataLockfree"
-    
-    "NtRIMGetDeviceProperties"
-    
-    "NtRIMGetDevicePropertiesLockfree"
-    
-    "NtRIMGetPhysicalDeviceRect"
-    
-    "NtRIMGetSourceProcessId"
-    
-    "NtRIMObserveNextInput"
-    
-    "NtRIMOnPnpNotification"
-    
-    "NtRIMOnTimerNotification"
-    
-    "NtRIMReadInput"
-    
-    "NtRIMRegisterForInput"
-    
-    "NtRIMRemoveInputObserver"
-    
-    "NtRIMSetExtendedDeviceProperty"
-    
-    "NtRIMSetTestModeStatus"
-    
-    "NtRIMUnregisterForInput"
-    
-    "NtRIMUpdateInputObserverRegistration"
-    
-    "NtSetCompositionSurfaceAnalogExclusive"
-    
-    "NtSetCompositionSurfaceBufferUsage"
-    
-    "NtSetCompositionSurfaceDirectFlipState"
-    
-    "NtSetCompositionSurfaceIndependentFlipInfo"
-    
-    "NtSetCompositionSurfaceStatistics"
-    
-    "NtSetCursorInputSpace"
-    
-    "NtSetPointerDeviceInputSpace"
-    
-    "NtSetShellCursorState"
-    
-    "NtTokenManagerConfirmOutstandingAnalogToken"
-    
-    "NtTokenManagerCreateCompositionTokenHandle"
-    
-    "NtTokenManagerCreateFlipObjectReturnTokenHandle"
-    
-    "NtTokenManagerCreateFlipObjectTokenHandle"
-    
-    "NtTokenManagerGetAnalogExclusiveSurfaceUpdates"
-    
-    "NtTokenManagerGetAnalogExclusiveTokenEvent"
-    
-    "NtTokenManagerOpenSectionAndEvents"
-    
-    "NtTokenManagerThread"
-    
-    "NtUnBindCompositionSurface"
-    
-    "NtUpdateInputSinkTransforms"
-    
-    "NtUserAcquireIAMKey"
-    
-    "NtUserAcquireInteractiveControlBackgroundAccess"
-    
-    "NtUserAddClipboardFormatListener"
-    
-    "NtUserAddVisualIdentifier"
-    
-    "NtUserAssociateInputContext"
-    
-    "NtUserAutoPromoteMouseInPointer"
-    
-    "NtUserAutoRotateScreen"
-    
-    "NtUserBeginLayoutUpdate"
-    
-    "NtUserBlockInput"
-    
-    "NtUserBroadcastThemeChangeEvent"
-    
-    "NtUserBuildHimcList"
-    
-    "NtUserBuildPropList"
-    
-    "NtUserCalculatePopupWindowPosition"
-    
-    "NtUserCallHwndLockSafe"
-    
-    "NtUserCallHwndOpt"
-    
-    "NtUserCallHwndParamLockSafe"
-    
-    "NtUserCallHwndSafe"
-    
-    "NtUserCanBrokerForceForeground"
-    
-    "NtUserChangeDisplaySettings"
-    
-    "NtUserChangeWindowMessageFilterEx"
-    
-    "NtUserCheckAccessForIntegrityLevel"
-    
-    "NtUserCheckProcessForClipboardAccess"
-    
-    "NtUserCheckProcessSession"
-    
-    "NtUserCheckWindowThreadDesktop"
-    
-    "NtUserChildWindowFromPointEx"
-    
-    "NtUserClearForeground"
-    
-    "NtUserClipCursor"
-    
-    "NtUserCompositionInputSinkLuidFromPoint"
-    
-    "NtUserCompositionInputSinkViewInstanceIdFromPoint"
-    
-    "NtUserConfigureActivationObject"
-    
-    "NtUserConfirmResizeCommit"
-    
-    "NtUserCreateActivationObject"
-    
-    "NtUserCreateDCompositionHwndTarget"
-    
-    "NtUserCreateDesktopEx"
-    
-    "NtUserCreateEmptyCursorObject"
-    
-    "NtUserCreateInputContext"
-    
-    "NtUserCreatePalmRejectionDelayZone"
-    
-    "NtUserCreateWindowGroup"
-    
-    "NtUserCreateWindowStation"
-    
-    "NtUserCtxDisplayIOCtl"
-    
-    "NtUserDeferWindowDpiChanges"
-    
-    "NtUserDeferWindowPosAndBand"
-    
-    "NtUserDelegateCapturePointers"
-    
-    "NtUserDelegateInput"
-    
-    "NtUserDeleteWindowGroup"
-    
-    "NtUserDestroyActivationObject"
-    
-    "NtUserDestroyDCompositionHwndTarget"
-    
-    "NtUserDestroyInputContext"
-    
-    "NtUserDestroyPalmRejectionDelayZone"
-    
-    "NtUserDisableImmersiveOwner"
-    
-    "NtUserDisableProcessWindowFiltering"
-    
-    "NtUserDisableThreadIme"
-    
-    "NtUserDiscardPointerFrameMessages"
-    
-    "NtUserDisplayConfigGetDeviceInfo"
-    
-    "NtUserDisplayConfigSetDeviceInfo"
-    
-    "NtUserDoSoundConnect"
-    
-    "NtUserDoSoundDisconnect"
-    
-    "NtUserDownlevelTouchpad"
-    
-    "NtUserDragDetect"
-    
-    "NtUserDragObject"
-    
-    "NtUserDrawAnimatedRects"
-    
-    "NtUserDrawCaption"
-    
-    "NtUserDrawCaptionTemp"
-    
-    "NtUserDrawMenuBarTemp"
-    
-    "NtUserDwmGetRemoteSessionOcclusionEvent"
-    
-    "NtUserDwmGetRemoteSessionOcclusionState"
-    
-    "NtUserDwmKernelShutdown"
-    
-    "NtUserDwmKernelStartup"
-    
-    "NtUserDwmValidateWindow"
-    
-    "NtUserEnableChildWindowDpiMessage"
-    
-    "NtUserEnableIAMAccess"
-    
-    "NtUserEnableMouseInPointer"
-    
-    "NtUserEnableMouseInputForCursorSuppression"
-    
-    "NtUserEnableNonClientDpiScaling"
-    
-    "NtUserEnableResizeLayoutSynchronization"
-    
-    "NtUserEnableSoftwareCursorForScreenCapture"
-    
-    "NtUserEnableTouchPad"
-    
-    "NtUserEnableWindowGDIScaledDpiMessage"
-    
-    "NtUserEnableWindowGroupPolicy"
-    
-    "NtUserEnableWindowResizeOptimization"
-    
-    "NtUserEndMenu"
-    
-    "NtUserEvent"
-    
-    "NtUserFlashWindowEx"
-    
-    "NtUserForceWindowToDpiForTest"
-    
-    "NtUserFrostCrashedWindow"
-    
-    "NtUserFunctionalizeDisplayConfig"
-    
-    "NtUserGetActiveProcessesDpis"
-    
-    "NtUserGetAppImeLevel"
-    
-    "NtUserGetAutoRotationState"
-    
-    "NtUserGetCIMSSM"
-    
-    "NtUserGetCaretPos"
-    
-    "NtUserGetClipCursor"
-    
-    "NtUserGetClipboardAccessToken"
-    
-    "NtUserGetClipboardViewer"
-    
-    "NtUserGetComboBoxInfo"
-    
-    "NtUserGetCurrentDpiInfoForWindow"
-    
-    "NtUserGetCurrentInputMessageSource"
-    
-    "NtUserGetCursor"
-    
-    "NtUserGetCursorInfo"
-    
-    "NtUserGetDManipHookInitFunction"
-    
-    "NtUserGetDesktopID"
-    
-    "NtUserGetDisplayAutoRotationPreferences"
-    
-    "NtUserGetDisplayAutoRotationPreferencesByProcessId"
-    
-    "NtUserGetDisplayConfigBufferSizes"
-    
-    "NtUserGetDpiForCurrentProcess"
-    
-    "NtUserGetDpiForMonitor"
-    
-    "NtUserGetExtendedPointerDeviceProperty"
-    
-    "NtUserGetGestureConfig"
-    
-    "NtUserGetGestureExtArgs"
-    
-    "NtUserGetGestureInfo"
-    
-    "NtUserGetGuiResources"
-    
-    "NtUserGetHDevName"
-    
-    "NtUserGetHimetricScaleFactorFromPixelLocation"
-    
-    "NtUserGetImeHotKey"
-    
-    "NtUserGetImeInfoEx"
-    
-    "NtUserGetInputContainerId"
-    
-    "NtUserGetInputLocaleInfo"
-    
-    "NtUserGetInteractiveControlDeviceInfo"
-    
-    "NtUserGetInteractiveControlInfo"
-    
-    "NtUserGetInteractiveCtrlSupportedWaveforms"
-    
-    "NtUserGetInternalWindowPos"
-    
-    "NtUserGetKeyNameText"
-    
-    "NtUserGetKeyboardLayout"
-    
-    "NtUserGetKeyboardLayoutName"
-    
-    "NtUserGetLayeredWindowAttributes"
-    
-    "NtUserGetListBoxInfo"
-    
-    "NtUserGetMenuIndex"
-    
-    "NtUserGetMenuItemRect"
-    
-    "NtUserGetMouseMovePointsEx"
-    
-    "NtUserGetOemBitmapSize"
-    
-    "NtUserGetPhysicalDeviceRect"
-    
-    "NtUserGetPointerCursorId"
-    
-    "NtUserGetPointerDevice"
-    
-    "NtUserGetPointerDeviceCursors"
-    
-    "NtUserGetPointerDeviceOrientation"
-    
-    "NtUserGetPointerDeviceProperties"
-    
-    "NtUserGetPointerDeviceRects"
-    
-    "NtUserGetPointerDevices"
-    
-    "NtUserGetPointerFrameTimes"
-    
-    "NtUserGetPointerInfoList"
-    
-    "NtUserGetPointerInputTransform"
-    
-    "NtUserGetPointerProprietaryId"
-    
-    "NtUserGetPointerType"
-    
-    "NtUserGetPrecisionTouchPadConfiguration"
-    
-    "NtUserGetPriorityClipboardFormat"
-    
-    "NtUserGetProcessDpiAwarenessContext"
-    
-    "NtUserGetProcessUIContextInformation"
-    
-    "NtUserGetQueueStatusReadonly"
-    
-    "NtUserGetRawInputBuffer"
-    
-    "NtUserGetRawInputData"
-    
-    "NtUserGetRawInputDeviceInfo"
-    
-    "NtUserGetRawInputDeviceList"
-    
-    "NtUserGetRawPointerDeviceData"
-    
-    "NtUserGetRegisteredRawInputDevices"
-    
-    "NtUserGetRequiredCursorSizes"
-    
-    "NtUserGetResizeDCompositionSynchronizationObject"
-    
-    "NtUserGetSystemDpiForProcess"
-    
-    "NtUserGetTopLevelWindow"
-    
-    "NtUserGetTouchInputInfo"
-    
-    "NtUserGetTouchValidationStatus"
-    
-    "NtUserGetUniformSpaceMapping"
-    
-    "NtUserGetUpdatedClipboardFormats"
-    
-    "NtUserGetWOWClass"
-    
-    "NtUserGetWindowBand"
-    
-    "NtUserGetWindowCompositionAttribute"
-    
-    "NtUserGetWindowCompositionInfo"
-    
-    "NtUserGetWindowDisplayAffinity"
-    
-    "NtUserGetWindowFeedbackSetting"
-    
-    "NtUserGetWindowGroupId"
-    
-    "NtUserGetWindowMinimizeRect"
-    
-    "NtUserGetWindowProcessHandle"
-    
-    "NtUserGetWindowRgnEx"
-    
-    "NtUserGhostWindowFromHungWindow"
-    
-    "NtUserHandleDelegatedInput"
-    
-    "NtUserHardErrorControl"
-    
-    "NtUserHidePointerContactVisualization"
-    
-    "NtUserHiliteMenuItem"
-    
-    "NtUserHungWindowFromGhostWindow"
-    
-    "NtUserHwndQueryRedirectionInfo"
-    
-    "NtUserHwndSetRedirectionInfo"
-    
-    "NtUserImpersonateDdeClientWindow"
-    
-    "NtUserInheritWindowMonitor"
-    
-    "NtUserInitTask"
-    
-    "NtUserInitialize"
-    
-    "NtUserInitializeClientPfnArrays"
-    
-    "NtUserInitializeGenericHidInjection"
-    
-    "NtUserInitializeInputDeviceInjection"
-    
-    "NtUserInitializePointerDeviceInjection"
-    
-    "NtUserInitializePointerDeviceInjectionEx"
-    
-    "NtUserInitializeTouchInjection"
-    
-    "NtUserInjectDeviceInput"
-    
-    "NtUserInjectGenericHidInput"
-    
-    "NtUserInjectGesture"
-    
-    "NtUserInjectKeyboardInput"
-    
-    "NtUserInjectMouseInput"
-    
-    "NtUserInjectPointerInput"
-    
-    "NtUserInjectTouchInput"
-    
-    "NtUserInteractiveControlQueryUsage"
-    
-    "NtUserInternalGetWindowIcon"
-    
-    "NtUserIsChildWindowDpiMessageEnabled"
-    
-    "NtUserIsMouseInPointerEnabled"
-    
-    "NtUserIsMouseInputEnabled"
-    
-    "NtUserIsNonClientDpiScalingEnabled"
-    
-    "NtUserIsResizeLayoutSynchronizationEnabled"
-    
-    "NtUserIsTopLevelWindow"
-    
-    "NtUserIsTouchWindow"
-    
-    "NtUserIsWindowBroadcastingDpiToChildren"
-    
-    "NtUserIsWindowGDIScaledDpiMessageEnabled"
-    
-    "NtUserLayoutCompleted"
-    
-    "NtUserLinkDpiCursor"
-    
-    "NtUserLoadKeyboardLayoutEx"
-    
-    "NtUserLockCursor"
-    
-    "NtUserLockWindowStation"
-    
-    "NtUserLockWorkStation"
-    
-    "NtUserLogicalToPerMonitorDPIPhysicalPoint"
-    
-    "NtUserLogicalToPhysicalDpiPointForWindow"
-    
-    "NtUserLogicalToPhysicalPoint"
-    
-    "NtUserMNDragLeave"
-    
-    "NtUserMNDragOver"
-    
-    "NtUserMagControl"
-    
-    "NtUserMagGetContextInformation"
-    
-    "NtUserMagSetContextInformation"
-    
-    "NtUserMapPointsByVisualIdentifier"
-    
-    "NtUserMenuItemFromPoint"
-    
-    "NtUserMinMaximize"
-    
-    "NtUserModifyWindowTouchCapability"
-    
-    "NtUserMsgWaitForMultipleObjectsEx"
-    
-    "NtUserNavigateFocus"
-    
-    "NtUserNotifyIMEStatus"
-    
-    "NtUserOpenInputDesktop"
-    
-    "NtUserOpenThreadDesktop"
-    
-    "NtUserPaintMonitor"
-    
-    "NtUserPerMonitorDPIPhysicalToLogicalPoint"
-    
-    "NtUserPhysicalToLogicalDpiPointForWindow"
-    
-    "NtUserPhysicalToLogicalPoint"
-    
-    "NtUserPrintWindow"
-    
-    "NtUserProcessInkFeedbackCommand"
-    
-    "NtUserPromoteMouseInPointer"
-    
-    "NtUserPromotePointer"
-    
-    "NtUserQueryActivationObject"
-    
-    "NtUserQueryBSDRWindow"
-    
-    "NtUserQueryDisplayConfig"
-    
-    "NtUserQueryInformationThread"
-    
-    "NtUserQueryInputContext"
-    
-    "NtUserQuerySendMessage"
-    
-    "NtUserRealChildWindowFromPoint"
-    
-    "NtUserRealWaitMessageEx"
-    
-    "NtUserRegisterBSDRWindow"
-    
-    "NtUserRegisterDManipHook"
-    
-    "NtUserRegisterEdgy"
-    
-    "NtUserRegisterErrorReportingDialog"
-    
-    "NtUserRegisterHotKey"
-    
-    "NtUserRegisterManipulationThread"
-    
-    "NtUserRegisterPointerDeviceNotifications"
-    
-    "NtUserRegisterPointerInputTarget"
-    
-    "NtUserRegisterRawInputDevices"
-    
-    "NtUserRegisterServicesProcess"
-    
-    "NtUserRegisterSessionPort"
-    
-    "NtUserRegisterShellPTPListener"
-    
-    "NtUserRegisterTasklist"
-    
-    "NtUserRegisterTouchHitTestingWindow"
-    
-    "NtUserRegisterTouchPadCapable"
-    
-    "NtUserRegisterUserApiHook"
-    
-    "NtUserReleaseDC"
-    
-    "NtUserReleaseDwmHitTestWaiters"
-    
-    "NtUserRemoteConnect"
-    
-    "NtUserRemoteRedrawRectangle"
-    
-    "NtUserRemoteRedrawScreen"
-    
-    "NtUserRemoteStopScreenUpdates"
-    
-    "NtUserRemoveClipboardFormatListener"
-    
-    "NtUserRemoveInjectionDevice"
-    
-    "NtUserRemoveVisualIdentifier"
-    
-    "NtUserReportInertia"
-    
-    "NtUserRequestMoveSizeOperation"
-    
-    "NtUserResolveDesktopForWOW"
-    
-    "NtUserRestoreWindowDpiChanges"
-    
-    "NtUserSendEventMessage"
-    
-    "NtUserSendInteractiveControlHapticsReport"
-    
-    "NtUserSetActivationFilter"
-    
-    "NtUserSetActiveProcessForMonitor"
-    
-    "NtUserSetAppImeLevel"
-    
-    "NtUserSetAutoRotation"
-    
-    "NtUserSetBridgeWindowChild"
-    
-    "NtUserSetBrokeredForeground"
-    
-    "NtUserSetCalibrationData"
-    
-    "NtUserSetChildWindowNoActivate"
-    
-    "NtUserSetClassWord"
-    
-    "NtUserSetCoreWindow"
-    
-    "NtUserSetCoreWindowPartner"
-    
-    "NtUserSetCursorContents"
-    
-    "NtUserSetCursorPos"
-    
-    "NtUserSetDesktopColorTransform"
-    
-    "NtUserSetDialogControlDpiChangeBehavior"
-    
-    "NtUserSetDisplayAutoRotationPreferences"
-    
-    "NtUserSetDisplayConfig"
-    
-    "NtUserSetDisplayMapping"
-    
-    "NtUserSetFallbackForeground"
-    
-    "NtUserSetFeatureReportResponse"
-    
-    "NtUserSetForegroundWindowForApplication"
-    
-    "NtUserSetGestureConfig"
-    
-    "NtUserSetImeHotKey"
-    
-    "NtUserSetImeInfoEx"
-    
-    "NtUserSetImeOwnerWindow"
-    
-    "NtUserSetInteractiveControlFocus"
-    
-    "NtUserSetInteractiveCtrlRotationAngle"
-    
-    "NtUserSetInternalWindowPos"
-    
-    "NtUserSetLayeredWindowAttributes"
-    
-    "NtUserSetMagnificationDesktopMagnifierOffsetsDWMUpdated"
-    
-    "NtUserSetManipulationInputTarget"
-    
-    "NtUserSetMenu"
-    
-    "NtUserSetMenuContextHelpId"
-    
-    "NtUserSetMenuFlagRtoL"
-    
-    "NtUserSetMirrorRendering"
-    
-    "NtUserSetObjectInformation"
-    
-    "NtUserSetPrecisionTouchPadConfiguration"
-    
-    "NtUserSetProcessDpiAwarenessContext"
-    
-    "NtUserSetProcessInteractionFlags"
-    
-    "NtUserSetProcessMousewheelRoutingMode"
-    
-    "NtUserSetProcessRestrictionExemption"
-    
-    "NtUserSetProcessUIAccessZorder"
-    
-    "NtUserSetShellWindowEx"
-    
-    "NtUserSetSysColors"
-    
-    "NtUserSetSystemCursor"
-    
-    "NtUserSetSystemTimer"
-    
-    "NtUserSetTargetForResourceBrokering"
-    
-    "NtUserSetThreadInputBlocked"
-    
-    "NtUserSetThreadLayoutHandles"
-    
-    "NtUserSetWindowArrangement"
-    
-    "NtUserSetWindowBand"
-    
-    "NtUserSetWindowCompositionAttribute"
-    
-    "NtUserSetWindowCompositionTransition"
-    
-    "NtUserSetWindowDisplayAffinity"
-    
-    "NtUserSetWindowFeedbackSetting"
-    
-    "NtUserSetWindowGroup"
-    
-    "NtUserSetWindowRgnEx"
-    
-    "NtUserSetWindowShowState"
-    
-    "NtUserSetWindowStationUser"
-    
-    "NtUserShowCursor"
-    
-    "NtUserShowSystemCursor"
-    
-    "NtUserShutdownBlockReasonCreate"
-    
-    "NtUserShutdownBlockReasonQuery"
-    
-    "NtUserShutdownReasonDestroy"
-    
-    "NtUserSignalRedirectionStartComplete"
-    
-    "NtUserSlicerControl"
-    
-    "NtUserSoundSentry"
-    
-    "NtUserStopAndEndInertia"
-    
-    "NtUserSwitchDesktop"
-    
-    "NtUserSystemParametersInfoForDpi"
-    
-    "NtUserTestForInteractiveUser"
-    
-    "NtUserTrackPopupMenuEx"
-    
-    "NtUserTransformPoint"
-    
-    "NtUserTransformRect"
-    
-    "NtUserUndelegateInput"
-    
-    "NtUserUnloadKeyboardLayout"
-    
-    "NtUserUnlockWindowStation"
-    
-    "NtUserUnregisterHotKey"
-    
-    "NtUserUnregisterSessionPort"
-    
-    "NtUserUnregisterUserApiHook"
-    
-    "NtUserUpdateDefaultDesktopThumbnail"
-    
-    "NtUserUpdateInputContext"
-    
-    "NtUserUpdateInstance"
-    
-    "NtUserUpdateLayeredWindow"
-    
-    "NtUserUpdatePerUserSystemParameters"
-    
-    "NtUserUpdateWindowInputSinkHints"
-    
-    "NtUserUpdateWindowTrackingInfo"
-    
-    "NtUserUserHandleGrantAccess"
-    
-    "NtUserValidateHandleSecure"
-    
-    "NtUserWOWCleanup"
-    
-    "NtUserWaitAvailableMessageEx"
-    
-    "NtUserWaitForInputIdle"
-    
-    "NtUserWaitForMsgAndEvent"
-    
-    "NtUserWaitForRedirectionStartComplete"
-    
-    "NtUserWindowFromDC"
-    
-    "NtUserWindowFromPhysicalPoint"
-    
-    "NtValidateCompositionSurfaceHandle"
-    
-    "NtVisualCaptureBits"
-    
-    "NtUserSetClassLongPtr"
-    
-    "NtUserSetWindowLongPtr"
-
-
+char* IDT_0x13_FUNCTIONS[] = {
+     "KiDivideErrorFault",
+     "KiDebugTrapOrFault",
+     "KiNmiInterrupt",
+     "KiBreakpointTrap",
+     "KiOverflowTrap",
+     "KiBoundFault",
+     "KiInvalidOpcodeFault",
+     "KiNpxNotAvailableFault",
+     "KiDoubleFaultAbort",
+     "KiNpxSegmentOverrunAbort",
+     "KiInvalidTssFault",
+     "KiSegmentNotPresentFault",
+     "KiStackFault",
+     "KiGeneralProtectionFault",
+     "KiPageFault",
+     "KiIsrThunk",
+     "KiFloatingErrorFault",
+     "KiAlignmentFault",
+     "KiMcheckAbort",
+     "KiXmmException"
 };
 
 ULONG_PTR SSDT_GetPfnAddr(ULONG dwIndex, PULONG lpBase)//https://bbs.kanxue.com/thread-248117.htm
@@ -4564,9 +1196,9 @@ NTSTATUS RecoverSSDT() {
                     ULONG ssdtItem = SSDT_EncodePfnAddr(pdb_ssdtItemVA, pSSDT->Base);
 
                     //写回SSDT
-                    ClearWP();
+                    EnableWrite();
                     pSSDT->Base[syscallNumber] = ssdtItem;
-                    SetWP();
+                    DisableWrite();
                     
                 
                 }
@@ -4599,7 +1231,83 @@ NTSTATUS RecoverSSDT() {
     return status;
 }
 
+NTSTATUS RecoverShadowSSDT_Win7() {
+    NTSTATUS status = STATUS_SUCCESS;
+    INIT_NTOS;
+    INIT_WIN32K;
+
+    // 1. 获取ShadowSSDT指针
+    PSYSTEM_SERVICE_DESCRIPTOR_TABLE ShadowTableArray =
+        (PSYSTEM_SERVICE_DESCRIPTOR_TABLE)ntos.GetPointer("KeServiceDescriptorTableShadow");
+    if (!ShadowTableArray) {
+        Log("[XM] 获取KeServiceDescriptorTableShadow失败\n");
+        return STATUS_UNSUCCESSFUL;
+    }
+
+    PSYSTEM_SERVICE_DESCRIPTOR_TABLE pShadowSSDT = &ShadowTableArray[1]; // ShadowSSDT是数组[1]
+    if (!pShadowSSDT || !pShadowSSDT->Base) {
+        Log("[XM] ShadowSSDT Base为空\n");
+        return STATUS_UNSUCCESSFUL;
+    }
+
+    // 2. 遍历WIN7_SHADOW_SSDT_FUNCTIONS映射表
+    ULONG restoredCount = 0;
+    ULONG tableSize = sizeof(WIN7_SHADOW_SSDT_FUNCTIONS) / sizeof(WIN7_SHADOW_SSDT_FUNCTIONS[0]);
+
+    Log("[XM] 开始Win7 ShadowSSDT恢复，映射表大小: %d\n", tableSize);
+
+    for (ULONG i = 0; i < tableSize; i++) {
+        ULONG shadowIndex = i;
+        const char* functionName = WIN7_SHADOW_SSDT_FUNCTIONS[i];
+
+        // 3. 通过PDB获取函数原始地址
+        ULONG_PTR pdb_ssdtItemVA = win32k.GetPointer(functionName);
+        if (!pdb_ssdtItemVA) {
+            Log("[XM] 无法获取函数地址: %s\n", functionName);
+            continue;
+        }
+
+        // 4. 获取当前ShadowSSDT中的地址
+        ULONG_PTR mem_ssdtItemVA = SSDT_GetPfnAddr(shadowIndex, pShadowSSDT->Base);
+
+        // 5. 对比检测Hook
+        if (pdb_ssdtItemVA != mem_ssdtItemVA) {
+            // 发现Hook，进行恢复
+            ULONG ssdtItem = SSDT_EncodePfnAddr(pdb_ssdtItemVA, pShadowSSDT->Base);
+
+            // 写回SSDT
+            EnableWrite();
+            pShadowSSDT->Base[shadowIndex] = ssdtItem;
+            DisableWrite();
+
+            restoredCount++;
+            Log("[XM] ShadowSSDT[%d] %s Hook已恢复: 0x%p -> 0x%p\n",
+                shadowIndex, functionName, mem_ssdtItemVA, pdb_ssdtItemVA);
+        }
+    }
+
+    Log("[XM] Win7 ShadowSSDT恢复完成，共恢复 %d 个函数\n", restoredCount);
+    return status;
+}
+
 NTSTATUS RecoverShadowSSDT() {
+
+    // 检测系统版本
+    RTL_OSVERSIONINFOW osVersion = { 0 };
+    osVersion.dwOSVersionInfoSize = sizeof(osVersion);
+    RtlGetVersion(&osVersion);
+
+    if (osVersion.dwMajorVersion == 6 && osVersion.dwMinorVersion == 1) {
+        Log("[XM] 检测到Windows 7，使用静态映射表恢复ShadowSSDT\n");
+        return RecoverShadowSSDT_Win7();
+    }
+    else {
+        Log("[XM] 使用win32u.dll恢复ShadowSSDT\n");
+        return RecoverShadowSSDT_win32u();
+    }
+}
+
+NTSTATUS RecoverShadowSSDT_win32u() {
     NTSTATUS status;
     HANDLE win32uHandle = NULL;
     PVOID fileBuffer = NULL;
@@ -4815,9 +1523,9 @@ NTSTATUS RecoverShadowSSDT() {
                     ULONG ssdtItem = SSDT_EncodePfnAddr(pdb_ssdtItemVA, pShadowSSDT->Base);
 
                     //写回SSDT
-                    ClearWP();
+                    EnableWrite();
                     pShadowSSDT->Base[shadowIndex] = ssdtItem;
-                    SetWP();
+                    DisableWrite();
 
 
                 }
@@ -4847,115 +1555,7 @@ NTSTATUS RecoverShadowSSDT() {
         ZwClose(win32uHandle);
     }
 
-    return status;
-}
-/*
-NTSTATUS GetSSDTFromFile(PSSDT_INFO SsdtBuffer, PULONG SsdtCount) {
-    UNREFERENCED_PARAMETER(SsdtBuffer);
-    *SsdtCount = 0;
-    NTSTATUS status;
-    HANDLE fileHandle = NULL;
-    PVOID fileBuffer = NULL;
-    ULONG fileSize = 0;
-
-    do {
-        // 1. 打开ntoskrnl.exe文件
-        UNICODE_STRING fileName;
-        RtlInitUnicodeString(&fileName, L"\\SystemRoot\\System32\\ntoskrnl.exe");
-
-        OBJECT_ATTRIBUTES objAttr;
-        InitializeObjectAttributes(&objAttr, &fileName, OBJ_CASE_INSENSITIVE, NULL, NULL);
-
-        IO_STATUS_BLOCK ioStatus;
-        status = ZwOpenFile(&fileHandle, GENERIC_READ, &objAttr, &ioStatus,
-            FILE_SHARE_READ, FILE_SYNCHRONOUS_IO_NONALERT);
-        if (!NT_SUCCESS(status)) {
-            Log("[XM] 无法打开ntoskrnl.exe文件: 0x%x", status);
-            break;
-        }
-
-        // 获取文件大小
-        FILE_STANDARD_INFORMATION fileInfo;
-        status = ZwQueryInformationFile(fileHandle, &ioStatus, &fileInfo,
-            sizeof(fileInfo), FileStandardInformation);
-        if (!NT_SUCCESS(status)) {
-            Log("[XM] 获取文件大小失败: 0x%x", status);
-            break;
-        }
-        fileSize = (ULONG)fileInfo.EndOfFile.QuadPart;
-
-        // 分配文件缓冲区
-        fileBuffer = ExAllocatePoolWithTag(PagedPool, fileSize,'flbf');
-        if (!fileBuffer) {
-            Log("[XM] 分配文件缓冲区失败");
-            status = STATUS_INSUFFICIENT_RESOURCES;
-            break;
-        }
-
-        // 读取整个文件
-        LARGE_INTEGER byteOffset = { 0 };
-        status = ZwReadFile(fileHandle, NULL, NULL, NULL, &ioStatus,
-            fileBuffer, fileSize, &byteOffset, NULL);
-        if (!NT_SUCCESS(status)) {
-            Log("[XM] 读取文件失败: 0x%x", status);
-            break;
-        }
-
-        // 2. 通过PDB获取KeServiceDescriptorTable的RVA
-        INIT_NTOS;
-        ULONG_PTR ssdtStructRVA = ntos.GetPointerRVA("KeServiceDescriptorTable");
-        ULONG_PTR ntosBase = ntos.GetModuleBase();
-        Log("[XM] KeServiceDescriptorTable RVA: 0x%x  ntosBase:%p", ssdtStructRVA, ntosBase);
-
-        // 3. RVA转FOA，获取SSDT结构
-        ULONG_PTR ssdtStructFOA = RVA2FOA(fileBuffer, ssdtStructRVA);
-        if (!ssdtStructFOA) {
-            Log("[XM] KeServiceDescriptorTable RVA转FOA失败");
-            status = STATUS_UNSUCCESSFUL;
-            break;
-        }
-        Log("[XM] KeServiceDescriptorTable FOA: 0x%x", ssdtStructFOA);
-
-        // 4. 读取SSDT结构并验证
-        SYSTEM_SERVICE_DESCRIPTOR_TABLE* pSSDT = (SYSTEM_SERVICE_DESCRIPTOR_TABLE*)((PUCHAR)fileBuffer + ssdtStructFOA);
-
-        Log("[XM] 文件中的SSDT结构:");
-        Log("[XM]   ServiceTableBase: 0x%x", pSSDT->Base);
-        Log("[XM]   NumberOfServices: %d", pSSDT->NumberOfServices);
-        Log("[XM]   ServiceCounterTable: 0x%x", pSSDT->ServiceCounterTable);
-        Log("[XM]   ParamTableBase: 0x%x", pSSDT->ParamTableBase);
-
-        // 验证数据合理性
-        if (pSSDT->NumberOfServices == 0 || pSSDT->NumberOfServices > 1000) {
-            Log("[XM] SSDT服务数量异常: %d", pSSDT->NumberOfServices);
-            status = STATUS_DATA_ERROR;
-            break;
-        }
-
-        // 5. 获取服务函数表
-        ULONG_PTR serviceTableRVA = (ULONG_PTR)pSSDT->Base;
-        ULONG_PTR serviceTableFOA = RVA2FOA(fileBuffer, serviceTableRVA);
-        if (!serviceTableFOA) {
-            Log("[XM] ServiceTable RVA转FOA失败");
-            status = STATUS_UNSUCCESSFUL;
-            break;
-        }
-
-        Log("[XM] KiServiceTable RVA: 0x%x, FOA: 0x%x", serviceTableRVA, serviceTableFOA);
-        ULONG* pServiceTable = (ULONG*)((PUCHAR)fileBuffer + serviceTableFOA);
-
-        // 6. 验证前几个服务表项
-        Log("[XM] 文件中前5个SSDT表项(编码值):");
-        for (ULONG i = 0; i < 5 && i < pSSDT->NumberOfServices; i++) {
-            Log("[XM]   [%d] = 0x%08x", i, pServiceTable[i]);
-        }
-
-    } while (0);
-
-    // 清理资源
-    if (fileBuffer) ExFreePool(fileBuffer);
-    if (fileHandle) ZwClose(fileHandle);
 
     return status;
 }
-*/
+

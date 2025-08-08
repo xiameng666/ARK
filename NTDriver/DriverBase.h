@@ -16,8 +16,8 @@
 
 extern "C" {
 
-    void ClearWP();
-    void SetWP();
+    void EnableWrite();
+    void DisableWrite();
 
     NTSTATUS SetPdbPath(PWCHAR InputPath);
 

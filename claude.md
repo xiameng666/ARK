@@ -100,7 +100,7 @@ include/proto.h    # 驱动与应用通信协议
 
 1. ~~驱动检测隐藏~~ ✅ 已完成
 2. 中断表恢复  
-3. ShadowSSDT恢复  
+3. ~~ShadowSSDT恢复~~ ✅ 已完成  
 
 
 
@@ -175,7 +175,7 @@ include/proto.h    # 驱动与应用通信协议
 | SSDT恢复 | 恢复被HOOK的调用 | `CTL_RESTORE_SSDT` | `RecoverSSDT()`<br>`ssdt.cpp:4325` | `ArkR3::RestoreSSdt()` | 无输入输出数据 | ✅ |
 | **5. ShadowSSDT** |
 | Win32k枚举 | 枚举Win32k调用表 | `CTL_ENUM_ShadowSSDT` | `EnumShadowSSDT()`<br>`ssdt.cpp:55` | `ArkR3::ShadowSSDTGetVec()`<br>`ArkR3.cpp:785` | `ShadowSSDT_INFO` | ✓ |
-| Win32k恢复 | 恢复Win32k HOOK | **待新增** | **待实现** | **待实现** | **待设计** | ✗ |
+| Win32k恢复 | 恢复Win32k HOOK | `CTL_RESTORE_ShadowSSDT` | `RecoverShadowSSDT()`<br>`ssdt.cpp:4602` | `ArkR3::RestoreShadowSSDT()` | 无输入输出数据 | ✅ |
 | **6. 中断表IDT** |
 | IDT枚举 | 枚举中断描述符表 | **待新增** | **待实现** | **待实现** | **待设计** | ✗ |
 | IDT恢复 | 恢复被HOOK的中断 | **待新增** | **待实现** | **待实现** | **待设计** | ✗ |
@@ -274,6 +274,99 @@ R3用户层:
 - ShadowSSDT Hook检测：对比原始地址vs当前地址
 - Win32k模块完整性验证：通过PDB符号验证函数地址
 - 双表监控：SSDT + ShadowSSDT 全覆盖系统调用
+
+# ShadowSSDT恢复 (ShadowSSDT Restoration) 实现技术说明
+
+## 完成状态：✅ 已实现
+
+### 核心技术难点解决
+
+**1. win32u.dll PE解析与系统调用号提取**
+```cpp
+// win32u.dll中的Nt*函数存根格式：
+// 4C 8B D1          mov r10, rcx
+// B8 XX XX XX XX    mov eax, syscall_number  (0x1000+ 基础)
+// 0F 05             syscall
+ULONG syscallNumber = *(PULONG)(funcBytes + 4);  // 0x1001, 0x1002...
+ULONG shadowIndex = syscallNumber - 0x1000;     // 转换为数组索引: 1, 2...
+```
+
+**2. KeServiceDescriptorTableShadow正确访问**
+```cpp
+// 错误方式：指针偏移计算不准确
+// PSYSTEM_SERVICE_DESCRIPTOR_TABLE pShadowSSDT = 
+//     (PSYSTEM_SERVICE_DESCRIPTOR_TABLE)((ULONG_PTR)ntos.GetPointer("KeServiceDescriptorTable") + 0x10);
+
+// 正确方式：通过数组索引访问
+PSYSTEM_SERVICE_DESCRIPTOR_TABLE ShadowTableArray = 
+    (PSYSTEM_SERVICE_DESCRIPTOR_TABLE)ntos.GetPointer("KeServiceDescriptorTableShadow");
+PSYSTEM_SERVICE_DESCRIPTOR_TABLE pShadowSSDT = &ShadowTableArray[1];  // ShadowSSDT是数组[1]
+```
+
+**3. Hook检测与恢复算法**
+```cpp
+// Hook检测：win32u.dll系统调用号 → ShadowSSDT数组索引 → 当前函数地址vs PDB原始地址
+ULONG_PTR mem_ssdtItemVA = SSDT_GetPfnAddr(shadowIndex, pShadowSSDT->Base);  // 当前地址
+ULONG_PTR pdb_ssdtItemVA = win32k.GetModuleBase() + win32k.GetPointerRVA(functionName);  // 原始地址
+
+if (pdb_ssdtItemVA != mem_ssdtItemVA) {
+    // 检测到Hook，重新编码正确地址并写回ShadowSSDT
+    ULONG ssdtItem = SSDT_EncodePfnAddr(pdb_ssdtItemVA, pShadowSSDT->Base);
+    ClearWP();
+    pShadowSSDT->Base[shadowIndex] = ssdtItem;  // 关键：使用shadowIndex而非syscallNumber
+    SetWP();
+}
+```
+
+**4. 关键bug修复**
+- **数组越界问题**: 系统调用号0x1001不能直接作为数组索引，需要减去0x1000
+- **表获取错误**: 必须使用KeServiceDescriptorTableShadow[1]而非偏移计算
+- **符号解析**: NtUser*/NtGdi*函数在win32k.sys中，需使用win32k PDB
+
+### 数据流动链路
+
+```
+win32u.dll PE解析:
+导出表 → Nt*函数 → 函数体字节码 → 系统调用号(0x1000+) → ShadowSSDT索引
+
+Hook检测流程:
+系统调用号 → ShadowSSDT[1]表项地址 → 与PDB原始地址对比 → 发现Hook
+
+Hook恢复流程:  
+PDB原始地址 → SSDT编码 → 绕过写保护 → 写回ShadowSSDT[shadowIndex] → 恢复完成
+```
+
+### 实现文件
+
+| 层级 | 文件 | 核心函数 | 功能 |
+|------|------|----------|------|
+| R0 | `ssdt.cpp:4602` | `RecoverShadowSSDT()` | ShadowSSDT恢复主函数，解析win32u.dll获取映射关系 |
+| R0 | `ssdt.cpp:4246` | `SSDT_EncodePfnAddr()` | 函数地址编码为SSDT表项值 |
+| R0 | `ssdt.cpp:4228` | `SSDT_GetPfnAddr()` | SSDT表项值解码为函数地址 |
+| R0 | `DriverBase.cpp` | `CTL_RESTORE_ShadowSSDT` | 控制码处理，调用恢复函数 |
+| R3 | `ArkR3.cpp` | `RestoreShadowSSDT()` | 用户态接口，发送恢复请求 |
+
+### 学习要点
+
+**Windows内核架构**:
+- win32u.dll是Win32k系统调用的用户态存根库
+- ShadowSSDT系统调用号从0x1000开始编号
+- KeServiceDescriptorTableShadow是包含[0]普通SSDT和[1]ShadowSSDT的数组
+
+**PE文件格式**:
+- win32u.dll导出表包含所有NtUser*/NtGdi*函数存根
+- 每个存根前8字节包含mov指令和系统调用号
+- 通过RVA到FOA转换读取PE文件中的函数体
+
+**反Rootkit技术**:
+- 双重验证：PE解析获取映射 + PDB符号获取原始地址
+- 系统调用表完整性检查：对比当前表项vs预期地址
+- 内存保护绕过：CR0.WP位操作允许修改只读系统表
+
+**技术细节**:
+- win32u.dll解析：通过PE导出表和函数字节码获取调用号映射
+- PDB符号解析：win32k.sys的调试符号提供函数原始地址
+- 编码算法：ShadowSSDT使用与普通SSDT相同的压缩存储格式
 
 # SSDT恢复 (SSDT Restoration) 实现技术说明
 

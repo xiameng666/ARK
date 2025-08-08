@@ -14,7 +14,6 @@
 #include <Shlobj.h>
 #include <PathCch.h>
 #include <set>
-#include"pestruct.h"
 #define ARKR3
 
 #ifdef _WIN64
@@ -66,38 +65,44 @@ public:
     ArkR3();
     ~ArkR3();
 
-    // 从ezpdb获取PDB路径并设置给驱动
-    bool SendPdbPath2R0();
-
-    bool SendWin32kPath2R0();
-    
+    bool SendPdbPath2R0();                              // 从ezpdb获取PDB路径并设置给驱动
     bool InitSymbolState();                             //初始化符号信息到成员变量
-    ULONG_PTR GetSSDTBaseRVA();
-    void GetFileSSDT();
-    bool RestoreShadowSSdt();
-    bool RestoreSSdt();
+    bool EnumAllSymbols();
+
     ULONG_PTR GetModuleBase(const char* moduleName);    //NtApi获取模块基址
     ULONG_PTR GetKernelSymbolVA(const char* symbolName);
     ULONG GetKernelSymbolOffset(const char* structName, const wchar_t* fieldName);
-    //ntbase_+rva
     BOOL SendVA(ULONG_PTR va);                          //WriteFile发送VA到R0的g_VA
 
-    //修复模块中名称中systemroot等信息
+    // 辅助函数 修复模块中名称中systemroot等信息
     std::wstring FixModulePath(const std::wstring& path);
     std::string FixModulePath(const std::string& path);
 
+    // GDT
     PSEGDESC GDTGetSingle(UINT cpuIndex, PGDTR pGdtr, DWORD* pRetBytes); //获得单核GDT表数据指针
     std::vector<GDT_INFO> GDTGetVec();                                   //返回所有核心GDT数组_gdtVec
     std::vector<GDT_INFO> GDTVec_;
 
+    // SSDT
+    std::vector<SSDT_INFO> SSDTGetVec();
+    std::string GetWin32kFunctionName(ULONG_PTR address);
+    std::vector<SSDT_INFO> SSDTVec_;
+    bool RestoreSSdt();
+
+    // ShadowSSDT
+    std::vector<ShadowSSDT_INFO> ShadowSSDTGetVec();
+    std::vector<ShadowSSDT_INFO> ShadowSSDTVec_;
+    bool RestoreShadowSSdt();
+
+    // IDT
     DWORD IdtGetCount();
     std::vector<IDT_INFO> IdtGetVec();
     std::vector<IDT_INFO> IDTVec_;
+    bool RestoreIDT();
 
     BOOL MemAttachRead(DWORD ProcessId, ULONG_PTR VirtualAddress, DWORD Size); //附加读
-    BOOL MemAttachWrite(DWORD ProcessId, ULONG_PTR VirtualAddress, DWORD Size);
-
-    //附加写
+    BOOL MemAttachWrite(DWORD ProcessId, ULONG_PTR VirtualAddress, DWORD Size);//附加写
+    
     BOOL MemEnsureBufferSize(DWORD requiredSize);                          //确保缓冲区大小
     void MemClearBuffer();                                                 //清空内存读写的缓冲区
 
@@ -123,15 +128,6 @@ public:
     std::vector<MODULE_INFO> ProcessModuleGetVec(DWORD processId, DWORD moduleCount = 0);
     std::vector<MODULE_INFO> ProcessModuleVec_;
 
-    //SSDT
-    std::vector<SSDT_INFO> SSDTGetVec();
-    std::string GetWin32kFunctionName(ULONG_PTR address);
-    std::vector<SSDT_INFO> SSDTVec_;
-
-    //ShadowSSDT
-    std::vector<ShadowSSDT_INFO> ShadowSSDTGetVec();
-    std::vector<ShadowSSDT_INFO> ShadowSSDTVec_;
-
     // 回调相关
     std::vector<CALLBACK_INFO> CallbackGetVec(CALLBACK_TYPE type);      // 获取指定类型的回调列表
     BOOL CallbackDelete(CALLBACK_TYPE type, ULONG index, PVOID CallbackFuncAddr);
@@ -149,27 +145,16 @@ public:
     std::vector<DRIVER_OBJECT_INFO> DriverObjectGetVec();               //获取驱动对象
     std::vector<DRIVER_OBJECT_INFO> DriverObjectVec_;                    //驱动对象缓存
     std::vector<DRIVER_OBJECT_INFO> ArkR3::DriverHideDetect();
-    bool EnumAllSymbols();
-    //网络
+
+    // 网络
     void GetTcpStateString(DWORD dwState, char* stateStr, size_t stateSize);
     std::vector<NETWORK_PORT_INFO> NetworkPortGetVec();                 // 获取网络端口相关信息
     std::vector<NETWORK_PORT_INFO> NetworkPortVec_;                     // 网络端口信息缓存
 
-    //文件
+    // 文件
     BOOL ForceDeleteFile(const std::string& filePath);
     BOOL UnlockFile(const std::string& filePath);
-    
-    // SSDTHOOK 
-    BOOL StartSSDTHook(HOOK_SSDT_Index flag);
-    BOOL EndSSDTHook(HOOK_SSDT_Index flag);
-
-    std::vector<PROCESS_EVENT> ProcessEventsVec_;
-    BOOL isHookThreadRunning_ = FALSE;
-    PLOG_BUFFER pSharedLogBuffer_ = NULL;       //映射到的R3内存地址
-    void ArkR3::ReadProcessEvents();
-
-    static DWORD WINAPI LogThreadProc(LPVOID lpParam);
-    HANDLE hLogThread_ = NULL;
+   
 };
 
 typedef struct _RTL_PROCESS_MODULE_INFORMATION {

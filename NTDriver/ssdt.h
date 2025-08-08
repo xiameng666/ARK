@@ -8,6 +8,8 @@ extern "C" {
     NTSTATUS RecoverSSDT();
 
     NTSTATUS RecoverShadowSSDT();
+    NTSTATUS RecoverShadowSSDT_Win7();
+    NTSTATUS RecoverShadowSSDT_win32u();
 
     NTSTATUS EnumShadowSSDT(PSSDT_INFO SsdtBuffer, PULONG SsdtCount);
 

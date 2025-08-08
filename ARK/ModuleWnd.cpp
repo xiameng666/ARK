@@ -27,7 +27,7 @@ void ModuleWnd::RenderDriverObject() {
     }
 
     ImGui::SameLine();
-    if (ImGui::Button(u8"比较隐藏模块")) {
+    if (ImGui::Button(u8"与驱动模块比较")) {
         ctx_->driverObjectUiVec = ctx_->arkR3.DriverHideDetect();
     }
 
@@ -127,13 +127,13 @@ void ModuleWnd::RenderModuleTable(const std::vector<MODULE_INFO>& moduleList, co
         for (size_t i = 0; i < moduleList.size(); i++) {
             const auto& module = moduleList[i];
 
-            if (ctx_->showOnlySysFiles_) {
-                std::string moduleName = module.Name;
-                std::transform(moduleName.begin(), moduleName.end(), moduleName.begin(), ::tolower);
-                if (moduleName.find(".sys") == std::string::npos) {
-                    continue;  // 跳过非.sys文件
-                }
+        if (ctx_->showOnlySysFiles_) {
+            std::string moduleName = module.Name;
+            std::transform(moduleName.begin(), moduleName.end(), moduleName.begin(), ::tolower);
+            if (moduleName.find(".sys") == std::string::npos) {
+                continue;  // 跳过非.sys文件
             }
+        }
 
             ImGui::TableNextRow();
             

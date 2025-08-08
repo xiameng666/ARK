@@ -210,8 +210,8 @@ void FileWnd::RenderFileList() {
                 std::string name = dir.name;
 
                 // 转换为小写进行比较
-                for (char& c : name) c = tolower(c);
-                for (char& c : filter) c = tolower(c);
+                for (char& c : name) c = (char)tolower(c);
+                for (char& c : filter) c = (char)tolower(c);
 
                 if (name.find(filter) == std::string::npos) {
                     continue;
@@ -266,8 +266,8 @@ void FileWnd::RenderFileList() {
                 std::string name = file.fileName;
 
                 // 转为小写
-                for (char& c : name) c = tolower(c);
-                for (char& c : filter) c = tolower(c);
+                for (char& c : name) c = (char)tolower(c);
+                for (char& c : filter) c = (char)tolower(c);
 
                 if (name.find(filter) == std::string::npos) {
                     continue;
