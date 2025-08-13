@@ -720,7 +720,7 @@ NTSTATUS DispatchDeviceControl(_In_ struct _DEVICE_OBJECT* DeviceObject, _Inout_
 
                 //要写的数据在请求头后
                 PVOID writeData = (PUCHAR)Irp->AssociatedIrp.SystemBuffer + sizeof(PROCESS_MEM_REQ);
-                status = MemApiWrite(memReq->ProcessId, memReq->VirtualAddress,
+                status = AttachWriteVirtualMem(memReq->ProcessId, memReq->VirtualAddress,
                     writeData, memReq->Size);
 
                 if (NT_SUCCESS(status)) {

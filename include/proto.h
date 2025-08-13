@@ -207,7 +207,7 @@ typedef struct PROCESS_INFO {
     ULONG ParentProcessId;              // 父进程ID
     CHAR ImageFileName[16];             // 进程名称（短名）
     PVOID EprocessAddr;                 // EPROCESS地址
-    ULONG DirectoryTableBase;           // CR3页目录基地址  
+    ULONG_PTR DirectoryTableBase;       // CR3页目录基地址 (64位)
     WCHAR FullPathName[260];            // 完整路径
 }*PPROCESS_INFO;
 

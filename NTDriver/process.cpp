@@ -147,7 +147,6 @@ NTSTATUS TerminateProcessByThread(HANDLE ProcessId)
 
 extern "C" NTSTATUS SeLocateProcessImageName(PEPROCESS Process, PUNICODE_STRING * ImagePath);
 
-
 NTSTATUS EnumProcessByApiEx(PPROCESS_INFO ProcessInfos, BOOLEAN bCountOnly, PULONG pCount) {
     Log("[XM] EnumProcessByApiEx 开始枚举进程，CountOnly=%d", bCountOnly);
 
@@ -281,7 +280,6 @@ NTSTATUS AttachWriteVirtualMem(HANDLE ProcessId, PVOID BaseAddress, PVOID Buffer
 
     PhysicalAddress = MmGetPhysicalAddress(BaseAddress);
 
-    //虚拟地址没有被映射为物理地址 不读了 
     if (PhysicalAddress.QuadPart == 0) {
         KdPrint(("[XM] AttachReadVirtualMem VA: %p (maps to physical 0x0)\n", BaseAddress));
         KeUnstackDetachProcess(&ApcState);
@@ -335,7 +333,6 @@ NTSTATUS MemApiRead(HANDLE ProcessId, PVOID VirtualAddress, PVOID Buffer, SIZE_T
     SIZE_T BytesRead = 0;
     
     __try {
-        // 使用MmCopyVirtualMemory进行安全的跨进程内存复制
         Status = MmCopyVirtualMemory(
             SourceProcess,              // 源进程
             VirtualAddress,             // 源地址
@@ -381,7 +378,6 @@ NTSTATUS MemApiWrite(HANDLE ProcessId, PVOID VirtualAddress, PVOID Buffer, SIZE_
     SIZE_T BytesWritten = 0;
     
     __try {
-        // 使用MmCopyVirtualMemory进行安全的跨进程内存复制
         Status = MmCopyVirtualMemory(
             SourceProcess,              // 源进程(当前驱动)
             Buffer,                     // 源缓冲区
@@ -415,7 +411,7 @@ NTSTATUS EnumProcessBySearchMem(PPROCESS_INFO ProcessInfos, PULONG pCount)
 
     PsLookupProcessByProcessId((HANDLE)4, &systemProcess);
     ULONG_PTR startAddr = (ULONG_PTR)systemProcess & ~0xFFFFFFF;
-    ULONG_PTR endAddr = startAddr + 0x10000000;
+    ULONG_PTR endAddr = startAddr + 0x20000000;
 
     Log("startAddr:%p endAddr:%p", startAddr, endAddr);
     ObDereferenceObject(systemProcess);
@@ -426,10 +422,11 @@ NTSTATUS EnumProcessBySearchMem(PPROCESS_INFO ProcessInfos, PULONG pCount)
     size_t imagename_offset = ntos.GetOffset("_EPROCESS", "ImageFileName");
     size_t header_type_offset = ntos.GetOffset("_KPROCESS", "Header") +
         ntos.GetOffset("_DISPATCHER_HEADER", "Type");//这个应该是0
-    size_t activelinks_offset = ntos.GetOffset("_EPROCESS", "ActiveProcessLinks");
+    //size_t activelinks_offset = ntos.GetOffset("_EPROCESS", "ActiveProcessLinks");
     size_t ppid_offset = ntos.GetOffset("_EPROCESS", "InheritedFromUniqueProcessId");
     //size_t handletable_offset = ntos.GetOffset("_EPROCESS", "ObjectTable");
     size_t directory_table_offset = ntos.GetOffset("_KPROCESS", "DirectoryTableBase") + pcb_offset;
+    size_t exittime_offset = ntos.GetOffset("_EPROCESS", "ExitTime");
 
     Log("pcb_offset:%p pid_offset:%p imagename_offset:%p header_type_offset:%p directory_table_offset:%p",
         pcb_offset, pid_offset, imagename_offset, header_type_offset, directory_table_offset);
@@ -464,6 +461,7 @@ NTSTATUS EnumProcessBySearchMem(PPROCESS_INFO ProcessInfos, PULONG pCount)
             PCHAR imageName = (PCHAR)(eproc_bytes + imagename_offset);
             if (strlen(imageName) > 16) continue;
 
+            /*
             //  ActiveProcessLinks
             if (!MmIsAddressValid(eproc_bytes + activelinks_offset)) continue;
             LIST_ENTRY* activeLinks = (LIST_ENTRY*)(eproc_bytes + activelinks_offset);
@@ -472,6 +470,7 @@ NTSTATUS EnumProcessBySearchMem(PPROCESS_INFO ProcessInfos, PULONG pCount)
                     continue; // 链表指针不一致，跳过
                 }
             }
+            */
 
             /*
             // HandleTable
@@ -490,11 +489,19 @@ NTSTATUS EnumProcessBySearchMem(PPROCESS_INFO ProcessInfos, PULONG pCount)
             if ((dtb & 0xFFF) != 0) continue;  //低12位为0
             if (dtb == 0 )  continue;
 
+            // ExitTime 运行中的进程应该为0
+            if (!MmIsAddressValid(eproc_bytes + exittime_offset)) continue;
+            LARGE_INTEGER exitTime = *(PLARGE_INTEGER)(eproc_bytes + exittime_offset);
+            if (exitTime.QuadPart != 0) {
+                continue; 
+            }
+
             /*
             //通过所有验证
             Log("[XM] ValidEPROCESS: PID=%d, Name=%s, EPROCESS=0x%p, HandleTable=0x%p ,dtb=%p",
                 (ULONG)(ULONG_PTR)pid, imageName, addr, handleTable, dtb);
 */
+            //复制到缓冲区
             PPROCESS_INFO pInfo = &ProcessInfos[Count];
             RtlZeroMemory(pInfo, sizeof(PROCESS_INFO));
 
@@ -504,14 +511,13 @@ NTSTATUS EnumProcessBySearchMem(PPROCESS_INFO ProcessInfos, PULONG pCount)
 
             RtlCopyMemory(pInfo->ImageFileName, imageName,sizeof(pInfo->ImageFileName));
 
-
             pInfo->ParentProcessId = (ULONG)(ULONG_PTR)ppid;
 
-            pInfo->DirectoryTableBase = (ULONG)dtb;
+            pInfo->DirectoryTableBase = dtb;
 
             pInfo->FullPathName[0] = L'\0';
             
-            // 通过PID查找有效的PEPROCESS来获取路径
+            // 通过PID查找PEPROCESS路径
             PEPROCESS validProcess = NULL;
             if (NT_SUCCESS(PsLookupProcessByProcessId((HANDLE)pid, &validProcess))) {
                 PUNICODE_STRING fullPathName = NULL;
@@ -525,11 +531,13 @@ NTSTATUS EnumProcessBySearchMem(PPROCESS_INFO ProcessInfos, PULONG pCount)
                 }
                 ObDereferenceObject(validProcess);
             }
-            
+            /*
+            else {
+                if (pid != (HANDLE)4) continue;
+            }
+            */
 
             Count++;
-
-            //复制到缓冲区
 
         }
         __except (1) {
